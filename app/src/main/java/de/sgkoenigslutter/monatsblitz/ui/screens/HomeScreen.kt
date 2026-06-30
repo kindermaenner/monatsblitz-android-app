@@ -32,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import de.sgkoenigslutter.monatsblitz.data.model.GameMode
-import de.sgkoenigslutter.monatsblitz.data.model.Tournament
 import de.sgkoenigslutter.monatsblitz.ui.viewmodels.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,7 +86,7 @@ fun ModeSelector(
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    onStartTournament: () -> Unit
+    onStartTournament: (Int) -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
 

@@ -3,14 +3,13 @@ package de.sgkoenigslutter.monatsblitz.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import de.sgkoenigslutter.monatsblitz.data.model.GameMode
 import de.sgkoenigslutter.monatsblitz.data.model.Player
-import de.sgkoenigslutter.monatsblitz.data.model.Tournament
 import de.sgkoenigslutter.monatsblitz.ui.screens.HomeUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class HomeViewModel(
     private val getPlayers: () -> List<Player>,
-    private val createTournament: (List<Int>, GameMode, Boolean) -> Unit
+    private val createTournament: (List<Int>, GameMode, Boolean) -> Int
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -45,17 +44,17 @@ class HomeViewModel(
         _uiState.value = _uiState.value.copy(doubleRound = value)
     }
 
-    fun startTournament(onStarted: () -> Unit) {
+    fun startTournament(onStarted: (Int) -> Unit) {
         val state = _uiState.value
 
         if (state.selectedPlayerIds.size < 2) return
 
-        createTournament(
+        val tournamentId = createTournament(
             state.selectedPlayerIds.toList(),
             state.selectedMode,
             state.doubleRound
         )
 
-        onStarted()
+        onStarted(tournamentId)
     }
 }

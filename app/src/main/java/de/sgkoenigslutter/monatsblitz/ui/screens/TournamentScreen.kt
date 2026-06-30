@@ -65,7 +65,7 @@ fun CrosstableHeader(
                     modifier = Modifier.width(CellWidth),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(index.toString())
+                    Text((index+1).toString())
                 }
             }
         }

@@ -1,8 +1,11 @@
 package de.sgkoenigslutter.monatsblitz.infrastructure
 
+import de.sgkoenigslutter.monatsblitz.BuildConfig
 import de.sgkoenigslutter.monatsblitz.data.model.GameMode
 import de.sgkoenigslutter.monatsblitz.data.model.Player
 import de.sgkoenigslutter.monatsblitz.data.model.Tournament
+import de.sgkoenigslutter.monatsblitz.infrastructure.api.RetrofitClient
+import de.sgkoenigslutter.monatsblitz.infrastructure.api.impl.RemoteApiDataSourceImpl
 
 /**
  * Local repository cache in front of the remote API layer.
@@ -10,7 +13,10 @@ import de.sgkoenigslutter.monatsblitz.data.model.Tournament
  */
 object MonatsblitzRepository {
 
-    private val remoteApi: RemoteApiDataSource = FakeRemoteApiDataSource()
+    private val remoteApi: RemoteApiDataSource by lazy {
+        val api = RetrofitClient.createApi(BuildConfig.API_KEY)
+        RemoteApiDataSourceImpl(api)
+    }
 
     private val lock = Any()
     private var playersCache: List<Player>? = null
@@ -18,7 +24,12 @@ object MonatsblitzRepository {
 
     fun getPlayers(forceRefresh: Boolean = false): List<Player> = synchronized(lock) {
         if (playersCache == null || forceRefresh) {
-            playersCache = remoteApi.fetchPlayers()
+            playersCache = try {
+                remoteApi.fetchPlayers()
+            } catch (e: Exception) {
+                // Fallback to Fake data if API fails
+                FakeRemoteApiDataSource().fetchPlayers()
+            }
         }
 
         playersCache.orEmpty()
@@ -57,7 +68,7 @@ interface RemoteApiDataSource {
     ): Tournament
 }
 
-private class FakeRemoteApiDataSource : RemoteApiDataSource {
+class FakeRemoteApiDataSource : RemoteApiDataSource {
 
     private val players = listOf(
         Player(1, "Max", "Muller"),

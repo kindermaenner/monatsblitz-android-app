@@ -4,9 +4,19 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+import java.io.FileInputStream
+import java.util.Properties
+
 android {
     namespace = "de.sgkoenigslutter.monatsblitz"
     compileSdk = 37
+
+    val localProperties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localProperties.load(FileInputStream(localPropertiesFile))
+    }
+    val apiKey = localProperties.getProperty("API_KEY_MONATSBLITZ", "DEBUG_KEY")
 
     defaultConfig {
         applicationId = "de.sgkoenigslutter.monatsblitz"
@@ -16,6 +26,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "API_KEY", "\"$apiKey\"")
     }
 
     buildTypes {
@@ -36,6 +48,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -56,6 +69,8 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
 
     implementation(libs.retrofit)
+    implementation(libs.retrofit.serialization)
+    implementation(libs.okhttp)
 
     implementation(libs.kotlinx.serialization.json)
 

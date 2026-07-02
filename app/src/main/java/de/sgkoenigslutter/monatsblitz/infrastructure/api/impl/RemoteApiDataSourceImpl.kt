@@ -5,18 +5,16 @@ import de.sgkoenigslutter.monatsblitz.data.model.Player
 import de.sgkoenigslutter.monatsblitz.data.model.Tournament
 import de.sgkoenigslutter.monatsblitz.infrastructure.RemoteApiDataSource
 import de.sgkoenigslutter.monatsblitz.infrastructure.api.MonatsblitzApi
+import de.sgkoenigslutter.monatsblitz.infrastructure.api.dto.PlayerDto
+import de.sgkoenigslutter.monatsblitz.infrastructure.api.dto.toPlayer
+import java.time.LocalDate
+import kotlin.collections.map
 
 class RemoteApiDataSourceImpl(private val api: MonatsblitzApi) : RemoteApiDataSource {
 
     override suspend fun fetchPlayers(): List<Player> {
         return try {
-            api.getPlayers().map { dto ->
-                Player(
-                    id = dto.id,
-                    Name = dto.surname,
-                    Vorname = dto.forename
-                )
-            }
+            api.getPlayers().map { dto -> dto.toPlayer()}
         } catch (e: Exception) {
             throw RuntimeException("Failed to fetch players from API", e)
         }
@@ -30,10 +28,11 @@ class RemoteApiDataSourceImpl(private val api: MonatsblitzApi) : RemoteApiDataSo
         // Tournament creation is not yet implemented in the API
         // For now, return a local tournament object
         return Tournament(
-            Id = System.currentTimeMillis().toInt(),
-            Name = "Monatsblitz ${mode.displayName}",
+            Id = 1,
+            Mode = mode,
+            Date = LocalDate.now(),
             players = players,
-            doubleRound = doubleRound
-        )
+
+            doubleRound = doubleRound);
     }
 }

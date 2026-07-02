@@ -7,6 +7,7 @@ import de.sgkoenigslutter.monatsblitz.data.model.Tournament
 import de.sgkoenigslutter.monatsblitz.infrastructure.api.RetrofitClient
 import de.sgkoenigslutter.monatsblitz.infrastructure.api.impl.RemoteApiDataSourceImpl
 import android.util.Log
+import java.time.LocalDate
 
 /**
  * Local repository cache in front of the remote API layer.
@@ -92,7 +93,8 @@ class FakeRemoteApiDataSource : RemoteApiDataSource {
     ): Tournament {
         val tournament = Tournament(
             Id = nextTournamentId,
-            Name = "Monatsblitz ${mode.displayName}",
+            Mode = mode,
+            Date = LocalDate.now(),
             players = players,
             doubleRound = doubleRound
         )

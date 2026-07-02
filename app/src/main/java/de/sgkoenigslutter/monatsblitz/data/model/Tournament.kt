@@ -1,7 +1,10 @@
 package de.sgkoenigslutter.monatsblitz.data.model
 
+import java.time.LocalDate
+
 data class Tournament(val Id: Int,
-                      val Name : String,
+                      val Mode : GameMode,
+                      val Date : LocalDate,
                       val players: List<Player>,
                       val doubleRound: Boolean,
                       val results: MutableMap<Pair<Int, Int>, GameResult> =  mutableMapOf(),
@@ -13,3 +16,4 @@ data class Tournament(val Id: Int,
         return results[rowIndex to columnIndex]?.displayName?:"";
     }
 }
+

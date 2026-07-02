@@ -8,15 +8,13 @@ import de.sgkoenigslutter.monatsblitz.infrastructure.api.MonatsblitzApi
 
 class RemoteApiDataSourceImpl(private val api: MonatsblitzApi) : RemoteApiDataSource {
 
-    override fun fetchPlayers(): List<Player> {
+    override suspend fun fetchPlayers(): List<Player> {
         return try {
-            // Note: Using blocking call - in production, use coroutines
-            val dtos = api.getPlayers()
-            dtos.map { dto ->
+            api.getPlayers().map { dto ->
                 Player(
-                    id = dto.Id,
-                    Name = dto.Name,
-                    Vorname = dto.Vorname
+                    id = dto.id,
+                    Name = dto.surname,
+                    Vorname = dto.forename
                 )
             }
         } catch (e: Exception) {
@@ -24,7 +22,7 @@ class RemoteApiDataSourceImpl(private val api: MonatsblitzApi) : RemoteApiDataSo
         }
     }
 
-    override fun createTournament(
+    override suspend fun createTournament(
         players: List<Player>,
         mode: GameMode,
         doubleRound: Boolean

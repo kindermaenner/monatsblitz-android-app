@@ -70,6 +70,7 @@ dependencies {
 
     implementation(libs.retrofit)
     implementation(libs.retrofit.serialization)
+    implementation(libs.retrofit.adapter.java8)
     implementation(libs.okhttp)
 
     implementation(libs.kotlinx.serialization.json)

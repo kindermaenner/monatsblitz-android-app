@@ -1,25 +1,24 @@
 package de.sgkoenigslutter.monatsblitz.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import de.sgkoenigslutter.monatsblitz.data.model.GameMode
 import de.sgkoenigslutter.monatsblitz.data.model.Player
 import de.sgkoenigslutter.monatsblitz.ui.screens.HomeUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 class HomeViewModel(
-    private val getPlayers: () -> List<Player>,
-    private val createTournament: (List<Int>, GameMode, Boolean) -> Int
+    private val getPlayers: suspend () -> List<Player>,
+    private val createTournament: suspend (List<Int>, GameMode, Boolean) -> Int,
+    private val onTournamentCreated: (Int) -> Unit = {}
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState
 
-    init {
-        loadPlayers()
-    }
-
-    private fun loadPlayers() {
+    suspend fun loadPlayers() {
         _uiState.value = _uiState.value.copy(
             players = getPlayers()
         )
@@ -44,17 +43,18 @@ class HomeViewModel(
         _uiState.value = _uiState.value.copy(doubleRound = value)
     }
 
-    fun startTournament(onStarted: (Int) -> Unit) {
+    fun startTournament() {
         val state = _uiState.value
 
         if (state.selectedPlayerIds.size < 2) return
 
-        val tournamentId = createTournament(
-            state.selectedPlayerIds.toList(),
-            state.selectedMode,
-            state.doubleRound
-        )
-
-        onStarted(tournamentId)
+        viewModelScope.launch {
+            val tournamentId = createTournament(
+                state.selectedPlayerIds.toList(),
+                state.selectedMode,
+                state.doubleRound
+            )
+            onTournamentCreated(tournamentId)
+        }
     }
 }

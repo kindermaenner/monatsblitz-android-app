@@ -6,6 +6,7 @@ import de.sgkoenigslutter.monatsblitz.data.model.Player
 import de.sgkoenigslutter.monatsblitz.data.model.Tournament
 import de.sgkoenigslutter.monatsblitz.infrastructure.api.RetrofitClient
 import de.sgkoenigslutter.monatsblitz.infrastructure.api.impl.RemoteApiDataSourceImpl
+import android.util.Log
 
 /**
  * Local repository cache in front of the remote API layer.
@@ -18,28 +19,29 @@ object MonatsblitzRepository {
         RemoteApiDataSourceImpl(api)
     }
 
-    private val lock = Any()
     private var playersCache: List<Player>? = null
     private val tournamentCache: MutableMap<Int, Tournament> = mutableMapOf()
 
-    fun getPlayers(forceRefresh: Boolean = false): List<Player> = synchronized(lock) {
+    suspend fun getPlayers(forceRefresh: Boolean = false): List<Player> {
+        Log.i("MonatsblitzRepository", "Fetching players (forceRefresh=$forceRefresh)")
         if (playersCache == null || forceRefresh) {
             playersCache = try {
                 remoteApi.fetchPlayers()
             } catch (e: Exception) {
+                Log.e("MonatsblitzRepository", "Fetching players failed: ${e.message}. Falling back to fake data.", e)
                 // Fallback to Fake data if API fails
                 FakeRemoteApiDataSource().fetchPlayers()
             }
         }
 
-        playersCache.orEmpty()
+        return playersCache.orEmpty()
     }
 
-    fun createTournament(
+    suspend fun createTournament(
         playerIds: List<Int>,
         mode: GameMode,
         doubleRound: Boolean
-    ): Tournament = synchronized(lock) {
+    ): Int {
         val playersById = getPlayers().associateBy { it.id }
         val selectedPlayers = playerIds.mapNotNull { id -> playersById[id] }
 
@@ -50,18 +52,18 @@ object MonatsblitzRepository {
         )
 
         tournamentCache[tournament.Id] = tournament
-        tournament
+        return tournament.Id
     }
 
-    fun getTournament(tournamentId: Int): Tournament? = synchronized(lock) {
-        tournamentCache[tournamentId]
+    fun getTournament(tournamentId: Int): Tournament? {
+        return tournamentCache[tournamentId]
     }
 }
 
 interface RemoteApiDataSource {
-    fun fetchPlayers(): List<Player>
+    suspend fun fetchPlayers(): List<Player>
 
-    fun createTournament(
+    suspend fun createTournament(
         players: List<Player>,
         mode: GameMode,
         doubleRound: Boolean
@@ -81,9 +83,9 @@ class FakeRemoteApiDataSource : RemoteApiDataSource {
 
     private var nextTournamentId = 1
 
-    override fun fetchPlayers(): List<Player> = players
+    override suspend fun fetchPlayers(): List<Player> = players
 
-    override fun createTournament(
+    override suspend fun createTournament(
         players: List<Player>,
         mode: GameMode,
         doubleRound: Boolean

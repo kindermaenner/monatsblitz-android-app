@@ -27,16 +27,20 @@ fun AppNavHost() {
                         MonatsblitzRepository.getPlayers()
                     },
                     createTournament = { players, mode, double ->
-                        MonatsblitzRepository.createTournament(players, mode, double).Id
+                        MonatsblitzRepository.createTournament(players, mode, double)
+                    },
+                    onTournamentCreated = { tournamentId ->
+                        navController.navigate(Routes.tournamentPath(tournamentId))
                     }
                 )
             }
 
+            LaunchedEffect(Unit) {
+                viewModel.loadPlayers()
+            }
+
             HomeScreen(
-                viewModel = viewModel,
-                onStartTournament = { tournamentId ->
-                    navController.navigate(Routes.tournamentPath(tournamentId))
-                }
+                viewModel = viewModel
             )
         }
 

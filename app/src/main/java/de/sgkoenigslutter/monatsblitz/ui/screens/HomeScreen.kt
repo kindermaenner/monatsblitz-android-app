@@ -85,8 +85,7 @@ fun ModeSelector(
 
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel,
-    onStartTournament: (Int) -> Unit
+    viewModel: HomeViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -155,7 +154,7 @@ fun HomeScreen(
         // --- START BUTTON ---
         Button(
             onClick = {
-                viewModel.startTournament(onStartTournament)
+                viewModel.startTournament()
             },
             modifier = Modifier.fillMaxWidth()
         ) {

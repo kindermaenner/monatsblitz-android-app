@@ -30,7 +30,7 @@ fun TournamentDto.toTournament() : Tournament {
         Date = LocalDate.of(year, month, day),
         players = emptyList(),
         doubleRound = round_count == 2,
-        results = mutableMapOf()
+        games = mutableMapOf()
     )
 }
 
@@ -41,3 +41,4 @@ fun Tournament.toNewDto() : NewTournamentDto {
         round_count = if (doubleRound) 2 else 1
     )
 }
+

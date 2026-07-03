@@ -1,5 +1,6 @@
 package de.sgkoenigslutter.monatsblitz.infrastructure.api
 
+import de.sgkoenigslutter.monatsblitz.infrastructure.api.dto.GameDto
 import de.sgkoenigslutter.monatsblitz.infrastructure.api.dto.NewTournamentDto
 import de.sgkoenigslutter.monatsblitz.infrastructure.api.dto.PlayerDto
 import de.sgkoenigslutter.monatsblitz.infrastructure.api.dto.TournamentDto
@@ -25,4 +26,16 @@ interface MonatsblitzApi {
     suspend fun createTournament(
         @Body request: NewTournamentDto
     ): TournamentDto
+
+    @GET(value = "/games/{tournament_id}")
+    suspend fun getGames(
+        @Path("tournament_id") tournamentId: Int
+    ): List<GameDto>
+
+    @POST(value = "/game")
+    suspend fun createGame(
+        @Body request: GameDto
+    ): GameDto
+
+
 }

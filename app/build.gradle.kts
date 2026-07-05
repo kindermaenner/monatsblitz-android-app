@@ -8,7 +8,7 @@ import java.io.FileInputStream
 import java.util.Properties
 
 android {
-    namespace = "de.sgkoenigslutter.monatsblitz"
+    namespace = "de.kindermaenner.monatsblitz"
     compileSdk = 37
 
     val localProperties = Properties()
@@ -19,7 +19,7 @@ android {
     val apiKey = localProperties.getProperty("API_KEY_MONATSBLITZ", "DEBUG_KEY")
 
     defaultConfig {
-        applicationId = "de.sgkoenigslutter.monatsblitz"
+        applicationId = "de.kindermaenner.monatsblitz"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -74,6 +74,8 @@ dependencies {
     implementation(libs.okhttp)
 
     implementation(libs.kotlinx.serialization.json)
+    
+    implementation(libs.androidx.datastore.preferences)
 
     testImplementation(libs.junit)
 

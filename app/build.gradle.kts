@@ -1,10 +1,13 @@
 import java.io.FileInputStream
 import java.util.Properties
+import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+
+    id("jacoco")
 }
 
 android {
@@ -52,8 +55,46 @@ android {
     }
 }
 
-dependencies {
+jacoco {
+    toolVersion = "0.8.10"
+}
 
+tasks.register("jacocoTestReport", JacocoReport::class) {
+
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+
+    classDirectories.setFrom(
+        fileTree("${project.buildDir}/intermediates/javac/debug/classes") {
+            include("**/*.class")
+            exclude(
+                // Compose generiert viel Boilerplate → rausfiltern
+                "**/R.class",
+                "**/R$*.class",
+                "**/BuildConfig.*",
+                "**/Manifest*.*",
+                "**/*ComposableSingletons*.*"
+            )
+        }
+    )
+
+    sourceDirectories.setFrom(
+        files(
+            "src/main/java",
+            "src/main/kotlin"
+        )
+    )
+
+    executionData.setFrom(
+        files("${project.buildDir}/jacoco/testDebugUnitTest.exec")
+    )
+}
+
+dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.runtime)
 

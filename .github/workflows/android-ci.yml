@@ -40,8 +40,8 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --parallel --build-cache --no-daemon
+      - name: Run Unit Tests + Coverage
+        run: ./gradlew testDebugUnitTest jacocoTestReport --parallel --build-cache --no-daemon
 
       - name: Upload Test Reports
         if: always()
@@ -51,10 +51,8 @@ jobs:
           path: app/build/reports/tests/testDebugUnitTest/
           retention-days: 5
 
-      - name: Run Unit Tests with Coverage
-        run: ./gradlew testDebugUnitTest jacocoTestReport
-
       - name: Upload Coverage to Codecov
+        if: always()
         uses: codecov/codecov-action@v4
         with:
           files: app/build/reports/jacoco/jacocoTestReport.xml

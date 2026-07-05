@@ -26,7 +26,7 @@ fun Tournament.toDto(): TournamentDto =
     TournamentDto(
         id = Id,
         date = Date.toString(),
-        mode = Mode.name,
+        mode = Mode.displayName,
         round_count = if (doubleRound) 2 else 1,
         date_formatted = Date.toString()
     )

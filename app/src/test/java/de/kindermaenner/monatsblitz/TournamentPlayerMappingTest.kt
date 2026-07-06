@@ -1,12 +1,8 @@
 package de.kindermaenner.monatsblitz.infrastructure.api.dto
 
-import de.kindermaenner.monatsblitz.data.model.GameMode
-import de.kindermaenner.monatsblitz.data.model.Player
-import de.kindermaenner.monatsblitz.data.model.Tournament
-import de.kindermaenner.monatsblitz.infrastructure.api.dto.toDto
-import de.kindermaenner.monatsblitz.infrastructure.api.dto.toPlayer
-import de.kindermaenner.monatsblitz.infrastructure.api.dto.toPlayerDto
-import de.kindermaenner.monatsblitz.infrastructure.api.dto.toTournament
+import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.Tournament
 import org.junit.Assert.*
 import org.junit.Test
 import java.time.LocalDate

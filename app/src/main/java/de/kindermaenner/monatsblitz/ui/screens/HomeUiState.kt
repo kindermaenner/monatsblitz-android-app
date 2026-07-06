@@ -1,7 +1,7 @@
 package de.kindermaenner.monatsblitz.ui.screens
 
-import de.kindermaenner.monatsblitz.data.model.GameMode
-import de.kindermaenner.monatsblitz.data.model.Player
+import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.Player
 
 data class HomeUiState(
     val players: List<Player> = emptyList(),

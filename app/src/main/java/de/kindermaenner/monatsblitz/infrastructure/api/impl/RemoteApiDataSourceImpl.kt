@@ -1,8 +1,8 @@
 package de.kindermaenner.monatsblitz.infrastructure.api.impl
 
-import de.kindermaenner.monatsblitz.data.model.GameMode
-import de.kindermaenner.monatsblitz.data.model.Player
-import de.kindermaenner.monatsblitz.data.model.Tournament
+import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewTournamentDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto
@@ -39,5 +39,10 @@ class RemoteApiDataSourceImpl(private val api: MonatsblitzApi) : RemoteApiDataSo
             round_count = newTournamentDto.round_count
         )
         return  dto.toTournament(players)
+    }
+
+    override suspend fun getTournamentById(tournamentId: Int,  players: List<Player>): Tournament? {
+        // For the fake implementation, we can return a dummy tournament or null
+        return api.getTournament(tournamentId)?.toTournament(players)
     }
 }

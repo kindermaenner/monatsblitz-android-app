@@ -18,22 +18,23 @@ import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import de.kindermaenner.monatsblitz.ui.screens.HomeScreen
 import de.kindermaenner.monatsblitz.ui.screens.TournamentScreen
 import de.kindermaenner.monatsblitz.ui.viewmodels.HomeViewModel
+import de.kindermaenner.monatsblitz.infrastructure.DefaultMonatsblitzRepository
 import de.kindermaenner.monatsblitz.infrastructure.MonatsblitzRepository
 import kotlinx.coroutines.flow.firstOrNull
 
 @Composable
-fun AppNavHost() {
+fun AppNavHost(repository : MonatsblitzRepository) {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val tournamentStorage = remember { TournamentStorage(context) }
-    
+
     // Determine start destination based on saved tournament state
     var startDestination by remember { mutableStateOf(Routes.HOME) }
     
     LaunchedEffect(Unit) {
-        val state = tournamentStorage.getTournamentState().firstOrNull()
-        if (state != null && !state.finalized) {
-            startDestination = Routes.tournamentPath(state.tournamentId)
+        val tournament = repository.currentTournament
+        val isFinalized = repository.getTournamentState().firstOrNull()?.finalized
+        if (tournament != null && (isFinalized == false)) {
+            startDestination = Routes.tournamentPath(tournament.Id)
         }
     }
 
@@ -43,14 +44,14 @@ fun AppNavHost() {
             val viewModel = remember {
                 HomeViewModel(
                     getPlayers = {
-                        MonatsblitzRepository.getPlayers()
+                        repository.getPlayers()
                     },
                     createTournament = { players, mode, double ->
-                        val id = MonatsblitzRepository.createTournament(players, mode, double)
-                        Log.i("AppNavHost", "Tournament created with ID: $id")
-                        return@HomeViewModel id
+                        val tournament = repository.createTournament(players, mode, double)
+                        Log.i("AppNavHost", "Tournament created with ID: ${tournament?.Id}")
+                        return@HomeViewModel tournament?.Id?:0
                     },
-                    tournamentStorage = tournamentStorage,
+                    repository = repository,
                     onTournamentCreated = { tournamentId ->
                         Log.i("AppNavHost", "Navigating to tournament with ID: $tournamentId")
                         navController.navigate(Routes.tournamentPath(tournamentId)) {
@@ -74,9 +75,11 @@ fun AppNavHost() {
             arguments = listOf(navArgument(Routes.TOURNAMENT_ID_ARG) { type = NavType.IntType })
         ) { entry ->
             val tournamentId = entry.arguments?.getInt(Routes.TOURNAMENT_ID_ARG)
-            val tournament = tournamentId?.let { MonatsblitzRepository.getTournament(it) }
+            Log.i("AppNavHost", "Navigating to tournament with ID: $tournamentId")
+            val tournament = repository.currentTournament
+            Log.i("AppNavHost", "Tournament fetched: $tournament")
 
-            if (tournament == null) {
+            if ((tournament == null) || (tournamentId != tournament.Id)) {
                 LaunchedEffect(Unit) {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.HOME) { inclusive = true }

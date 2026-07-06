@@ -3,9 +3,9 @@ package de.kindermaenner.monatsblitz.ui.viewmodels
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import de.kindermaenner.monatsblitz.data.model.GameMode
-import de.kindermaenner.monatsblitz.data.model.Player
-import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
+import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.infrastructure.MonatsblitzRepository
 import de.kindermaenner.monatsblitz.ui.screens.HomeUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,8 +13,8 @@ import kotlinx.coroutines.launch
 
 class HomeViewModel(
     private val getPlayers: suspend () -> List<Player>,
-    private val createTournament: suspend (List<Int>, GameMode, Boolean) -> Int,
-    private val tournamentStorage: TournamentStorage,
+    private val createTournament: suspend (List<Int>, GameMode, Boolean) -> Int?,
+    private val repository: MonatsblitzRepository,
     private val onTournamentCreated: (Int) -> Unit = {}
 ) : ViewModel() {
 
@@ -29,7 +29,7 @@ class HomeViewModel(
         viewModelScope.launch {
             //tournamentStorage.resetAll()
             //_currentTournamentId.value = null
-            tournamentStorage.getTournamentState().collect { state ->
+            repository.getTournamentState().collect { state ->
                 if (state != null && !state.finalized) {
                     Log.i("HomeViewModel", "Resuming tournament with ID: ${state.tournamentId}")
                     _currentTournamentId.value = state.tournamentId
@@ -75,20 +75,15 @@ class HomeViewModel(
                 state.selectedMode,
                 state.doubleRound
             )
-            tournamentStorage.saveTournamentState(
-                tournamentId,
-                state.selectedPlayerIds.toList(),
-                finalized = false)
+
             _currentTournamentId.value = tournamentId
-            onTournamentCreated(tournamentId)
+            tournamentId?.let {it->onTournamentCreated(it)}
         }
     }
     
     fun finalizeTournament() {
         viewModelScope.launch {
-            _currentTournamentId.value?.let { id ->
-                tournamentStorage.finalizeTournament(id)
-            }
+            repository.finalizeTournament()
             _currentTournamentId.value = null
         }
     }

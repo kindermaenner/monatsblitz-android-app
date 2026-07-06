@@ -1,8 +1,8 @@
 package de.kindermaenner.monatsblitz.infrastructure.api.dto
 
-import de.kindermaenner.monatsblitz.data.model.GameMode
-import de.kindermaenner.monatsblitz.data.model.Player
-import de.kindermaenner.monatsblitz.data.model.Tournament
+import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.Tournament
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 

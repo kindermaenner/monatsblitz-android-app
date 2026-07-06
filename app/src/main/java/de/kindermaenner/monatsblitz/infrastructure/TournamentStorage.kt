@@ -30,20 +30,12 @@ class TournamentStorage(private val context: Context) {
         dataStore.edit { it.clear() }
     }
 
-    suspend fun saveTournamentState(id: Int, playerIds: List<Int>, finalized: Boolean) {
+    suspend fun saveTournamentState(tournamentId : Int, playerIds: List<Int>, finalized: Boolean) {
         val playerIdsJson = Json.encodeToString(playerIds)
         dataStore.edit { preferences ->
-            preferences[tournamentIdKey] = id
+            preferences[tournamentIdKey] = tournamentId
             preferences[playerIdsKey] = playerIdsJson
             preferences[finalizedKey] = finalized
-        }
-    }
-
-    suspend fun finalizeTournament(tournamentId: Int) {
-        dataStore.edit { preferences ->
-            if (preferences[tournamentIdKey] == tournamentId) {
-                preferences[finalizedKey] = true
-            }
         }
     }
 
@@ -56,11 +48,10 @@ class TournamentStorage(private val context: Context) {
             if (id != null) TournamentState(id, playerIds, finalized) else null
         }
     }
-    
-    suspend fun clearTournamentState() {
+
+    suspend fun finalizeTournament() {
         dataStore.edit { preferences ->
-            preferences.remove(tournamentIdKey)
-            preferences.remove(finalizedKey)
+            preferences[finalizedKey] = true
         }
     }
 }

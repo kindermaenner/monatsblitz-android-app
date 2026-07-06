@@ -29,7 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import de.kindermaenner.monatsblitz.data.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.ui.viewmodels.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -1,0 +1,18 @@
+package de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import de.kindermaenner.monatsblitz.domain.model.GameMode
+import java.time.LocalDate
+
+@Entity(tableName = "tournaments")
+data class TournamentEntity(
+    @PrimaryKey
+    val id: Int,
+
+    val mode: GameMode,
+
+    val date: LocalDate,
+
+    val doubleRound: Boolean
+)

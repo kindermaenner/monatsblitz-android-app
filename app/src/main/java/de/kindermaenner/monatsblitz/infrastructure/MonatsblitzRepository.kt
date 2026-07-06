@@ -1,106 +1,28 @@
 package de.kindermaenner.monatsblitz.infrastructure
 
-import android.util.Log
-import de.kindermaenner.monatsblitz.BuildConfig
-import de.kindermaenner.monatsblitz.data.model.GameMode
-import de.kindermaenner.monatsblitz.data.model.Player
-import de.kindermaenner.monatsblitz.data.model.Tournament
-import de.kindermaenner.monatsblitz.infrastructure.api.RetrofitClient
-import de.kindermaenner.monatsblitz.infrastructure.api.impl.RemoteApiDataSourceImpl
-import java.time.LocalDate
+import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.Tournament
+import kotlinx.coroutines.flow.Flow
 
-/**
- * Local repository cache in front of the remote API layer.
- * Remote calls are routed through this repository and cached in-memory.
- */
-object MonatsblitzRepository {
+interface MonatsblitzRepository {
 
-    private val remoteApi: RemoteApiDataSource by lazy {
-        val api = RetrofitClient.createApi(BuildConfig.API_KEY)
-        RemoteApiDataSourceImpl(api)
-    }
+    suspend fun init()
+    suspend fun getPlayers(forceRefresh: Boolean): List<Player>
 
-    private var playersCache: List<Player>? = null
-    private val tournamentCache: MutableMap<Int, Tournament> = mutableMapOf()
-
-    suspend fun getPlayers(forceRefresh: Boolean = false): List<Player> {
-        Log.i("MonatsblitzRepository", "Fetching players (forceRefresh=$forceRefresh)")
-        if (playersCache == null || forceRefresh) {
-            playersCache = try {
-                remoteApi.fetchPlayers()
-            } catch (e: Exception) {
-                Log.e("MonatsblitzRepository", "Fetching players failed: ${e.message}. Falling back to fake data.", e)
-                // Fallback to Fake data if API fails
-                FakeRemoteApiDataSource().fetchPlayers()
-            }
-        }
-
-        return playersCache.orEmpty()
+    suspend fun getPlayers(): List<Player> {
+        return getPlayers(forceRefresh = false)
     }
 
     suspend fun createTournament(
         playerIds: List<Int>,
         mode: GameMode,
         doubleRound: Boolean
-    ): Int {
-        Log.i("MonatsblitzRepository", "Creating tournament with players: $playerIds, mode: $mode, doubleRound: $doubleRound")
-        val playersById = getPlayers().associateBy { it.id }
-        val selectedPlayers = playerIds.mapNotNull { id -> playersById[id] }
+    ): Tournament?
 
-        val tournament = remoteApi.createTournament(
-            players = selectedPlayers,
-            mode = mode,
-            doubleRound = doubleRound
-        )
+    val currentTournament: Tournament?
 
-        tournamentCache[tournament.Id] = tournament
-        return tournament.Id
-    }
+    suspend fun finalizeTournament()
 
-    fun getTournament(tournamentId: Int): Tournament? {
-        return tournamentCache[tournamentId]
-    }
-}
-
-interface RemoteApiDataSource {
-    suspend fun fetchPlayers(): List<Player>
-
-    suspend fun createTournament(
-        players: List<Player>,
-        mode: GameMode,
-        doubleRound: Boolean
-    ): Tournament
-}
-
-class FakeRemoteApiDataSource : RemoteApiDataSource {
-
-    private val players = listOf(
-        Player(1, "Max", "Muller"),
-        Player(2, "Peter", "Meier"),
-        Player(3, "Hans", "Schulz"),
-        Player(4, "Klaus", "Bertram"),
-        Player(5, "Fiete", "Klose"),
-        Player(6, "Bert", "Brot")
-    )
-
-    private var nextTournamentId = 1
-
-    override suspend fun fetchPlayers(): List<Player> = players
-
-    override suspend fun createTournament(
-        players: List<Player>,
-        mode: GameMode,
-        doubleRound: Boolean
-    ): Tournament {
-        val tournament = Tournament(
-            Id = nextTournamentId,
-            Mode = mode,
-            Date = LocalDate.now(),
-            players = players,
-            doubleRound = doubleRound
-        )
-
-        nextTournamentId += 1
-        return tournament
-    }
+    fun getTournamentState(): Flow<TournamentState?>
 }

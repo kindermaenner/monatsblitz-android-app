@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.data.model
+package de.kindermaenner.monatsblitz.domain.model
 
 enum class GameMode(
     val displayName: String

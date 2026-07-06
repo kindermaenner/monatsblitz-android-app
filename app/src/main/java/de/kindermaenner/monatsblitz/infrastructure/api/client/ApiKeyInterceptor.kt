@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.infrastructure.api
+package de.kindermaenner.monatsblitz.infrastructure.api.client
 
 import android.util.Log
 import okhttp3.Interceptor

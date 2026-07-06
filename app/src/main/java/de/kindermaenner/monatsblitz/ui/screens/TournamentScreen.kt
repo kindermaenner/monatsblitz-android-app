@@ -28,7 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import de.kindermaenner.monatsblitz.data.model.Tournament
+import de.kindermaenner.monatsblitz.domain.model.Tournament
 
 
 @Composable

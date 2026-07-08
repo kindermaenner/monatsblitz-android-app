@@ -31,5 +31,6 @@ data class GameEntity(
     val player1Id: Int,
     val player2Id: Int,
     val leg: Leg,
-    val result: GameResult
+    val result: GameResult,
+    val dirty : Boolean = true
 )

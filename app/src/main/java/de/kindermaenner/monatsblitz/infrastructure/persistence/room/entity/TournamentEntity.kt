@@ -7,12 +7,14 @@ import java.time.LocalDate
 
 @Entity(tableName = "tournaments")
 data class TournamentEntity(
-    @PrimaryKey
-    val id: Int,
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
 
     val mode: GameMode,
 
     val date: LocalDate,
 
-    val doubleRound: Boolean
+    val doubleRound: Boolean,
+
+    val dirty : Boolean = true
 )

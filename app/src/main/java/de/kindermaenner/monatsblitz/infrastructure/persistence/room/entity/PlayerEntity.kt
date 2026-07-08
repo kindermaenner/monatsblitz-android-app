@@ -8,5 +8,6 @@ data class PlayerEntity(
     @PrimaryKey
     val id: Int,
     val name: String,
-    val vorname: String
+    val vorname: String,
+    val dirty : Boolean = true
 )

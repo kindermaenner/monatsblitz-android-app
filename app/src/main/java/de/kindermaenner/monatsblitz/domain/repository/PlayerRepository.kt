@@ -12,4 +12,6 @@ interface PlayerRepository {
     suspend fun createPlayer(newPlayer: NewPlayer) : Player
 
     suspend fun refreshPlayers()
+
+    suspend fun syncDirtyPlayers() : Boolean
 }

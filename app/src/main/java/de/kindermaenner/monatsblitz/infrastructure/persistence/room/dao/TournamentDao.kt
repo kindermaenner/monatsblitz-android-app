@@ -22,4 +22,11 @@ interface TournamentDao {
 
     @Delete
     suspend fun delete(tournament: TournamentEntity)
+
+    @Query("""
+    UPDATE tournaments
+    SET dirty = 0
+    WHERE id = :tournamentId
+""")
+    suspend fun markTournamentAsClean(tournamentId: Int)
 }

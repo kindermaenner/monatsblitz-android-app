@@ -4,6 +4,7 @@ import de.kindermaenner.monatsblitz.domain.model.Game
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Leg
 import de.kindermaenner.monatsblitz.domain.model.Tournament
+import java.time.LocalDate
 import java.util.Locale
 
 fun String.toGameResult(): GameResult {

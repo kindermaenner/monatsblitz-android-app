@@ -8,7 +8,9 @@ import java.time.LocalDate
 @Entity(tableName = "tournaments")
 data class TournamentEntity(
     @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
+    val id: Long = 0,
+
+    val remoteId : Int?,
 
     val mode: GameMode,
 

@@ -21,6 +21,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import de.kindermaenner.monatsblitz.domain.model.Tournament
+import de.kindermaenner.monatsblitz.ui.viewmodels.TournamentViewModel
 
 
 @Composable
@@ -168,12 +170,12 @@ fun CrosstableRow(
 
 @Composable
 fun TournamentScreen(
-    tournament: Tournament,
-    onBackToHome: () -> Unit = {}
+    viewModel: TournamentViewModel
 ) {
     val horizontalScrollState = rememberScrollState()
     var showBackDialog by remember { mutableStateOf(false) }
-    
+    val state by viewModel.uiState.collectAsState()
+
     BackHandler {
         showBackDialog = true
     }
@@ -185,7 +187,7 @@ fun TournamentScreen(
             text = { Text("Das aktuelle Turnier wird gelöscht.") },
             confirmButton = {
                 Button(onClick = {
-                    onBackToHome()
+                    //onBackToHome()
                     showBackDialog = false
                 }) {
                     Text("Ja, abbrechen")
@@ -204,7 +206,7 @@ fun TournamentScreen(
     ) {
         Spacer(modifier = Modifier.height(12.dp))
         CrosstableHeader(
-            tournament = tournament,
+            tournament = state.tournament!!,
             horizontalScrollState = horizontalScrollState
         )
 
@@ -213,10 +215,10 @@ fun TournamentScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize()
         ) {
-            items(tournament.players.size) { rowIndex ->
+            items(state.tournament!!.players.size) { rowIndex ->
 
                 CrosstableRow(
-                    tournament = tournament,
+                    tournament = state.tournament!!,
                     rowIndex = rowIndex,
                     horizontalScrollState = horizontalScrollState,
                     onCellClick = { row, col ->

@@ -14,7 +14,6 @@ import kotlinx.serialization.json.Json
 
 data class TournamentState(
     val tournamentId: Int,
-    val playerIds: List<Int>,
     val finalized: Boolean
 )
 
@@ -23,18 +22,15 @@ class TournamentStorage(private val context: Context) {
     private val dataStore get() = context.dataStore
     
     private val tournamentIdKey = intPreferencesKey("tournament_id")
-    private val playerIdsKey = stringPreferencesKey("player_ids")
     private val finalizedKey = booleanPreferencesKey("tournament_finalized")
 
     suspend fun resetAll() {
         dataStore.edit { it.clear() }
     }
 
-    suspend fun saveTournamentState(tournamentId : Int, playerIds: List<Int>, finalized: Boolean) {
-        val playerIdsJson = Json.encodeToString(playerIds)
+    suspend fun saveTournamentState(tournamentId : Int, finalized: Boolean) {
         dataStore.edit { preferences ->
             preferences[tournamentIdKey] = tournamentId
-            preferences[playerIdsKey] = playerIdsJson
             preferences[finalizedKey] = finalized
         }
     }
@@ -43,9 +39,7 @@ class TournamentStorage(private val context: Context) {
         return dataStore.data.map { preferences ->
             val id = preferences[tournamentIdKey]
             val finalized = preferences[finalizedKey] ?: false
-            val playerIdsJson = preferences[playerIdsKey] ?: "[]"
-            val playerIds = Json.decodeFromString<List<Int>>(playerIdsJson)
-            if (id != null) TournamentState(id, playerIds, finalized) else null
+            if (id != null) TournamentState(id, finalized) else null
         }
     }
 

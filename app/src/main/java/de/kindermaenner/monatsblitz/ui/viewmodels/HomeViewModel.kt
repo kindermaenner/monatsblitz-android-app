@@ -1,90 +1,96 @@
 package de.kindermaenner.monatsblitz.ui.viewmodels
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameMode
-import de.kindermaenner.monatsblitz.domain.model.Player
-import de.kindermaenner.monatsblitz.infrastructure.MonatsblitzRepository
+import de.kindermaenner.monatsblitz.domain.model.NewTournament
+import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
+import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import de.kindermaenner.monatsblitz.ui.screens.HomeUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class HomeViewModel(
-    private val getPlayers: suspend () -> List<Player>,
-    private val createTournament: suspend (List<Int>, GameMode, Boolean) -> Int?,
-    private val repository: MonatsblitzRepository,
-    private val onTournamentCreated: (Int) -> Unit = {}
+    private val playerRepository: PlayerRepository,
+    private val tournamentRepository: TournamentRepository,
+    private val localStorage: TournamentStorage
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState
-    
-    private val _currentTournamentId = MutableStateFlow<Int?>(null)
-    val currentTournamentId: StateFlow<Int?> = _currentTournamentId
-    
+    private val _uiState = MutableStateFlow(HomeUiState(isLoading = true))
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
     init {
-        // Load saved tournament state on app startup
         viewModelScope.launch {
-            //tournamentStorage.resetAll()
-            //_currentTournamentId.value = null
-            repository.getTournamentState().collect { state ->
-                if (state != null && !state.finalized) {
-                    Log.i("HomeViewModel", "Resuming tournament with ID: ${state.tournamentId}")
-                    _currentTournamentId.value = state.tournamentId
-                    onTournamentCreated(state.tournamentId)
+            playerRepository.observePlayers().collect { players ->
+                _uiState.update {
+                    it.copy(
+                        players = players,
+                        isLoading = false
+                    )
                 }
             }
         }
     }
 
-    suspend fun loadPlayers() {
-        _uiState.value = _uiState.value.copy(
-            players = getPlayers()
-        )
-    }
-
-    fun togglePlayer(id: Int) {
-        val current = _uiState.value.selectedPlayerIds.toMutableSet()
-
-        if (current.contains(id)) current.remove(id)
-        else current.add(id)
-
-        _uiState.value = _uiState.value.copy(
-            selectedPlayerIds = current
-        )
-    }
-
-    fun setMode(mode: GameMode) {
-        _uiState.value = _uiState.value.copy(selectedMode = mode)
-    }
-
-    fun setDoubleRound(value: Boolean) {
-        _uiState.value = _uiState.value.copy(doubleRound = value)
-    }
-
-    fun startTournament() {
-        val state = _uiState.value
-
-        if (state.selectedPlayerIds.size < 2) return
-
-        viewModelScope.launch {
-            val tournamentId = createTournament(
-                state.selectedPlayerIds.toList(),
-                state.selectedMode,
-                state.doubleRound
-            )
-
-            _currentTournamentId.value = tournamentId
-            tournamentId?.let {it->onTournamentCreated(it)}
+    fun togglePlayer(playerId:Int) {
+        _uiState.update { state ->
+            val selected = state.selectedPlayerIds.toMutableSet()
+            if (selected.contains(playerId)) {
+                selected -= playerId
+            } else {
+                selected += playerId
+            }
+            state.copy(selectedPlayerIds = selected)
         }
     }
-    
-    fun finalizeTournament() {
+
+    fun onPlayerChecked(playerId: Int, checked: Boolean) {
+        _uiState.update { state ->
+            val selected = state.selectedPlayerIds.toMutableSet()
+
+            if (checked)
+                selected += playerId
+            else
+                selected -= playerId
+
+            state.copy(selectedPlayerIds = selected)
+        }
+    }
+
+    fun onModeChanged(mode: GameMode) {
+        _uiState.update {
+            it.copy(selectedMode = mode)
+        }
+    }
+
+    fun onDoubleRoundChanged(enabled: Boolean) {
+        _uiState.update {
+            it.copy(doubleRound = enabled)
+        }
+    }
+
+    fun createTournament() {
         viewModelScope.launch {
-            repository.finalizeTournament()
-            _currentTournamentId.value = null
+            val state = uiState.value
+
+            val players = state.players.filter {
+                it.id in state.selectedPlayerIds
+            }
+
+            val result = tournamentRepository.createTournament(
+                NewTournament(
+                    Mode = state.selectedMode,
+                    Date = LocalDate.now(),
+                    playerIds = players.map { it.id },
+                    doubleRound = state.doubleRound
+                )
+            )
+            localStorage.saveTournamentState(result.Id, false)
         }
     }
 }

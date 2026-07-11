@@ -9,36 +9,29 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.lifecycleScope
-import de.kindermaenner.monatsblitz.infrastructure.DefaultMonatsblitzRepository
-import de.kindermaenner.monatsblitz.infrastructure.MonatsblitzRepository
-import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
-import de.kindermaenner.monatsblitz.ui.navigation.AppNavHost
+import de.kindermaenner.monatsblitz.app.AppContainer
+import de.kindermaenner.monatsblitz.app.MonatsblitzApplication
+import de.kindermaenner.monatsblitz.ui.screens.RootScreen
 import de.kindermaenner.monatsblitz.ui.theme.MonatsblitzTheme
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var repository: MonatsblitzRepository
+    private lateinit var appContainer: AppContainer
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.i("MainActivity", "onCreate")
-        repository = DefaultMonatsblitzRepository(
-            TournamentStorage(applicationContext)
-        )
+        appContainer = (application as MonatsblitzApplication).appContainer
         Log.i("MainActivity", "repository erzeugt")
-        lifecycleScope.launch {
-            Log.i("MainActivity", "initiialisiere repository")
-            repository.init()
-            Log.i("MainActivity", "Repository initialized")
-            Log.i("MainActivity", "currentTournament: ${repository.currentTournament}")
-        }
+
         Log.i("MainActivity", "nach lifecycleScope.launch")
         enableEdgeToEdge()
         setContent {
             MonatsblitzTheme {
-                AppNavHost(repository)
+                RootScreen(
+                    appContainer = appContainer
+                )
             }
         }
     }

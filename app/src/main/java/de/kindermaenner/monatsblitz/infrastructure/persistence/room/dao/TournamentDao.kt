@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface TournamentDao {
 
+    @Query("SELECT * FROM tournaments WHERE id = :id")
+    fun getTournament(id: Int): TournamentEntity?
+
     @Query("SELECT * FROM tournaments")
     fun observeTournaments(): Flow<List<TournamentEntity>>
 

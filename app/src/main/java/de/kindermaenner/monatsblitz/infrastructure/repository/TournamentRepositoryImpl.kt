@@ -8,6 +8,7 @@ import de.kindermaenner.monatsblitz.domain.model.MatchKey
 import de.kindermaenner.monatsblitz.domain.model.NewTournament
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGameDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewTournamentDto
@@ -22,6 +23,7 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.Playe
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 
@@ -124,15 +126,13 @@ class TournamentRepositoryImpl(
         val result = api.createTournament(newTournamentDto)
         tournamentDao.insert(
             TournamentEntity(
-                id = if (result.success) result.tournament_id else 0,
+                remoteId = if (result.success) result.tournament_id else null,
                 mode = request.Mode,
                 date = request.Date,
-                doubleRound = request.doubleRound
+                doubleRound = request.doubleRound,
+                dirty = !result.success
             )
         )
-        if (result.success) {
-            tournamentDao.markTournamentAsClean(result.tournament_id)
-        }
         val refs = request.playerIds.map {
             TournamentPlayerCrossRef(result.tournament_id, it)
         }
@@ -147,14 +147,17 @@ class TournamentRepositoryImpl(
     }
 
     override suspend fun refreshTournament(id: Int) {
-        api.getTournament(id).let { tournamentDto ->
-            val tournamentEntity = TournamentEntity(
-                id = tournamentDto.id,
-                mode = GameMode.fromDisplayName(tournamentDto.mode) ?: GameMode.BLITZ_3_2,
-                date = LocalDate.parse(tournamentDto.date),
-                doubleRound = tournamentDto.round_count == 2
-            )
-            tournamentDao.insert(tournamentEntity)
+        tournamentDao.getTournament(id)?.remoteId?.let { it ->
+            api.getTournament(it).let { tournamentDto ->
+                val tournamentEntity = TournamentEntity(
+                    id = id,
+                    remoteId = tournamentDto.id,
+                    mode = GameMode.fromDisplayName(tournamentDto.mode) ?: GameMode.BLITZ_3_2,
+                    date = LocalDate.parse(tournamentDto.date),
+                    doubleRound = tournamentDto.round_count == 2
+                )
+                tournamentDao.insert(tournamentEntity)
+            }
         }
     }
 

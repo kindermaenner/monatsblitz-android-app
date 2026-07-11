@@ -15,7 +15,7 @@ object PlayerMapper {
 
     fun toEntity(dto: PlayerDto): PlayerEntity =
         PlayerEntity(
-            id = dto.id,
+            remoteId = dto.id,
             name = dto.surname,
             vorname = dto.forename
         )

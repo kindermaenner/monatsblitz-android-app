@@ -5,8 +5,9 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "players")
 data class PlayerEntity(
-    @PrimaryKey
-    val id: Int,
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val remoteId : Int? = null,
     val name: String,
     val vorname: String,
     val dirty : Boolean = true

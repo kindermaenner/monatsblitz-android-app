@@ -113,13 +113,13 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            viewModel.togglePlayer(player.id)
+                            viewModel.onPlayerChecked(player.id, !selected)
                         }
                         .padding(8.dp)
                 ) {
                     Checkbox(
                         checked = selected,
-                        onCheckedChange = { viewModel.togglePlayer(player.id) }
+                        onCheckedChange = { viewModel.onPlayerChecked(player.id, !selected) }
                     )
 
                     Text(
@@ -134,7 +134,7 @@ fun HomeScreen(
         ModeSelector(
             selectedMode = state.selectedMode,
             onModeSelected = { mode ->
-                viewModel.setMode(mode)
+                viewModel.onModeChanged(mode)
             }
         )
 
@@ -142,7 +142,7 @@ fun HomeScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = state.doubleRound,
-                onCheckedChange = { viewModel.setDoubleRound(it) }
+                onCheckedChange = { viewModel.onDoubleRoundChanged(it) }
             )
             Text("Doppelrundig")
         }
@@ -152,7 +152,7 @@ fun HomeScreen(
         // --- START BUTTON ---
         Button(
             onClick = {
-                viewModel.startTournament()
+                viewModel.createTournament()
             },
             modifier = Modifier.fillMaxWidth()
         ) {

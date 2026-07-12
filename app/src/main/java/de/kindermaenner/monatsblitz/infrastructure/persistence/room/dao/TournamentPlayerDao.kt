@@ -20,7 +20,7 @@ interface TournamentPlayerDao {
         SELECT playerId FROM tournament_players 
         WHERE tournamentId = :tournamentId
     """)
-    suspend fun getPlayerIdsForTournament(tournamentId: Int): List<Int>
+    suspend fun getPlayerIdsForTournament(tournamentId: Long): List<Long>
 
     @Query("""
         SELECT * FROM tournament_players

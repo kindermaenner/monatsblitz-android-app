@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -12,16 +13,22 @@ import kotlinx.coroutines.flow.Flow
 interface TournamentDao {
 
     @Query("SELECT * FROM tournaments WHERE id = :id")
-    fun getTournament(id: Int): TournamentEntity?
+    suspend fun getTournament(id: Long): TournamentEntity?
+
+    @Query("SELECT * FROM tournaments WHERE remoteId = :remoteId")
+    suspend fun getTournamentByRemoteId(remoteId: Int): TournamentEntity?
 
     @Query("SELECT * FROM tournaments")
     fun observeTournaments(): Flow<List<TournamentEntity>>
 
     @Query("SELECT * FROM tournaments WHERE id = :id")
-    fun observeTournament(id: Int): Flow<TournamentEntity?>
+    fun observeTournament(id: Long): Flow<TournamentEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(tournament: TournamentEntity)
+    suspend fun insert(tournament: TournamentEntity) : Long
+
+    @Update
+    suspend fun update(tournament: TournamentEntity)
 
     @Delete
     suspend fun delete(tournament: TournamentEntity)
@@ -31,5 +38,5 @@ interface TournamentDao {
     SET dirty = 0
     WHERE id = :tournamentId
 """)
-    suspend fun markTournamentAsClean(tournamentId: Int)
+    suspend fun markTournamentAsClean(tournamentId: Long)
 }

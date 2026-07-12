@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.stateIn
 
 class TournamentViewModel(
     repository: TournamentRepository,
-    tournamentId: Int) : ViewModel() {
+    tournamentId: Long) : ViewModel() {
     val uiState =
         repository
             .observeTournament(tournamentId)

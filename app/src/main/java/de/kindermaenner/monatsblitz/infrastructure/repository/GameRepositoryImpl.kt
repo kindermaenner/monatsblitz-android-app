@@ -4,6 +4,7 @@ import de.kindermaenner.monatsblitz.domain.model.Game
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Leg
 import de.kindermaenner.monatsblitz.domain.model.NewGame
+import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.repository.GameRepository
 import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGameDto
@@ -20,16 +21,16 @@ class GameRepositoryImpl  (
     private val gameDao: GameDao
 ) : GameRepository {
 
-    override fun observeGames(tournamentId: Int): Flow<List<Game>> =
+    override fun observeGames(tournamentId: Long): Flow<List<Game>> =
         gameDao.observeGames(tournamentId)
             .map { list ->
                 list.map(GameMapper::toDomain)
             }
 
     override fun observeGame(
-        tournamentId: Int,
-        player1Id: Int,
-        player2Id: Int,
+        tournamentId: Long,
+        player1Id: Long,
+        player2Id: Long,
         leg: Leg
     ): Flow<Game?> =
         gameDao.observeGames(tournamentId)
@@ -44,13 +45,8 @@ class GameRepositoryImpl  (
             }
 
     override suspend fun createGame(newGame: NewGame): Game {
-        val entity = GameEntity(
-            tournamentId = newGame.tournamentId,
-            player1Id = newGame.player1Id,
-            player2Id = newGame.player2Id,
-            leg =  if (newGame.leg == Leg.SECOND) Leg.SECOND else Leg.FIRST,
-            result =  GameResult.Open
-        )
+
+        val entity = GameMapper.toEntity(newGame)
 
         gameDao.insert(entity)
 
@@ -60,4 +56,5 @@ class GameRepositoryImpl  (
     override suspend fun updateGame(game: Game) {
         gameDao.update(GameMapper.toEntity(game))
     }
+
 }

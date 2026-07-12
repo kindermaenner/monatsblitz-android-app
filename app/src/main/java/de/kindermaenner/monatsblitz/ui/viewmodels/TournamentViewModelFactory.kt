@@ -6,7 +6,7 @@ import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 
 class TournamentViewModelFactory(
     private val tournamentRepository: TournamentRepository,
-    private val tournamentId: Int
+    private val tournamentId: Long
 
 ) : ViewModelProvider.Factory {
 

@@ -2,10 +2,8 @@ package de.kindermaenner.monatsblitz.infrastructure.api.dto
 
 import kotlinx.serialization.Serializable
 
-
-
 @Serializable
-data class GameDto(val leg: Int, val player1_id: Int, val player2_id: Int, val result: String)
+data class GameDto(val leg: Int, val player1Id: Int, val player2Id: Int, val result: String)
 
 @Serializable
 data class CreateGameDto(val tournamentId : Int, val game: GameDto)

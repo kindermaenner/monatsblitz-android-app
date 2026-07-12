@@ -7,9 +7,9 @@ import de.kindermaenner.monatsblitz.domain.model.NewGame
 import kotlinx.coroutines.flow.Flow
 
 interface GameRepository {
-    fun observeGames(tournamentId : Int): Flow<List<Game>>
+    fun observeGames(tournamentId : Long): Flow<List<Game>>
 
-    fun observeGame(tournamentId : Int, player1Id:Int, player2Id:Int, leg: Leg): Flow<Game?>
+    fun observeGame(tournamentId : Long, player1Id:Long, player2Id:Long, leg: Leg): Flow<Game?>
 
     suspend fun createGame(newGame: NewGame) : Game
 

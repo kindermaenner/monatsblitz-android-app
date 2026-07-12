@@ -37,7 +37,7 @@ class HomeViewModel(
         }
     }
 
-    fun togglePlayer(playerId:Int) {
+    fun togglePlayer(playerId:Long) {
         _uiState.update { state ->
             val selected = state.selectedPlayerIds.toMutableSet()
             if (selected.contains(playerId)) {
@@ -49,7 +49,7 @@ class HomeViewModel(
         }
     }
 
-    fun onPlayerChecked(playerId: Int, checked: Boolean) {
+    fun onPlayerChecked(playerId: Long, checked: Boolean) {
         _uiState.update { state ->
             val selected = state.selectedPlayerIds.toMutableSet()
 

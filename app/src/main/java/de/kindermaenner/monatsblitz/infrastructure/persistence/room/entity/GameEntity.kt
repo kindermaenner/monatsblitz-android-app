@@ -27,9 +27,9 @@ import de.kindermaenner.monatsblitz.domain.model.Leg
     ]
 )
 data class GameEntity(
-    val tournamentId: Int,
-    val player1Id: Int,
-    val player2Id: Int,
+    val tournamentId: Long,
+    val player1Id: Long,
+    val player2Id: Long,
     val leg: Leg,
     val result: GameResult,
     val dirty : Boolean = true

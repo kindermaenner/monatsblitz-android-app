@@ -7,7 +7,7 @@ import androidx.room.Entity
     primaryKeys = ["tournamentId", "playerId"]
 )
 data class TournamentPlayerCrossRef(
-    val tournamentId: Int,
+    val tournamentId: Long,
 
-    val playerId: Int
+    val playerId: Long
 )

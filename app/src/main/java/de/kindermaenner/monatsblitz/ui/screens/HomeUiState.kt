@@ -5,7 +5,7 @@ import de.kindermaenner.monatsblitz.domain.model.Player
 
 data class HomeUiState(
     val players: List<Player> = emptyList(),
-    val selectedPlayerIds: Set<Int> = emptySet(),
+    val selectedPlayerIds: Set<Long> = emptySet(),
 
     val selectedMode: GameMode = GameMode.BLITZ_5_0,
     val doubleRound: Boolean = false,

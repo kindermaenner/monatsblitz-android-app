@@ -17,7 +17,7 @@ interface GameDao {
         SELECT * FROM games 
         WHERE tournamentId = :tournamentId
     """)
-    fun observeGames(tournamentId: Int): Flow<List<GameEntity>>
+    fun observeGames(tournamentId: Long): Flow<List<GameEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(game: GameEntity)
@@ -37,9 +37,9 @@ interface GameDao {
         LIMIT 1
     """)
     suspend fun getGame(
-        tournamentId: Int,
-        player1Id: Int,
-        player2Id: Int,
+        tournamentId: Long,
+        player1Id: Long,
+        player2Id: Long,
         leg: Leg
     ): GameEntity?
 
@@ -48,7 +48,7 @@ interface GameDao {
     WHERE tournamentId = :tournamentId
       AND dirty = 1
 """)
-    suspend fun getDirtyGames(tournamentId: Int): List<GameEntity>
+    suspend fun getDirtyGames(tournamentId: Long): List<GameEntity>
 
     @Query("""
     UPDATE games
@@ -58,7 +58,7 @@ interface GameDao {
         AND player2Id = :player2Id
         AND leg = :leg
 """)
-    suspend fun markGameAsSynced(tournamentId : Int, player1Id: Int, player2Id:Int, leg : Leg)
+    suspend fun markGameAsSynced(tournamentId : Long, player1Id: Long, player2Id:Long, leg : Leg)
 
     suspend fun markGameAsSynced(game: GameEntity) {
         markGameAsSynced(

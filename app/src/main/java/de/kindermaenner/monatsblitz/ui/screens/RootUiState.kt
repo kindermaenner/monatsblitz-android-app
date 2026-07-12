@@ -7,7 +7,7 @@ sealed interface RootUiState {
     data object ReadyWithoutTournament : RootUiState
 
     data class ReadyWithTournament(
-        val tournamentId: Int
+        val tournamentId: Long
     ) : RootUiState
 
     data class Error(

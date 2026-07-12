@@ -35,6 +35,7 @@ class AppContainer(context: Context) {
         playerDao = database.playerDao(),
         gameDao = database.gameDao(),
         api = api,
+        database = database
     )
 
     val homeViewModelFactory =
@@ -45,7 +46,7 @@ class AppContainer(context: Context) {
         )
 
 
-    fun tournamentViewModelFactory(tournamentId: Int) =
+    fun tournamentViewModelFactory(tournamentId: Long) =
         TournamentViewModelFactory(
             tournamentRepository,
             tournamentId

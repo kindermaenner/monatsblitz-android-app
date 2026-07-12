@@ -21,23 +21,3 @@ data class NewTournamentDto(
     val mode: String,
     val round_count: Int = 1
 )
-
-fun Tournament.toDto(): TournamentDto =
-    TournamentDto(
-        id = Id,
-        date = Date.toString(),
-        mode = Mode.displayName,
-        round_count = if (doubleRound) 2 else 1,
-        date_formatted = Date.toString()
-    )
-
-fun TournamentDto.toTournament(players: List<Player> = emptyList()): Tournament =
-    Tournament(
-        Id = id,
-        Mode = GameMode.fromDisplayName(mode) ?: GameMode.BLITZ_3_2,  // Fallback
-        Date = LocalDate.parse(date),
-        players = players,
-        doubleRound = round_count == 2,
-        games = mutableMapOf()
-    )
-

@@ -31,7 +31,7 @@ class MappingUtilsTest {
             doubleRound = false
         )
 
-        val dto = GameDto(leg = 1, player1_id = 1, player2_id = 2, result = "1-0")
+        val dto = GameDto(leg = 1, player1Id = 1, player2Id = 2, result = "1-0")
         val game = dto.toGame(tournament)
         assertNotNull(game)
         assertEquals(GameResult.Win, game!!.result)
@@ -40,8 +40,8 @@ class MappingUtilsTest {
 
         val dto2 = game.toDto()
         assertEquals(dto.leg, dto2.leg)
-        assertEquals(dto.player1_id, dto2.player1_id)
-        assertEquals(dto.player2_id, dto2.player2_id)
+        assertEquals(dto.player1Id, dto2.player1Id)
+        assertEquals(dto.player2Id, dto2.player2Id)
         assertEquals(dto.result, dto2.result)
     }
 
@@ -55,11 +55,11 @@ class MappingUtilsTest {
             players = listOf(p1),
             doubleRound = false
         )
-        val dto = GameDto(leg = 1, player1_id = 1, player2_id = 99, result = "1-0")
+        val dto = GameDto(leg = 1, player1Id = 1, player2Id = 99, result = "1-0")
         val game = dto.toGame(tournament)
         assertNull(game)
 
-        val dtoBadResult = GameDto(leg = 1, player1_id = 1, player2_id = 1, result = "unknown")
+        val dtoBadResult = GameDto(leg = 1, player1Id = 1, player2Id = 1, result = "unknown")
         val game2 = dtoBadResult.toGame(tournament)
         assertNull(game2)
     }

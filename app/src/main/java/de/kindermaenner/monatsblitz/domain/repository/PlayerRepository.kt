@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 interface PlayerRepository {
     fun observePlayers(): Flow<List<Player>>
 
-    fun observePlayer(id: Int): Flow<Player?>
+    fun observePlayer(id: Long): Flow<Player?>
 
     suspend fun createPlayer(newPlayer: NewPlayer) : Player
 

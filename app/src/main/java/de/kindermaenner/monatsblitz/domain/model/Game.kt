@@ -1,4 +1,4 @@
 package de.kindermaenner.monatsblitz.domain.model
 
-data class Game(val tournamentId : Int, val leg: Leg, val player1Id: Int, val player2Id: Int, val result: GameResult) {
+data class Game(val tournamentId : Long, val leg: Leg, val player1Id: Long, val player2Id: Long, val result: GameResult) {
 }

@@ -12,7 +12,6 @@ data class TournamentDto(
     val date: String,           // ISO-8601 YYYY-MM-DD (per spec)
     val mode: String,
     val round_count: Int,
-    val date_formatted: String? = null
 )
 
 @Serializable

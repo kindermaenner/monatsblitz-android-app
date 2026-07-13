@@ -4,5 +4,6 @@ import java.time.LocalDate
 
 data class NewTournament( val Mode : GameMode,
                           val Date : LocalDate,
-                          val playerIds: List<Long>,
-                          val doubleRound: Boolean)
+                          val rounds: Int,
+                          val players : List<Player>,
+                          val games: List<NewGame>)

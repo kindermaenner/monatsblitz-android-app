@@ -6,7 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
-import de.kindermaenner.monatsblitz.domain.model.Leg
+import androidx.room.Upsert
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -19,65 +19,48 @@ interface GameDao {
     """)
     fun observeGames(tournamentId: Long): Flow<List<GameEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(game: GameEntity)
+    @Query("""
+        SELECT * FROM games 
+        WHERE id = :id
+    """)
+    fun observeGame(id : Long) : Flow<GameEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(games: List<GameEntity>)
+    suspend fun insert(game: GameEntity) : Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(games: List<GameEntity>) : List<Long>
+
+    @Upsert
+    suspend fun upsertAll(games: List<GameEntity>) : List<Long>
 
     @Update
     suspend fun update(game: GameEntity)
 
     @Query("""
         SELECT * FROM games
-        WHERE tournamentId = :tournamentId
-        AND player1Id = :player1Id
-        AND player2Id = :player2Id
-        AND leg = :leg
-        LIMIT 1
+        WHERE id = :id
     """)
-    suspend fun getGame(
-        tournamentId: Long,
-        player1Id: Long,
-        player2Id: Long,
-        leg: Leg
-    ): GameEntity?
+    suspend fun getGame(id : Long): GameEntity?
 
     @Query("""
     SELECT * FROM games
     WHERE tournamentId = :tournamentId
       AND dirty = 1
 """)
-    suspend fun getDirtyGames(tournamentId: Long): List<GameEntity>
+    suspend fun getDirtyGamesForTournament(tournamentId: Long): List<GameEntity>
+
+    @Query("""
+    SELECT * FROM games
+    WHERE dirty = 1
+""")
+    suspend fun getDirtyGames(): List<GameEntity>
 
     @Query("""
     UPDATE games
     SET dirty = 0
-    WHERE tournamentId = :tournamentId
-        AND player1Id = :player1Id
-        AND player2Id = :player2Id
-        AND leg = :leg
+    WHERE id = :gameId
 """)
-    suspend fun markGameAsSynced(tournamentId : Long, player1Id: Long, player2Id:Long, leg : Leg)
+    suspend fun markGameAsSynced(gameId : Long)
 
-    suspend fun markGameAsSynced(game: GameEntity) {
-        markGameAsSynced(
-            game.tournamentId,
-            game.player1Id,
-            game.player2Id,
-            game.leg
-        )
-    }
-
-    @Transaction
-    suspend fun markGamesAsSynced(games: List<GameEntity>) {
-        games.forEach {
-            markGameAsSynced(
-                it.tournamentId,
-                it.player1Id,
-                it.player2Id,
-                it.leg
-            )
-        }
-    }
 }

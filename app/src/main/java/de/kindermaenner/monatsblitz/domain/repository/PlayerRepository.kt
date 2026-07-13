@@ -10,8 +10,4 @@ interface PlayerRepository {
     fun observePlayer(id: Long): Flow<Player?>
 
     suspend fun createPlayer(newPlayer: NewPlayer) : Player
-
-    suspend fun refreshPlayers()
-
-    suspend fun syncDirtyPlayers() : Boolean
 }

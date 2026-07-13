@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.domain.repository
 
+import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.NewTournament
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import kotlinx.coroutines.flow.Flow
@@ -9,4 +10,8 @@ interface TournamentRepository {
     fun observeTournament(id: Long): Flow<Tournament?>
     suspend fun createTournament(request: NewTournament): Tournament
 
+    suspend fun updateGameResult(
+        gameId: Long,
+        result: GameResult
+    )
 }

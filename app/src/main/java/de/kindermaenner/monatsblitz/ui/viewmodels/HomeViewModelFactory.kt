@@ -3,14 +3,11 @@ package de.kindermaenner.monatsblitz.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
-import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
-import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
+import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 
 class HomeViewModelFactory(
     private val playerRepository: PlayerRepository,
-    private val tournamentRepository: TournamentRepository,
-    private val tournamentPreferences: TournamentStorage
-
+    private val createTournamentUseCase: CreateTournamentUseCase
 ) : ViewModelProvider.Factory {
 
 
@@ -23,9 +20,7 @@ class HomeViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return HomeViewModel(
                 playerRepository,
-                tournamentRepository,
-                tournamentPreferences
-            ) as T
+                createTournamentUseCase) as T
         }
 
 

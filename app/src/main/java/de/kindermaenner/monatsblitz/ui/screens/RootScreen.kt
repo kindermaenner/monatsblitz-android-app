@@ -4,11 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavGraph
-import androidx.navigation.compose.rememberNavController
 import de.kindermaenner.monatsblitz.app.AppContainer
-import de.kindermaenner.monatsblitz.ui.navigation.AppNavHost
+import de.kindermaenner.monatsblitz.ui.viewmodels.HomeViewModel
 import de.kindermaenner.monatsblitz.ui.viewmodels.RootViewModel
+import de.kindermaenner.monatsblitz.ui.viewmodels.TournamentViewModel
 
 @Composable
 fun RootScreen(
@@ -19,41 +18,32 @@ fun RootScreen(
         factory = appContainer.rootViewModelFactory
     )
 
-    val navController =
-        rememberNavController()
-
-
-    val state by rootViewModel
-        .uiState
-        .collectAsState()
-
+    val state by rootViewModel.uiState.collectAsState()
 
     when(val current = state) {
-
 
         RootUiState.Loading -> {
             LoadingScreen()
         }
 
-
         RootUiState.ReadyWithoutTournament -> {
-            AppNavHost(
-                navController,
-                "home",
-                appContainer
+            val homeViewModel: HomeViewModel = viewModel(
+                factory = appContainer.homeViewModelFactory
             )
-        }
 
+            HomeScreen(homeViewModel)
+        }
 
         is RootUiState.ReadyWithTournament -> {
 
-            AppNavHost(
-                navController,
-                "tournament/${current.tournamentId}",
-                appContainer
+            val tournamentViewModel: TournamentViewModel = viewModel(
+                factory = appContainer.tournamentViewModelFactory(
+                    current.tournamentId
+                )
             )
-        }
 
+            TournamentScreen(tournamentViewModel)
+        }
 
         is RootUiState.Error -> {
 

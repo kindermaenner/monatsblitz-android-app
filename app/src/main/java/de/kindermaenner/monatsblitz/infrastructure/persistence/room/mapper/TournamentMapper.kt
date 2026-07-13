@@ -1,47 +1,88 @@
 package de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper
 
-import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.Game
+import de.kindermaenner.monatsblitz.domain.model.NewGame
 import de.kindermaenner.monatsblitz.domain.model.NewTournament
+import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.Tournament
-import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateTournamentResponseDto
-import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewTournamentDto
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity
-import java.time.LocalDate
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.relation.TournamentWithDetails
+import kotlin.Long
 
-object TournamentMapper {
-    fun toDomain(entity: TournamentEntity): Tournament =
-        Tournament(
-            Id =  entity.id,
-            Mode =  entity.mode,
-            Date  =  entity.date,
-            players = emptyList(),
-            doubleRound = entity.doubleRound,
-            games = mutableMapOf()
-        );
 
-    fun toEntity(tournament : Tournament) : TournamentEntity =
-        TournamentEntity(
-            id = tournament.Id,
-            remoteId  = null,
-            mode =  tournament.Mode,
-            date = tournament.Date,
-            doubleRound = tournament.doubleRound
-        );
+fun GameEntity.toDomain(): Game =
+    Game(
+        id = id,
+        player1Id = player1Id,
+        player2Id = player2Id,
+        leg = leg,
+        result = result
+    )
 
-    fun toEntity(newTournament: NewTournament, remoteId : Int?) : TournamentEntity =
-        TournamentEntity(
-            remoteId  = remoteId,
-            mode =  newTournament.Mode,
-            date = newTournament.Date,
-            doubleRound = newTournament.doubleRound,
-            dirty = remoteId==null
+fun Tournament.toEntities() : Pair<TournamentEntity, List<GameEntity>> {
+    val tournamentEntity = TournamentEntity(
+        id = Id,
+        mode = Mode,
+        date = Date,
+        rounds = rounds,
+        dirty = true,
+        remoteId = null
+    )
+    val gameEntities = games.values.map {
+        GameEntity(
+            id = it.id,
+            tournamentId = Id,
+            player1Id = it.player1Id,
+            player2Id = it.player2Id,
+            leg = it.leg,
+            result = it.result
         )
-
-    fun toNewDto(entity: TournamentEntity) : NewTournamentDto =
-        NewTournamentDto(
-            date = entity.date.toString(),
-            mode = entity.mode.displayName,
-            round_count = if (entity.doubleRound) 2 else 1
-        )
-
+    }
+    return tournamentEntity to gameEntities
 }
+
+fun TournamentEntity.toDomain(games: List<GameEntity>, players : List<Player>): Tournament =
+    Tournament(
+        Id =  id,
+        Mode =  mode,
+        Date  =  date,
+        rounds = rounds,
+        games = games.associateBy { it.id }
+            .mapKeys { it.key }
+            .mapValues { (_, gameEntity) ->
+                gameEntity.toDomain()
+            },
+        players = players
+    )
+
+fun TournamentWithDetails.toDomain(): Tournament {
+    return Tournament(
+        Id = tournament.id,
+        Mode = tournament.mode,
+        Date = tournament.date,
+        rounds = tournament.rounds,
+        players = players.map { it -> it.toDomain() },
+        games = games.associate { gameEntity ->
+            gameEntity.id to gameEntity.toDomain()
+        }
+    )
+}
+
+fun NewTournament.toEntity() : TournamentEntity =
+    TournamentEntity(
+        mode = Mode,
+        date = Date,
+        rounds = rounds,
+        dirty = true,
+        remoteId = null
+    )
+fun NewGame.toEntity(tournamentId : Long) : GameEntity = GameEntity(
+    tournamentId = tournamentId,
+    player1Id = player1Id,
+    player2Id = player2Id,
+    leg = leg,
+    result = result,
+    dirty = true
+)

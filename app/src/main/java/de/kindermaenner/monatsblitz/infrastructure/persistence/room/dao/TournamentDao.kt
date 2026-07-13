@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.relation.TournamentWithDetails
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -19,10 +20,10 @@ interface TournamentDao {
     suspend fun getTournamentByRemoteId(remoteId: Int): TournamentEntity?
 
     @Query("SELECT * FROM tournaments")
-    fun observeTournaments(): Flow<List<TournamentEntity>>
+    fun observeTournaments(): Flow<List<TournamentWithDetails>>
 
     @Query("SELECT * FROM tournaments WHERE id = :id")
-    fun observeTournament(id: Long): Flow<TournamentEntity?>
+    fun observeTournament(id: Long): Flow<TournamentWithDetails?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(tournament: TournamentEntity) : Long

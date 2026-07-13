@@ -37,13 +37,20 @@ class RootViewModel(
 
     private fun observeCurrentTournament() {
         viewModelScope.launch {
-            val id = tournamentPreferences.getTournamentState().firstOrNull()?.tournamentId
-            _uiState.value =
-                if (id == null) {
-                    RootUiState.ReadyWithoutTournament
-                } else {
-                    RootUiState.ReadyWithTournament(id)
-                }
+            tournamentPreferences.getTournamentState().collect { state ->
+                Log.i(TAG, "setting uiState: id=${state?.tournamentId}")
+
+                _uiState.value =
+                    if (state?.tournamentId == null) {
+                        RootUiState.ReadyWithoutTournament
+                    } else {
+                        RootUiState.ReadyWithTournament(state.tournamentId)
+                    }
+            }
         }
+    }
+
+    companion object {
+        const val TAG = "RootViewModel"
     }
 }

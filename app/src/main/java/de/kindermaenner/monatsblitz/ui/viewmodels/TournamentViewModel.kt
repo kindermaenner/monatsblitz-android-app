@@ -2,6 +2,7 @@ package de.kindermaenner.monatsblitz.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.ui.screens.TournamentUiState
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,4 +27,7 @@ class TournamentViewModel(
                 TournamentUiState()
             )
 
+    fun setResult(rowIndex : Int, columnIndex : Int, result : GameResult) {
+
+    }
 }

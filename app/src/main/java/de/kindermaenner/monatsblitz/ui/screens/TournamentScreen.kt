@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.ui.viewmodels.TournamentViewModel
 
@@ -83,33 +86,76 @@ fun CrosstableHeader(
 fun ResultCell(
     value: String,
     enabled: Boolean,
-    onClick: () -> Unit
+    onResultSelected: (GameResult) -> Unit
 ) {
-    val CellWidth = 40.dp
-    val CellHeight = 40.dp
-    Box(
-        modifier = Modifier
-            .width(CellWidth)
-            .height(CellHeight)
-            .border(
-                width = 0.5.dp,
-                color = MaterialTheme.colorScheme.outline
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        Box(
+            modifier = Modifier
+                .width(40.dp)
+                .height(40.dp)
+                .border(
+                    width = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outline
+                )
+                .clickable(enabled = enabled) {
+                    expanded = true
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(value)
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(GameResult.Win.displayName) },
+                onClick = {
+                    onResultSelected(GameResult.Win)
+                    expanded = false
+                }
             )
-            .clickable(
-                enabled = enabled,
-                onClick = onClick
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium
-        )
+
+            DropdownMenuItem(
+                text = { Text(GameResult.Remis.displayName) },
+                onClick = {
+                    onResultSelected(GameResult.Remis)
+                    expanded = false
+                }
+            )
+
+            DropdownMenuItem(
+                text = { Text(GameResult.Loss.displayName) },
+                onClick = {
+                    onResultSelected(GameResult.Loss)
+                    expanded = false
+                }
+            )
+
+            DropdownMenuItem(
+                text = { Text(GameResult.ForfeitWin.displayName) },
+                onClick = {
+                    onResultSelected(GameResult.ForfeitWin)
+                    expanded = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(GameResult.ForfeitLoss.displayName) },
+                onClick = {
+                    onResultSelected(GameResult.ForfeitLoss)
+                    expanded = false
+                }
+            )
+        }
     }
 }
 
 @Composable
 fun CrosstableRow(
+    viewModel: TournamentViewModel,
     tournament: Tournament,
     rowIndex: Int,
     horizontalScrollState: ScrollState,
@@ -159,8 +205,8 @@ fun CrosstableRow(
                 ResultCell(
                     value = text,
                     enabled = rowIndex != columnIndex,
-                    onClick = {
-                        onCellClick(rowIndex, columnIndex)
+                    onResultSelected = { result ->
+                        viewModel.setResult(rowIndex, columnIndex, result)
                     }
                 )
             }
@@ -220,6 +266,7 @@ fun TournamentScreen(
             items(state.tournament!!.playerIds.size) { rowIndex ->
 
                 CrosstableRow(
+                    viewModel = viewModel,
                     tournament = state.tournament!!,
                     rowIndex = rowIndex,
                     horizontalScrollState = horizontalScrollState,

@@ -31,9 +31,9 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun tournamentDao(): TournamentDao
 
-    abstract fun tournamentPlayerDao(): TournamentPlayerDao
-
     abstract fun gameDao(): GameDao
+
+    abstract fun tournamentPlayerDao(): TournamentPlayerDao
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null

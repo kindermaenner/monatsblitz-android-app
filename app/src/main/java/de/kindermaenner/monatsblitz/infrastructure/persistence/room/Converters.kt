@@ -3,7 +3,6 @@ package de.kindermaenner.monatsblitz.infrastructure.persistence.room
 import androidx.room.TypeConverter
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.GameResult
-import de.kindermaenner.monatsblitz.domain.model.Leg
 import java.time.LocalDate
 
 class Converters {
@@ -26,17 +25,6 @@ class Converters {
     @TypeConverter
     fun toGameMode(value: String): GameMode =
         GameMode.valueOf(value)
-
-
-    // -------- Leg --------
-    @TypeConverter
-    fun fromLeg(leg: Leg): String =
-        leg.name
-
-    @TypeConverter
-    fun toLeg(value: String): Leg =
-        Leg.valueOf(value)
-
 
     // -------- GameResult --------
     @TypeConverter

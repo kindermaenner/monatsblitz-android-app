@@ -1,11 +1,14 @@
 package de.kindermaenner.monatsblitz.ui.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.NewTournament
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import de.kindermaenner.monatsblitz.ui.screens.HomeUiState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,8 +20,7 @@ import java.time.LocalDate
 
 class HomeViewModel(
     private val playerRepository: PlayerRepository,
-    private val tournamentRepository: TournamentRepository,
-    private val localStorage: TournamentStorage
+    private val createTournamentUseCase: CreateTournamentUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState(isLoading = true))
@@ -81,16 +83,13 @@ class HomeViewModel(
             val players = state.players.filter {
                 it.id in state.selectedPlayerIds
             }
-
-            val result = tournamentRepository.createTournament(
-                NewTournament(
-                    Mode = state.selectedMode,
-                    Date = LocalDate.now(),
-                    playerIds = players.map { it.id },
-                    doubleRound = state.doubleRound
-                )
+            val tournament = createTournamentUseCase.invoke(
+                players = players,
+                mode = state.selectedMode,
+                date = LocalDate.now(),
+                rounds = if (state.doubleRound) 2 else 1
             )
-            localStorage.saveTournamentState(result.Id, false)
+            Log.i("HomeViewModel", "Created: $tournament")
         }
     }
 }

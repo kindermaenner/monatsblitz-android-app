@@ -10,13 +10,13 @@ data class TournamentEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
-    val remoteId : Int?,
+    val remoteId : Long?,
 
     val mode: GameMode,
 
     val date: LocalDate,
 
-    val doubleRound: Boolean,
+    val rounds: Int,
 
     val dirty : Boolean = true
 )

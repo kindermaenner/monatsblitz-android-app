@@ -15,6 +15,7 @@ import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.RecreatePostsDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.ResultDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.UpdateGameDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -57,6 +58,11 @@ interface MonatsblitzApi {
     @POST(value = "game")
     suspend fun createGame(
         @Body request: CreateGameDto
+    ): GameDto
+
+    @POST(value = "game")
+    suspend fun updateGame(
+        @Body request: UpdateGameDto
     ): GameDto
 
     @POST(value = "game")

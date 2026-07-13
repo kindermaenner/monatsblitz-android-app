@@ -25,7 +25,7 @@ interface PlayerDao {
     fun observePlayer(id: Long): Flow<PlayerEntity?>
 
     @Query("SELECT * FROM players WHERE remoteId == :remoteId")
-    fun getPlayerByRemoteId(remoteId : Int) : PlayerEntity?
+    suspend fun getPlayerByRemoteId(remoteId : Long) : PlayerEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(players: List<PlayerEntity>) : List<Long>
@@ -47,5 +47,12 @@ interface PlayerDao {
     SET dirty = 0
     WHERE id = :playerId
 """)
-    suspend fun markPlayerAsClean(playerId: Int)
+    suspend fun markPlayerAsClean(playerId: Long)
+
+    @Query("""
+    UPDATE players
+    SET dirty = 0, remoteId = :remoteId
+    WHERE id = :playerId
+""")
+    suspend fun setRemoteId(playerId :Long, remoteId : Long )
 }

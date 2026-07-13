@@ -1,152 +1,93 @@
 package de.kindermaenner.monatsblitz.infrastructure.repository
 
-import de.kindermaenner.monatsblitz.domain.model.Game
-import de.kindermaenner.monatsblitz.domain.model.GameResult
-import de.kindermaenner.monatsblitz.domain.model.Leg
-import de.kindermaenner.monatsblitz.domain.model.MatchKey
 import de.kindermaenner.monatsblitz.domain.model.NewTournament
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
-import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
-import de.kindermaenner.monatsblitz.infrastructure.api.dto.toDto
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.GameDao
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentDao
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import androidx.room.withTransaction
+import de.kindermaenner.monatsblitz.domain.model.GameResult
+import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.GameMapper
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.PlayerMapper
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.TournamentMapper
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import java.io.IOException
-import androidx.room.withTransaction
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.toDomain
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.toEntity
 
 class TournamentRepositoryImpl(
     private val tournamentDao: TournamentDao,
-    private val tournamentPlayerDao: TournamentPlayerDao,
-    private val playerDao: PlayerDao,
+    private val tournamentPlayerDao : TournamentPlayerDao,
+    private val playerDao : PlayerDao,
     private val gameDao: GameDao,
-    private val api: MonatsblitzApi,
-    private val database: AppDatabase
+    private val database: AppDatabase,
+    private val tournamentStorage : TournamentStorage,
 ) : TournamentRepository {
 
     override fun observeTournaments(): Flow<List<Tournament>> {
         return tournamentDao.observeTournaments()
-            .map { list ->
-                list.map {
-                    TournamentMapper.toDomain(it)
-                }
+            .map { entities ->
+                entities.map { it.toDomain() }
             }
     }
 
     override fun observeTournament(id: Long): Flow<Tournament?> {
-        val tournamentFlow = tournamentDao.observeTournament(id)
-        val playersFlow = playerDao.observePlayers()
-        val gamesFlow = gameDao.observeGames(id)
-
-        return combine(
-            tournamentFlow,
-            playersFlow,
-            gamesFlow
-        ) { tournament, players, games ->
-
-            if (tournament == null) return@combine null
-
-            val playerIds = tournamentPlayerDao
-                .getPlayerIdsForTournament(id)
-                .toSet()
-
-            val tournamentPlayers = players
-                .filter { it.id in playerIds }
-
-            val gameMap = games.associate { game ->
-                MatchKey(
-                    tournamentId = game.tournamentId,
-                    player1Id = game.player1Id,
-                    player2Id = game.player2Id,
-                    leg = game.leg
-                ) to GameMapper.toDomain(game)
+        return tournamentDao.observeTournament(id)
+            .map { it ->
+                it?.toDomain()
             }
-
-            Tournament(
-                Id = tournament.id,
-                Mode = tournament.mode,
-                Date = tournament.date,
-                players = tournamentPlayers.map(PlayerMapper::toDomain),
-                games = gameMap.toMutableMap(),
-                doubleRound = tournament.doubleRound
-            )
-        }
-    }
-
-    private fun generateGames(request: NewTournament, tournamentId: Long): List<Game> {
-        val games = mutableListOf<Game>()
-        val playerIds = request.playerIds
-        val roundCount = if (request.doubleRound) 2 else 1
-
-        for (round in 1..roundCount) {
-            for (i in playerIds.indices) {
-                for (j in i + 1 until playerIds.size) {
-
-                    val player1Id = if (round == 1) {
-                        playerIds[i]
-                    } else {
-                        playerIds[j]
-                    }
-
-                    val player2Id = if (round == 1) {
-                        playerIds[j]
-                    } else {
-                        playerIds[i]
-                    }
-
-                    games.add(
-                        Game(
-                            tournamentId = tournamentId,
-                            player1Id = player1Id,
-                            player2Id = player2Id,
-                            leg = if (round == 1) Leg.FIRST else Leg.SECOND,
-                            result = GameResult.Open
-                        )
-                    )
-                }
-            }
-        }
-
-        return games
     }
 
     override suspend fun createTournament(request: NewTournament): Tournament {
-        val result = try {
-            api.createTournament(request.toDto())
-        } catch (e: IOException) {
-            null
-        }
+        return database.withTransaction {
+            val tournamentEntity = request.toEntity();
+            val tournamentId = tournamentDao.insert(
+                tournamentEntity
+            )
 
-        val tournamentId = database.withTransaction {
-
-            val entity = TournamentMapper.toEntity(request, result?.tournament_id)
-            val id = tournamentDao.insert(entity)
-
-            val refs = request.playerIds.map {
-                TournamentPlayerCrossRef(
-                    id,
-                    it
+            val gameEntities = request.games.map {
+                it.toEntity(
+                    tournamentId = tournamentId
                 )
             }
-            tournamentPlayerDao.insertAll(refs)
 
-            val games = generateGames(request, id).map {
-                GameMapper.toEntity(it)
+            val gameIds = gameDao.insertAll(gameEntities)
+
+            val savedGameEntities = gameEntities.mapIndexed { index, entity ->
+                entity.copy(id = gameIds[index])
             }
-            gameDao.insertAll(games)
-            id
+
+            val playerRefs = request.players.map {
+                TournamentPlayerCrossRef(
+                    tournamentId = tournamentId,
+                    playerId = it.id
+                )
+            }
+            tournamentPlayerDao.insertAll(playerRefs)
+
+            tournamentStorage.saveTournamentState(tournamentId, false)
+            tournamentEntity
+                .copy(id = tournamentId)
+                .toDomain(savedGameEntities, players = request.players)
         }
-        return observeTournament(tournamentId).first()!!
+    }
+
+    override suspend fun updateGameResult(
+        gameId: Long,
+        result: GameResult
+    ) {
+        val gameEntity = gameDao.getGame(gameId);
+        gameEntity?.let {
+            gameDao.update( it.copy(
+                result = result
+            ))
+        }
+    }
+
+    companion object {
+        const val TAG = "TournamentRepository"
     }
 
 }

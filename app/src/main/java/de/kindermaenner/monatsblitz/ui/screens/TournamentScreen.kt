@@ -66,7 +66,7 @@ fun CrosstableHeader(
         Row(
             modifier = Modifier.horizontalScroll(horizontalScrollState)
         ) {
-            tournament.players.forEachIndexed { index, _ ->
+            tournament.playerIds.forEachIndexed { index, _ ->
 
                 Box(
                     modifier = Modifier.width(CellWidth),
@@ -148,7 +148,7 @@ fun CrosstableRow(
             modifier = Modifier.horizontalScroll(horizontalScrollState)
         ) {
 
-            tournament.players.forEachIndexed { columnIndex, _ ->
+            tournament.playerIds.forEachIndexed { columnIndex, _ ->
 
                 val text = if (rowIndex == columnIndex) {
                     "X"
@@ -200,7 +200,9 @@ fun TournamentScreen(
             }
         )
     }
-
+    if (state.tournament == null) {
+        return;
+    }
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -215,7 +217,7 @@ fun TournamentScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize()
         ) {
-            items(state.tournament!!.players.size) { rowIndex ->
+            items(state.tournament!!.playerIds.size) { rowIndex ->
 
                 CrosstableRow(
                     tournament = state.tournament!!,

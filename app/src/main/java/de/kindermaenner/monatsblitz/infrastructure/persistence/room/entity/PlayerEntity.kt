@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 data class PlayerEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val remoteId : Int? = null,
+    val remoteId : Long? = null,
     val name: String,
     val vorname: String,
     val dirty : Boolean = true

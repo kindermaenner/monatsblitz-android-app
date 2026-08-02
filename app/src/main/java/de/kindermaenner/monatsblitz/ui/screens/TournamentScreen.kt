@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.ui.viewmodels.TournamentViewModel
-
+import de.kindermaenner.monatsblitz.domain.model.Game
 
 @Composable
 fun CrosstableHeader(
@@ -159,7 +159,6 @@ fun CrosstableRow(
     tournament: Tournament,
     rowIndex: Int,
     horizontalScrollState: ScrollState,
-    onCellClick: (rowIndex: Int, columnIndex: Int) -> Unit = { _, _ -> }
 ) {
     val NumberWidth = 40.dp
     val NameWidth = 140.dp
@@ -199,7 +198,10 @@ fun CrosstableRow(
                 val text = if (rowIndex == columnIndex) {
                     "X"
                 } else {
-                    ""
+                    tournament.games.values.firstOrNull { game ->
+                        (game.player1Id == rowPlayer.id && game.player2Id == tournament.playerIds[columnIndex]) ||
+                        (game.player2Id == rowPlayer.id && game.player1Id == tournament.playerIds[columnIndex])
+                    }?.result?.displayName ?: ""
                 }
 
                 ResultCell(
@@ -270,9 +272,6 @@ fun TournamentScreen(
                     tournament = state.tournament!!,
                     rowIndex = rowIndex,
                     horizontalScrollState = horizontalScrollState,
-                    onCellClick = { row, col ->
-                        // Ergebnisdialog öffnen
-                    }
                 )
 
                 HorizontalDivider()

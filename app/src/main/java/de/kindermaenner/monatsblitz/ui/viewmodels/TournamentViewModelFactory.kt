@@ -3,9 +3,11 @@ package de.kindermaenner.monatsblitz.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.GameDao
 
 class TournamentViewModelFactory(
     private val tournamentRepository: TournamentRepository,
+    private val gameDao: GameDao,
     private val tournamentId: Long
 
 ) : ViewModelProvider.Factory {
@@ -23,6 +25,7 @@ class TournamentViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return TournamentViewModel(
                 tournamentRepository,
+                gameDao,
                 tournamentId
             ) as T
         }

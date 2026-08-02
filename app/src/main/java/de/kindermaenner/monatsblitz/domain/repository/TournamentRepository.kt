@@ -11,7 +11,10 @@ interface TournamentRepository {
     suspend fun createTournament(request: NewTournament): Tournament
 
     suspend fun updateGameResult(
-        gameId: Long,
+        tournamentId: Long,
+        playerId1: Long,
+        playerId2: Long,
+        leg: Int,
         result: GameResult
     )
 }

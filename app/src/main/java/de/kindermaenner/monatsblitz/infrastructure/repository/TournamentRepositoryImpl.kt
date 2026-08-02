@@ -14,6 +14,7 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.toDomain
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.toEntity
 
@@ -75,14 +76,26 @@ class TournamentRepositoryImpl(
     }
 
     override suspend fun updateGameResult(
-        gameId: Long,
+        tournamentId: Long,
+        playerId1: Long,
+        playerId2: Long,
+        leg: Int,
         result: GameResult
     ) {
-        val gameEntity = gameDao.getGame(gameId);
-        gameEntity?.let {
-            gameDao.update( it.copy(
-                result = result
-            ))
+        val game = gameDao.getGameByPlayers(tournamentId, playerId1, playerId2)
+        
+        if (game != null) {
+            gameDao.update(game.copy(result = result, dirty = true))
+        } else {
+            val newGame = GameEntity(
+                tournamentId = tournamentId,
+                player1Id = playerId1,
+                player2Id = playerId2,
+                leg = leg,
+                result = result,
+                dirty = true
+            )
+            gameDao.insert(newGame)
         }
     }
 

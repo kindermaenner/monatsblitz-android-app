@@ -61,6 +61,7 @@ class AppContainer(context: Context) {
     fun tournamentViewModelFactory(tournamentId: Long) =
         TournamentViewModelFactory(
             tournamentRepository,
+            database.gameDao(),
             tournamentId
         )
 

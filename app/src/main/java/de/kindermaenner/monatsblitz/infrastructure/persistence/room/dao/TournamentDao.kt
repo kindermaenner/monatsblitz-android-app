@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.relation.TournamentWithDetails
@@ -19,9 +20,10 @@ interface TournamentDao {
     @Query("SELECT * FROM tournaments WHERE remoteId = :remoteId")
     suspend fun getTournamentByRemoteId(remoteId: Int): TournamentEntity?
 
+    @Transaction
     @Query("SELECT * FROM tournaments")
     fun observeTournaments(): Flow<List<TournamentWithDetails>>
-
+    @Transaction
     @Query("SELECT * FROM tournaments WHERE id = :id")
     fun observeTournament(id: Long): Flow<TournamentWithDetails?>
 

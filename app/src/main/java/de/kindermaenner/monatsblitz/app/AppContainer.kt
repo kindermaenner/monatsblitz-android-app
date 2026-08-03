@@ -13,9 +13,9 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
 import de.kindermaenner.monatsblitz.infrastructure.repository.PlayerRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.repository.SyncPlayerRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.repository.TournamentRepositoryImpl
-import de.kindermaenner.monatsblitz.ui.viewmodels.HomeViewModelFactory
-import de.kindermaenner.monatsblitz.ui.viewmodels.RootViewModelFactory
-import de.kindermaenner.monatsblitz.ui.viewmodels.TournamentViewModelFactory
+import de.kindermaenner.monatsblitz.ui.home.HomeViewModelFactory
+import de.kindermaenner.monatsblitz.ui.root.RootViewModelFactory
+import de.kindermaenner.monatsblitz.ui.tournament.TournamentViewModelFactory
 
 class AppContainer(context: Context) {
     private val database = AppDatabase.getInstance(context)
@@ -61,7 +61,6 @@ class AppContainer(context: Context) {
     fun tournamentViewModelFactory(tournamentId: Long) =
         TournamentViewModelFactory(
             tournamentRepository,
-            database.gameDao(),
             tournamentId
         )
 

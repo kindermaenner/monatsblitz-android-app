@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.ui.screens
+package de.kindermaenner.monatsblitz.ui.root
 
 sealed interface RootUiState {
 
@@ -14,4 +14,3 @@ sealed interface RootUiState {
         val message: String
     ) : RootUiState
 }
-

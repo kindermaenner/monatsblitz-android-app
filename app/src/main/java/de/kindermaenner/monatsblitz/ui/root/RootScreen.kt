@@ -1,13 +1,16 @@
-package de.kindermaenner.monatsblitz.ui.screens
+package de.kindermaenner.monatsblitz.ui.root
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.kindermaenner.monatsblitz.app.AppContainer
-import de.kindermaenner.monatsblitz.ui.viewmodels.HomeViewModel
-import de.kindermaenner.monatsblitz.ui.viewmodels.RootViewModel
-import de.kindermaenner.monatsblitz.ui.viewmodels.TournamentViewModel
+import de.kindermaenner.monatsblitz.ui.root.components.ErrorComponent
+import de.kindermaenner.monatsblitz.ui.home.HomeScreen
+import de.kindermaenner.monatsblitz.ui.root.components.LoadingComponent
+import de.kindermaenner.monatsblitz.ui.tournament.TournamentScreen
+import de.kindermaenner.monatsblitz.ui.home.HomeViewModel
+import de.kindermaenner.monatsblitz.ui.tournament.TournamentViewModel
 
 @Composable
 fun RootScreen(
@@ -23,7 +26,7 @@ fun RootScreen(
     when(val current = state) {
 
         RootUiState.Loading -> {
-            LoadingScreen()
+            LoadingComponent()
         }
 
         RootUiState.ReadyWithoutTournament -> {
@@ -47,7 +50,7 @@ fun RootScreen(
 
         is RootUiState.Error -> {
 
-            ErrorScreen(current.message)
+            ErrorComponent(current.message)
         }
     }
 }

@@ -1,11 +1,10 @@
-package de.kindermaenner.monatsblitz.ui.screens
+package de.kindermaenner.monatsblitz.ui.root.components
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import de.kindermaenner.monatsblitz.ui.viewmodels.RootViewModel
 
 @Composable
-fun ErrorScreen(
+fun ErrorComponent(
     text : String
 ) {
     Text(text)

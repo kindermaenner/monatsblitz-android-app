@@ -11,4 +11,10 @@ data class Tournament(val Id: Long,
 )  {
     val playerIds: List<Long>
         get() = players.map { it.id }
+
+    fun findGame(player1Id: Long, player2Id: Long, leg : Int): Game? {
+        return games.values.firstOrNull { game ->
+            ((game.player1Id == player1Id && game.player2Id == player2Id) && game.leg == leg)
+        }
+    }
 }

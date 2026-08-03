@@ -5,13 +5,9 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import de.kindermaenner.monatsblitz.app.AppContainer
 import de.kindermaenner.monatsblitz.app.MonatsblitzApplication
-import de.kindermaenner.monatsblitz.ui.screens.RootScreen
+import de.kindermaenner.monatsblitz.ui.root.RootScreen
 import de.kindermaenner.monatsblitz.ui.theme.MonatsblitzTheme
 
 class MainActivity : ComponentActivity() {

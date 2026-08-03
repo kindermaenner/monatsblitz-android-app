@@ -1,8 +1,7 @@
-package de.kindermaenner.monatsblitz.ui.viewmodels
+package de.kindermaenner.monatsblitz.ui.root
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 

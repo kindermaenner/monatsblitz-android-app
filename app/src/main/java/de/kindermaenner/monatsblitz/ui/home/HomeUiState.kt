@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.ui.screens
+package de.kindermaenner.monatsblitz.ui.home
 
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
@@ -12,4 +12,3 @@ data class HomeUiState(
 
     val isLoading: Boolean = false
 )
-

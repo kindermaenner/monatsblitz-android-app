@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.ui.viewmodels
+package de.kindermaenner.monatsblitz.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -20,7 +20,8 @@ class HomeViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return HomeViewModel(
                 playerRepository,
-                createTournamentUseCase) as T
+                createTournamentUseCase
+            ) as T
         }
 
 

@@ -1,16 +1,11 @@
-package de.kindermaenner.monatsblitz.ui.viewmodels
+package de.kindermaenner.monatsblitz.ui.home
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameMode
-import de.kindermaenner.monatsblitz.domain.model.NewTournament
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
-import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
-import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
-import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
-import de.kindermaenner.monatsblitz.ui.screens.HomeUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

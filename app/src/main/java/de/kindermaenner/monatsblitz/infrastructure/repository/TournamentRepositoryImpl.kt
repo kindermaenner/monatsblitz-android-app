@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.infrastructure.repository
 
+import android.util.Log
 import de.kindermaenner.monatsblitz.domain.model.NewTournament
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
@@ -82,9 +83,11 @@ class TournamentRepositoryImpl(
         leg: Int,
         result: GameResult
     ) {
-        val game = gameDao.getGameByPlayers(tournamentId, playerId1, playerId2)
+        Log.i(TAG, "updateGameResult called with tournamentId=$tournamentId, playerId1=$playerId1, playerId2=$playerId2, leg=$leg, result=$result")
+        val game = gameDao.getGameByPlayers(tournamentId, playerId1, playerId2, leg)
         
         if (game != null) {
+            Log.i(TAG, "updateGameResult: Updating existing game: $game")
             gameDao.update(game.copy(result = result, dirty = true))
         } else {
             val newGame = GameEntity(
@@ -95,6 +98,7 @@ class TournamentRepositoryImpl(
                 result = result,
                 dirty = true
             )
+            Log.i(TAG, "updateGameResult: Inserting new game: $newGame")
             gameDao.insert(newGame)
         }
     }

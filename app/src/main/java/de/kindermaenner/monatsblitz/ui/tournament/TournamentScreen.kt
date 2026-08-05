@@ -9,10 +9,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -66,9 +69,6 @@ fun TournamentScreen(
     ) {
         var text = "Turnier vom ${state.tournament!!.Date.format(
             DateTimeFormatter.ofPattern("dd.MM.yy"))}"
-        if (state.tournament!!.rounds > 1) {
-           text += " Runde ${state.leg}"
-        }
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = text,
@@ -77,6 +77,20 @@ fun TournamentScreen(
                 .fillMaxWidth()
                 .padding(16.dp)
         )
+        
+        if (state.tournament!!.rounds > 1) {
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                repeat(state.tournament!!.rounds) { index ->
+                    SegmentedButton(
+                        selected = state.leg - 1 == index,
+                        onClick = { viewModel.selectLeg(index + 1) },
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("R${index + 1}") }
+                }
+            }
+        }
+        
         Spacer(modifier = Modifier.height(6.dp))
         CrosstableHeader(
             tournament = state.tournament!!,
@@ -91,10 +105,11 @@ fun TournamentScreen(
             items(state.tournament!!.playerIds.size) { rowIndex ->
                 val results = mutableListOf<String>()
                 for (columnIndex in state.tournament!!.playerIds.indices) {
-                    results.add(if (columnIndex == rowIndex) "x" else state.tournament!!.findGame(state.tournament!!.playerIds[rowIndex], state.tournament!!.playerIds[columnIndex], 1)?.result?.displayName ?: "")
+                    results.add(if (columnIndex == rowIndex) "x" else state.tournament!!.findGame(state.tournament!!.playerIds[rowIndex], state.tournament!!.playerIds[columnIndex], state.leg)?.result?.displayName ?: "")
                 }
                 CrosstableRow(
                     tournament = state.tournament!!,
+                    round = state.leg,
                     rowIndex = rowIndex,
                     playerName = state.tournament!!.players[rowIndex].fullName,
                     horizontalScrollState = horizontalScrollState,

@@ -1,6 +1,7 @@
 package de.kindermaenner.monatsblitz.ui.tournament.components
 
 import android.R
+import android.util.Log
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
@@ -18,11 +19,12 @@ import de.kindermaenner.monatsblitz.domain.model.Tournament
 @Composable
 fun CrosstableRow(
     tournament: Tournament,
+    round : Int,
     rowIndex: Int,
     playerName : String,
     horizontalScrollState: ScrollState,
     results : List<String>,
-    setResult : (rowIndex: Int, columnIndex: Int, result: de.kindermaenner.monatsblitz.domain.model.GameResult) -> Unit
+    setResult : (rowIndex: Int, columnIndex: Int, round : Int, result: de.kindermaenner.monatsblitz.domain.model.GameResult) -> Unit
 ) {
     val NumberWidth = 40.dp
     val NameWidth = 140.dp
@@ -61,7 +63,8 @@ fun CrosstableRow(
                     value = results[columnIndex],
                     enabled = rowIndex != columnIndex,
                     onResultSelected = { result ->
-                        setResult(rowIndex, columnIndex, result)
+                        Log.i("ResultCell", "Result selected: rowIndex=$rowIndex, columnIndex=$columnIndex, round=$round, result=$result")
+                        setResult(rowIndex, columnIndex, round, result)
                     }
                 )
             }

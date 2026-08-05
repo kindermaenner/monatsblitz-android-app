@@ -71,7 +71,8 @@ interface GameDao {
         WHERE tournamentId = :tournamentId
           AND player1Id = :playerId1
           AND player2Id = :playerId2
+          AND leg = :leg
     """)
-    suspend fun getGameByPlayers(tournamentId: Long, playerId1: Long, playerId2: Long): GameEntity?
+    suspend fun getGameByPlayers(tournamentId: Long, playerId1: Long, playerId2: Long, leg: Int): GameEntity?
 
 }

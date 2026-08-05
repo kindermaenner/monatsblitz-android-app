@@ -5,6 +5,7 @@ import de.kindermaenner.monatsblitz.BuildConfig.API_KEY
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import de.kindermaenner.monatsblitz.infrastructure.api.PlayerRemoteDataSource
@@ -52,6 +53,8 @@ class AppContainer(context: Context) {
         tournamentRepository,
         createNewGamesUseCase
     )
+    val setGameResultUseCase = SetGameResultUseCase(tournamentRepository)
+
     val homeViewModelFactory =
         HomeViewModelFactory(
             playerRepository,
@@ -61,6 +64,7 @@ class AppContainer(context: Context) {
     fun tournamentViewModelFactory(tournamentId: Long) =
         TournamentViewModelFactory(
             tournamentRepository,
+            setGameResultUseCase,
             tournamentId
         )
 

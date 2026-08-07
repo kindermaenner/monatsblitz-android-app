@@ -3,6 +3,7 @@ package de.kindermaenner.monatsblitz.infrastructure.api
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.BatchResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGameDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGamesDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGamesResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateResultDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateResultsDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateTournamentResponseDto
@@ -68,7 +69,7 @@ interface MonatsblitzApi {
     @POST(value = "game")
     suspend fun createGames(
         @Body request: CreateGamesDto
-    ): BatchResponseDto<GameDto>
+    ): CreateGamesResponseDto
 
     // Result Interface
 

@@ -8,6 +8,7 @@ import androidx.room.Transaction
 import androidx.room.Update
 import androidx.room.Upsert
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.projection.GameSyncData
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -61,10 +62,10 @@ interface GameDao {
 
     @Query("""
     UPDATE games
-    SET dirty = 0
+    SET dirty = 0, remoteId = :remoteId
     WHERE id = :gameId
 """)
-    suspend fun markGameAsSynced(gameId : Long)
+    suspend fun markGameAsSynced(gameId : Long, remoteId : Int)
 
     @Query("""
         SELECT * FROM games
@@ -75,4 +76,19 @@ interface GameDao {
     """)
     suspend fun getGameByPlayers(tournamentId: Long, playerId1: Long, playerId2: Long, leg: Int): GameEntity?
 
+    @Query("""
+    SELECT 
+        g.id AS localGameId,
+        t.remoteId AS tournamentRemoteId,
+        g.player1Id,
+        g.player2Id,
+        g.leg,
+        g.result
+    FROM games g
+    INNER JOIN tournaments t 
+        ON g.tournamentId = t.id
+    WHERE g.dirty = 1
+      AND t.remoteId IS NOT NULL
+""")
+    suspend fun getGamesForSync(): List<GameSyncData>
 }

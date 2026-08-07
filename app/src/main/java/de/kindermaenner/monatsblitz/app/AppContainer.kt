@@ -6,13 +6,14 @@ import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.SyncGameResultsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.SyncTournamentUseCase
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import de.kindermaenner.monatsblitz.infrastructure.api.PlayerRemoteDataSource
 import de.kindermaenner.monatsblitz.infrastructure.api.client.RetrofitClient
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
 import de.kindermaenner.monatsblitz.infrastructure.repository.PlayerRepositoryImpl
-import de.kindermaenner.monatsblitz.infrastructure.repository.SyncPlayerRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.repository.TournamentRepositoryImpl
 import de.kindermaenner.monatsblitz.ui.home.HomeViewModelFactory
 import de.kindermaenner.monatsblitz.ui.root.RootViewModelFactory
@@ -35,16 +36,12 @@ class AppContainer(context: Context) {
         gameDao = database.gameDao(),
         database = database,
         tournamentPlayerDao = database.tournamentPlayerDao(),
-        playerDao = database.playerDao()
     )
     val playerRemoteDataSource = PlayerRemoteDataSource(api)
 
-    val syncPlayerRepository = SyncPlayerRepositoryImpl(
+    val syncPlayersUseCase = SyncPlayersUseCase(
         remoteDataSource = playerRemoteDataSource,
-        playerDao = database.playerDao()
-    )
-
-    val syncPlayersUseCase = SyncPlayersUseCase(syncPlayerRepository)
+        playerDao = database.playerDao())
 
     val createNewGamesUseCase = CreateNewGamesUseCase()
 
@@ -54,6 +51,16 @@ class AppContainer(context: Context) {
         createNewGamesUseCase
     )
     val setGameResultUseCase = SetGameResultUseCase(tournamentRepository)
+
+    val syncTournamentUseCase = SyncTournamentUseCase(
+        monatsblitzApi = api,
+        tournamentDao = database.tournamentDao()
+    )
+
+    val syncGameResultsUseCase = SyncGameResultsUseCase(
+        monatsblitzApi = api,
+        gameDao = database.gameDao()
+    )
 
     val homeViewModelFactory =
         HomeViewModelFactory(

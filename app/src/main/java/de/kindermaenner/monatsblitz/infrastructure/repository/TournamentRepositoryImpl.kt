@@ -12,7 +12,6 @@ import androidx.room.withTransaction
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
@@ -22,7 +21,6 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.toEnt
 class TournamentRepositoryImpl(
     private val tournamentDao: TournamentDao,
     private val tournamentPlayerDao : TournamentPlayerDao,
-    private val playerDao : PlayerDao,
     private val gameDao: GameDao,
     private val database: AppDatabase,
     private val tournamentStorage : TournamentStorage,
@@ -40,6 +38,11 @@ class TournamentRepositoryImpl(
             .map { it ->
                 it?.toDomain()
             }
+    }
+
+    override suspend fun getTournamentById(id: Long): Tournament? {
+        val entity = tournamentDao.getTournament(id)
+        return entity?.toDomain()
     }
 
     override suspend fun createTournament(request: NewTournament): Tournament {

@@ -10,6 +10,8 @@ interface TournamentRepository {
     fun observeTournament(id: Long): Flow<Tournament?>
     suspend fun createTournament(request: NewTournament): Tournament
 
+    suspend fun getTournamentById(id: Long): Tournament?
+
     suspend fun updateGameResult(
         tournamentId: Long,
         playerId1: Long,

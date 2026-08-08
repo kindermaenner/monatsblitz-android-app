@@ -1,60 +1,48 @@
-name: Android CI
+name: Android Coverage
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: [ main ]
 
 permissions:
-  contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  contents: write
+  pages: write
+  id-token: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
 
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Validate Gradle Wrapper
-        uses: gradle/actions/wrapper-validation@v3
 
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: gradle
+          distribution: temurin
+          java-version: 21
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
-
-      - name: Run Unit Tests + Coverage
-        run: ./gradlew testDebugUnitTest jacocoTestReport --parallel --build-cache --no-daemon
-
-      - name: Upload Test Reports
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Gradle Cache
+        uses: actions/cache@v4
         with:
-          name: unit-test-reports
-          path: app/build/reports/tests/testDebugUnitTest/
-          retention-days: 5
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
-      - name: Upload Coverage to Codecov
-        if: always()
-        uses: codecov/codecov-action@v4
-        with:
-          files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Run Tests + Coverage
+        run: |
+          chmod +x gradlew
+          ./gradlew jacocoTestReport --stacktrace
 
+      - name: SonarQube Scan
+        if: github.ref == 'refs/heads/main'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: ./gradlew jacocoTestReport sonar --stacktrace

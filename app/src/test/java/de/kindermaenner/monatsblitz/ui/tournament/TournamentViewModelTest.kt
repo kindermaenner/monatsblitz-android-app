@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.ui.tournament
 
+import android.util.Log
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Player
@@ -8,7 +9,6 @@ import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 import de.kindermaenner.monatsblitz.util.MainDispatcherRule
 import io.mockk.coEvery
-import android.util.Log
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk

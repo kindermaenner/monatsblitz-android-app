@@ -3,7 +3,6 @@ package de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Player
-import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.relation.TournamentWithDetails

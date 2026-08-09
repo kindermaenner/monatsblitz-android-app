@@ -1,10 +1,8 @@
 package de.kindermaenner.monatsblitz.infrastructure.api.dto
 
-import de.kindermaenner.monatsblitz.domain.model.Game
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.NewPlayer
 import de.kindermaenner.monatsblitz.domain.model.NewTournament
-import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity
 import java.util.Locale
 

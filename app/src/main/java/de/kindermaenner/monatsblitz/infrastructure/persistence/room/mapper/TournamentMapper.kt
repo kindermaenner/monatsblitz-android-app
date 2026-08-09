@@ -6,10 +6,8 @@ import de.kindermaenner.monatsblitz.domain.model.NewTournament
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.relation.TournamentWithDetails
-import kotlin.Long
 
 
 fun GameEntity.toDomain(): Game =

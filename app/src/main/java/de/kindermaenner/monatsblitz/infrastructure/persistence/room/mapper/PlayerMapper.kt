@@ -2,8 +2,6 @@ package de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper
 
 import de.kindermaenner.monatsblitz.domain.model.NewPlayer
 import de.kindermaenner.monatsblitz.domain.model.Player
-import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewPlayerDto
-import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity
 
 fun PlayerEntity.toDomain(): Player =

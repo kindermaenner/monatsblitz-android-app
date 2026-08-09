@@ -1,6 +1,5 @@
 package de.kindermaenner.monatsblitz.ui.tournament.components
 
-import android.R
 import android.util.Log
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.horizontalScroll

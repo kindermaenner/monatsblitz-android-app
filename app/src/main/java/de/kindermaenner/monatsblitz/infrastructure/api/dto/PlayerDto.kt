@@ -1,6 +1,5 @@
 package de.kindermaenner.monatsblitz.infrastructure.api.dto
 
-import de.kindermaenner.monatsblitz.domain.model.Player
 import kotlinx.serialization.Serializable
 
 @Serializable

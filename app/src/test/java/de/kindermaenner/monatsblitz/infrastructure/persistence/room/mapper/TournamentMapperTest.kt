@@ -2,7 +2,10 @@ package de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper
 
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.GameResult
+import de.kindermaenner.monatsblitz.domain.model.NewGame
+import de.kindermaenner.monatsblitz.domain.model.NewTournament
 import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.relation.TournamentWithDetails
@@ -41,5 +44,38 @@ class TournamentMapperTest {
         val domain = details.toDomain()
         assertEquals(1L, domain.Id)
         assertEquals(date, domain.Date)
+    }
+
+    @Test
+    fun `Tournament toEntities maps correctly`() {
+        val date = LocalDate.now()
+        val domain = Tournament(Id = 1, Mode = GameMode.BLITZ_3_2, Date = date, rounds = 1, players = listOf())
+        
+        val (entity, games) = domain.toEntities()
+        
+        assertEquals(1L, entity.id)
+        assertEquals(GameMode.BLITZ_3_2, entity.mode)
+        assertEquals(0, games.size)
+    }
+
+    @Test
+    fun `NewTournament toEntity maps correctly`() {
+        val date = LocalDate.now()
+        val domain = NewTournament(Mode = GameMode.BLITZ_5_0, Date = date, rounds = 2, players = listOf(), games = listOf())
+        
+        val entity = domain.toEntity()
+        
+        assertEquals(GameMode.BLITZ_5_0, entity.mode)
+        assertEquals(2, entity.rounds)
+    }
+
+    @Test
+    fun `NewGame toEntity maps correctly`() {
+        val domain = NewGame(player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Open)
+        val entity = domain.toEntity(tournamentId = 5)
+        
+        assertEquals(5L, entity.tournamentId)
+        assertEquals(1L, entity.player1Id)
+        assertEquals(GameResult.Open, entity.result)
     }
 }

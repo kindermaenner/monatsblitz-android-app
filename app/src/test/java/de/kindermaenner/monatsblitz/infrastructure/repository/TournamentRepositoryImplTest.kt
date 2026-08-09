@@ -97,6 +97,32 @@ class TournamentRepositoryImplTest {
     }
 
     @Test
+    fun `getTournamentById returns domain model`() = runTest {
+        val date = LocalDate.now()
+        val tournamentEntity = TournamentEntity(id = 1, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = null)
+        val details = TournamentWithDetails(tournament = tournamentEntity, players = listOf(), games = listOf())
+        
+        coEvery { tournamentDao.getTournament(1) } returns details
+
+        val result = repository.getTournamentById(1)
+
+        assertEquals(1L, result?.Id)
+    }
+
+    @Test
+    fun `observeTournament returns domain flow`() = runTest {
+        val date = LocalDate.now()
+        val tournamentEntity = TournamentEntity(id = 1, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = null)
+        val details = TournamentWithDetails(tournament = tournamentEntity, players = listOf(), games = listOf())
+        
+        coEvery { tournamentDao.observeTournament(1) } returns flowOf(details)
+
+        val result = repository.observeTournament(1).first()
+
+        assertEquals(1L, result?.Id)
+    }
+
+    @Test
     fun `updateGameResult updates existing game if found`() = runTest {
         val gameEntity = GameEntity(id = 100, tournamentId = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Open)
         coEvery { gameDao.getGameByPlayers(1, 1, 2, 1) } returns gameEntity

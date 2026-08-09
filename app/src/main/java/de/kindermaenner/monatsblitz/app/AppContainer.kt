@@ -1,6 +1,7 @@
 package de.kindermaenner.monatsblitz.app
 
 import android.content.Context
+import androidx.datastore.preferences.preferencesDataStore
 import de.kindermaenner.monatsblitz.BuildConfig.API_KEY
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
@@ -20,6 +21,7 @@ import de.kindermaenner.monatsblitz.ui.root.RootViewModelFactory
 import de.kindermaenner.monatsblitz.ui.tournament.TournamentViewModelFactory
 
 class AppContainer(context: Context) {
+    private val Context.dataStore by preferencesDataStore(name = "tournament_state")
     private val database = AppDatabase.getInstance(context)
 
     private val api = RetrofitClient.createApi(API_KEY)
@@ -29,7 +31,7 @@ class AppContainer(context: Context) {
             playerDao = database.playerDao()
         )
 
-    val tournamentStorage = TournamentStorage(context)
+    val tournamentStorage = TournamentStorage(context.dataStore)
     val tournamentRepository = TournamentRepositoryImpl(
         tournamentDao = database.tournamentDao(),
         tournamentStorage = tournamentStorage,

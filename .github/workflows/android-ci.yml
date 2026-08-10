@@ -75,6 +75,6 @@ jobs:
             -d '{
               "ref": "main",
               "inputs": {
-                "project": "${{ github.event.repository.name }}"
+                "project": "monatsblitz-android"
               }
             }'

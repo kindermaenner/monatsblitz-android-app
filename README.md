@@ -6,3 +6,6 @@
 ![Security Hotspots](https://raw.githubusercontent.com/kindermaenner/sonar-badges/main/badges/monatsblitz-android/security_hotspots.svg)
 
 The android app for blitz chess tournaments which are stored in the  WordPress database and uses the plugins REST api to store the results and create a post for them.
+
+## Motivation
+The motivation and overall project context are documented in the [Monatsblitz WordPress plugin](https://github.com/kindermaenner/monatsblitz-wp-plugin) repository. This README focuses solely on the Android application and its technical implementation.

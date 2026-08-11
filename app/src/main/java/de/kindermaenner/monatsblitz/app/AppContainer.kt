@@ -5,6 +5,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import de.kindermaenner.monatsblitz.BuildConfig.API_KEY
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncGameResultsUseCase
@@ -62,6 +63,10 @@ class AppContainer(context: Context) {
     val syncGameResultsUseCase = SyncGameResultsUseCase(
         monatsblitzApi = api,
         gameDao = database.gameDao()
+    )
+
+    val createTournamentRankingUseCase = CreateTournamentRankingsUseCase(
+        tournamentPlayerDao = database.tournamentPlayerDao()
     )
 
     val homeViewModelFactory =

@@ -3,6 +3,7 @@ package de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Upsert
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
 
 @Dao
@@ -13,6 +14,10 @@ interface TournamentPlayerDao {
         refs: List<TournamentPlayerCrossRef>
     )
 
+    @Upsert
+    suspend fun upsertAll(
+        refs: List<TournamentPlayerCrossRef>
+    )
     @Query("""
         DELETE FROM tournament_player_cross_ref
         WHERE tournamentId = :tournamentId

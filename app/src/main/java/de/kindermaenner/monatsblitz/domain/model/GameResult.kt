@@ -17,6 +17,16 @@ enum class GameResult(val displayName: String) {
         ForfeitLoss -> ForfeitWin
     }
 
+    val points: Double
+        get() = when (this) {
+            Open -> 0.0
+            Loss -> 0.0
+            Win -> 1.0
+            Remis -> 0.5
+            ForfeitWin -> 1.0
+            ForfeitLoss -> 0.0
+        }
+
     companion object {
         fun fromDisplayName(name: String): GameResult? {
             return GameResult.entries.find { it.displayName == name }

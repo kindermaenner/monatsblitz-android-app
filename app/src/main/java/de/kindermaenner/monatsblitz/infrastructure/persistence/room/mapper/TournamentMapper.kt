@@ -4,9 +4,11 @@ import de.kindermaenner.monatsblitz.domain.model.Game
 import de.kindermaenner.monatsblitz.domain.model.NewGame
 import de.kindermaenner.monatsblitz.domain.model.NewTournament
 import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.PlayerRankingEntry
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.relation.TournamentWithDetails
 
 
@@ -84,3 +86,11 @@ fun NewGame.toEntity(tournamentId : Long) : GameEntity = GameEntity(
     result = result,
     dirty = true
 )
+
+fun PlayerRankingEntry.toEntity() : TournamentPlayerCrossRef =
+    TournamentPlayerCrossRef(
+        tournamentId = tournamentId,
+        playerId = playerId,
+        points = points,
+        rank = rank
+    )

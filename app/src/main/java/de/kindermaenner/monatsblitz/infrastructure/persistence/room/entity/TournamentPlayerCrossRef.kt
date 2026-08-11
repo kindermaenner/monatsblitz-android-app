@@ -30,5 +30,7 @@ import androidx.room.Index
 )
 data class TournamentPlayerCrossRef(
     val tournamentId: Long,
-    val playerId: Long
+    val playerId: Long,
+    val points : Double? = null,
+    val rank : Int? = null
 )

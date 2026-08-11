@@ -1,6 +1,6 @@
 [versions]
-agp = "9.2.1"
-kotlin = "2.4.0"
+agp = "9.3.1"
+kotlin = "2.4.10"
 sonarqube = "7.4.0.8496"
 kover = "0.9.9"
 
@@ -8,24 +8,24 @@ coreKtx = "1.19.0"
 lifecycle = "2.11.0"
 activityCompose = "1.13.0"
 
-composeBom = "2026.06.00"
+composeBom = "2026.06.01"
 navigation = "2.9.8"
 
 retrofit = "3.0.0"
 retrofitSerializationConverter = "1.0.0"
-retrofitAdapter = "2.12.0"
-okhttp = "4.12.0"
+retrofitAdapter = "3.0.0"
+okhttp = "5.4.0"
 serialization = "1.11.0"
-datastore = "1.1.1"
+datastore = "1.2.1"
 
 junit4 = "4.13.2"
 mockk = "1.14.11"
 coroutines = "1.11.0"
 androidxJunit = "1.3.0"
 espresso = "3.7.0"
-runtime = "1.11.3"
+runtime = "1.11.4"
 
-room = "2.8.3"
+room = "2.8.4"
 ksp = "2.3.9"
 
 [libraries]

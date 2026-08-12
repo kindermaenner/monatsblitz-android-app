@@ -4,13 +4,7 @@ sealed interface RootUiState {
 
     data object Loading : RootUiState
 
-    data object ReadyWithoutTournament : RootUiState
+    data class Ready(val tournamentId: Long?) : RootUiState
 
-    data class ReadyWithTournament(
-        val tournamentId: Long
-    ) : RootUiState
-
-    data class Error(
-        val message: String
-    ) : RootUiState
+    data class Error(val message: String) : RootUiState
 }

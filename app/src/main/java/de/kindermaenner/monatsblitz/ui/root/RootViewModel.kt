@@ -5,7 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
+import de.kindermaenner.monatsblitz.ui.navigation.AppRoute
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -16,8 +19,11 @@ class RootViewModel(
 
     private val _uiState =
         MutableStateFlow<RootUiState>(RootUiState.Loading)
-
     val uiState = _uiState.asStateFlow()
+
+    // --- Navigation-Events (Effect) ---
+    private val _effect = MutableSharedFlow<RootEffect>()
+    val effect = _effect.asSharedFlow()
 
     init {
         preloadPlayers()
@@ -26,7 +32,6 @@ class RootViewModel(
 
     private fun preloadPlayers() {
         viewModelScope.launch {
-            Log.i("RootViewModel", "sync players")
             syncPlayersUseCase()
         }
     }
@@ -34,15 +39,19 @@ class RootViewModel(
     private fun observeCurrentTournament() {
         viewModelScope.launch {
             tournamentPreferences.getTournamentState().collect { state ->
-                Log.i(TAG, "setting uiState: id=${state?.tournamentId}")
+                val tournamentId = state?.tournamentId
 
-                _uiState.value =
-                    if (state?.tournamentId == null) {
-                        RootUiState.ReadyWithoutTournament
-                    } else {
-                        RootUiState.ReadyWithTournament(state.tournamentId)
-                    }
+                _uiState.value = RootUiState.Ready(tournamentId)
+
+                if (tournamentId != null) {
+                    navigateTo(AppRoute.Tournament(tournamentId))
+                }
             }
+        }
+    }
+    fun navigateTo(route: AppRoute) {
+        viewModelScope.launch {
+            _effect.emit(RootEffect.Navigate(route))
         }
     }
 

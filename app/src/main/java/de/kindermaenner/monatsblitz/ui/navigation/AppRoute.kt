@@ -11,4 +11,13 @@ sealed class AppRoute(val path: String) {
             const val FULL = "$BASE/{$ARG_ID}"
         }
     }
+
+    data class Ranking(val tournamentId: Long) :
+        AppRoute("ranking/$tournamentId") {
+
+        companion object {
+            const val ARG_ID = "tournamentId"
+            const val TEMPLATE = "ranking/{$ARG_ID}"
+        }
+    }
 }

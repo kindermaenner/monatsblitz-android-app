@@ -15,6 +15,9 @@ interface PlayerDao {
     @Query("SELECT * FROM players")
     fun observePlayers(): Flow<List<PlayerEntity>>
 
+    @Query("SELECT * FROM players")
+    suspend fun getAllPlayers(): List<PlayerEntity>
+
     @Query("SELECT * FROM players WHERE id IN (:ids)")
     suspend fun getPlayersByIds(ids: List<Long>): List<PlayerEntity>
 

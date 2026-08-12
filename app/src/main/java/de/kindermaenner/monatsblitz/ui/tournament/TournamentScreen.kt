@@ -25,13 +25,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import de.kindermaenner.monatsblitz.ui.navigation.AppRoute
 import de.kindermaenner.monatsblitz.ui.tournament.components.CrosstableHeader
 import de.kindermaenner.monatsblitz.ui.tournament.components.CrosstableRow
 import java.time.format.DateTimeFormatter
 
 @Composable
 fun TournamentScreen(
-    viewModel: TournamentViewModel
+    viewModel: TournamentViewModel,
+    navController : NavController
 ) {
     val horizontalScrollState = rememberScrollState()
     var showBackDialog by remember { mutableStateOf(false) }
@@ -77,7 +80,19 @@ fun TournamentScreen(
                 .fillMaxWidth()
                 .padding(16.dp)
         )
-        
+        // Ranking anzeigen
+        Button(
+            onClick = {
+                viewModel.updateRanking()
+                navController.navigate(AppRoute.Ranking(state.tournament!!.Id).path)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text("Ranking anzeigen")
+        }
+
         if (state.tournament!!.rounds > 1) {
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                 repeat(state.tournament!!.rounds) { index ->

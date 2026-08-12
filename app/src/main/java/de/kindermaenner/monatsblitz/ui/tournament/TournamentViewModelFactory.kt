@@ -3,11 +3,13 @@ package de.kindermaenner.monatsblitz.ui.tournament
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 
 class TournamentViewModelFactory(
     private val tournamentRepository: TournamentRepository,
     private val setGameResultUseCase: SetGameResultUseCase,
+    private val updateRankingUseCase: CreateTournamentRankingsUseCase,
     private val tournamentId: Long
 
 ) : ViewModelProvider.Factory {
@@ -26,6 +28,7 @@ class TournamentViewModelFactory(
             return TournamentViewModel(
                 tournamentRepository,
                 setGameResultUseCase,
+                updateRankingUseCase,
                 tournamentId
             ) as T
         }

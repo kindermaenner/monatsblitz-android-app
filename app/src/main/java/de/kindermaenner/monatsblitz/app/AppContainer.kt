@@ -18,6 +18,7 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
 import de.kindermaenner.monatsblitz.infrastructure.repository.PlayerRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.repository.TournamentRepositoryImpl
 import de.kindermaenner.monatsblitz.ui.home.HomeViewModelFactory
+import de.kindermaenner.monatsblitz.ui.ranking.RankingViewModelFactory
 import de.kindermaenner.monatsblitz.ui.root.RootViewModelFactory
 import de.kindermaenner.monatsblitz.ui.tournament.TournamentViewModelFactory
 
@@ -79,6 +80,7 @@ class AppContainer(context: Context) {
         TournamentViewModelFactory(
             tournamentRepository,
             setGameResultUseCase,
+            createTournamentRankingUseCase,
             tournamentId
         )
 
@@ -87,5 +89,12 @@ class AppContainer(context: Context) {
             tournamentStorage,
             syncPlayersUseCase
         )
+
+    fun rankingViewModelFactory(tournamentId: Long) = RankingViewModelFactory(
+        tournamentId = tournamentId, // Placeholder, will be set in the factory method
+        tournamentPlayerDao = database.tournamentPlayerDao(),
+        playerDao = database.playerDao()
+    )
+
 
 }

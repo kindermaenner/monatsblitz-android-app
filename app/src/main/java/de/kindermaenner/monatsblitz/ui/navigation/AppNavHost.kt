@@ -11,6 +11,8 @@ import androidx.navigation.navArgument
 import de.kindermaenner.monatsblitz.app.AppContainer
 import de.kindermaenner.monatsblitz.ui.home.HomeScreen
 import de.kindermaenner.monatsblitz.ui.home.HomeViewModel
+import de.kindermaenner.monatsblitz.ui.ranking.RankingScreen
+import de.kindermaenner.monatsblitz.ui.ranking.RankingViewModel
 import de.kindermaenner.monatsblitz.ui.tournament.TournamentScreen
 import de.kindermaenner.monatsblitz.ui.tournament.TournamentViewModel
 
@@ -48,7 +50,24 @@ fun AppNavHost(
             val vm: TournamentViewModel = viewModel(
                 factory = appContainer.tournamentViewModelFactory(id)
             )
-            TournamentScreen(vm)
+            TournamentScreen(vm, navController)
+        }
+
+        composable(
+            route = AppRoute.Ranking.TEMPLATE,
+            arguments = listOf(navArgument(AppRoute.Ranking.ARG_ID) { type = NavType.LongType })
+        ) { backStackEntry ->
+
+            val tournamentId = backStackEntry.arguments!!.getLong(AppRoute.Ranking.ARG_ID)
+
+            val vm: RankingViewModel = viewModel(
+                factory = appContainer.rankingViewModelFactory(tournamentId)
+            )
+
+            RankingScreen(
+                viewModel = vm,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

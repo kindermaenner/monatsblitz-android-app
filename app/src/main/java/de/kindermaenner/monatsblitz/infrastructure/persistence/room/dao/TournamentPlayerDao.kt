@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Upsert
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TournamentPlayerDao {
@@ -23,4 +24,11 @@ interface TournamentPlayerDao {
         WHERE tournamentId = :tournamentId
     """)
     suspend fun deleteForTournament(tournamentId: Long)
+
+    @Query("""
+    SELECT * FROM tournament_player_cross_ref
+    WHERE tournamentId = :tournamentId
+    ORDER BY rank ASC
+""")
+    fun observeRankingForTournament(tournamentId: Long): Flow<List<TournamentPlayerCrossRef>>
 }

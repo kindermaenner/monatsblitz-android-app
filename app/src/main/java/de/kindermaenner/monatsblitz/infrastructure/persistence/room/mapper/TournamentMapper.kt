@@ -94,3 +94,16 @@ fun PlayerRankingEntry.toEntity() : TournamentPlayerCrossRef =
         points = points,
         rank = rank
     )
+
+fun TournamentPlayerCrossRef.toDomain() : PlayerRankingEntry {
+    if (rank == null) {
+        throw IllegalArgumentException("Points and rank must not be null for PlayerRankingEntry")
+    } else {
+        return PlayerRankingEntry(
+            tournamentId = tournamentId,
+            playerId = playerId,
+            points = points ?: 0.0,
+            rank = rank
+        )
+    }
+}

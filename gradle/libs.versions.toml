@@ -27,6 +27,7 @@ runtime = "1.11.4"
 
 room = "2.8.4"
 ksp = "2.3.9"
+plantuml = "1.2024.3"
 
 [libraries]
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
@@ -69,6 +70,7 @@ androidx-datastore-preferences = { module = "androidx.datastore:datastore-prefer
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+plantuml = { module = "net.sourceforge.plantuml:plantuml", version.ref = "plantuml" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

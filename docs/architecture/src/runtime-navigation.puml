@@ -1,0 +1,22 @@
+@startuml
+participant "MainActivity" as MA
+participant "RootScreen" as RS
+participant "RootViewModel" as RVM
+participant "TournamentStorage" as TS
+participant "HomeScreen" as Home
+participant "TournamentScreen" as Tour
+
+MA -> RS : Initialisierung
+RS -> RVM : beobachtet uiState
+RVM -> TS : getTournamentState()
+TS --> RVM : Status (z.B. kein aktives Turnier)
+RVM -> RS : Emit ReadyWithoutTournament
+RS -> Home : Zeige HomeScreen
+
+User -> Home : "Turnier starten"
+Home -> HomeViewModel : createTournament()
+HomeViewModel -> TS : saveTournamentState(id)
+TS --> RVM : Flow-Update
+RVM -> RS : Emit ReadyWithTournament(id)
+RS -> Tour : Zeige TournamentScreen
+@enduml

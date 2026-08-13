@@ -1,0 +1,23 @@
+@startuml
+actor User
+participant "TournamentScreen" as UI
+participant "TournamentViewModel" as TVM
+participant "CreateTournamentRankingsUseCase" as UC
+participant "TournamentRepository" as Repo
+participant "AppDatabase (Room)" as DB
+participant "RankingsViewModel" as RVM
+participant "RankingsScreen" as RUI
+
+User -> UI : Klickt "Rangliste"
+UI -> TVM : prepareRankingsAndNavigate()
+TVM -> UC : invoke(tournament)
+UC -> DB : Berechnet & Speichert Rankings
+DB --> Repo : Flow-Update
+TVM -> UI : onNavigate()
+UI -> RUI : Zeige RankingsScreen
+RUI -> RVM : Beobachtet uiState
+RVM -> Repo : observeRankings()
+Repo -> DB : Query
+DB --> RVM : Ranking Data
+RVM -> RUI : Update UI
+@enduml

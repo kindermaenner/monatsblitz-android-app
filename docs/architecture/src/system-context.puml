@@ -1,0 +1,10 @@
+@startuml
+!include <C4/C4_Context>
+
+Person(user, "Turnierleiter", "Verwaltet Spieler und Spielergebnisse")
+System(monatsblitz, "Monatsblitz App", "Android App zur Verwaltung von Schachturnieren")
+System_Ext(wp, "WordPress Website", "SG Königslutter Website (REST API)")
+
+Rel(user, monatsblitz, "Bedient UI")
+Rel(monatsblitz, wp, "Synchronisiert Spieler und veröffentlicht Ergebnisse", "REST/JSON")
+@enduml

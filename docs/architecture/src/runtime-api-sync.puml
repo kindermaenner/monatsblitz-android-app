@@ -1,0 +1,13 @@
+@startuml
+participant "SyncPlayersUseCase" as UC
+participant "PlayerRemoteDataSource" as API
+participant "PlayerDao (Room)" as DB
+participant "PlayerRepository" as Repo
+participant "UI / ViewModel" as UI
+
+UC -> API : getPlayers()
+API --> UC : List<PlayerDto>
+UC -> DB : insertAll(entities)
+DB --> Repo : Trigger Flow Update
+Repo --> UI : Emit updated Player List
+@enduml

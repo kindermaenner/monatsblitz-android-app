@@ -1,0 +1,27 @@
+@startuml
+package "UI Layer" {
+    [Screens (Compose)]
+    [ViewModels]
+}
+
+package "Domain Layer" {
+    [Use Cases]
+    [Models]
+    interface "Repository Interfaces"
+}
+
+package "Infrastructure Layer" {
+    [Repository Implementations]
+    [Retrofit API]
+    [Room DAO]
+    [DataStore / Preferences]
+}
+
+[ViewModels] --> [Use Cases]
+[ViewModels] --> "Repository Interfaces"
+[Use Cases] --> "Repository Interfaces"
+"Repository Interfaces" <|.. [Repository Implementations]
+[Repository Implementations] --> [Retrofit API]
+[Repository Implementations] --> [Room DAO]
+[Repository Implementations] --> [DataStore / Preferences]
+@enduml

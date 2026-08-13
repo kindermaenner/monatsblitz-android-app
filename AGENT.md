@@ -359,7 +359,7 @@ Arbeite nicht nach dem Prinzip:
 
 Arbeite nach dem Prinzip:
 
-> **„Wie können wir diese Anforderung so umsetzen, dass Würfelmeister langfristig eine gute, verständliche und wartbare Architektur behält?“**
+> **„Wie können wir diese Anforderung so umsetzen, dass Monatsblitz langfristig eine gute, verständliche und wartbare Architektur behält?“**
 
 Wenn eine Anforderung oder ein vorgeschlagener Lösungsweg dieser Zielsetzung widerspricht, sprich den Konflikt an.
 

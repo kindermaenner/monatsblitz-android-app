@@ -1,0 +1,3 @@
+# 11. Risiken und technische Schulden
+*   **Navigations-Inkonsistenz (Navigation-Dualismus):** Es existiert eine Implementierung der Jetpack Navigation Component (`AppNavHost.kt`), jedoch wird diese aktuell nicht von der `MainActivity` genutzt. Stattdessen steuert der `RootScreen.kt` die Navigation manuell über einen Zustandsautomaten im `RootViewModel`. Dies erschwert tiefe Verlinkungen, eine standardisierte Backstack-Logik und widerspricht den gängigen Android-Entwicklungsmustern.
+*   **Hardcoded API-Key:** Der API-Key sollte sicher in `local.properties` verwaltet werden (teilweise bereits umgesetzt).

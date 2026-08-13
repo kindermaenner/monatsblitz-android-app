@@ -9,6 +9,8 @@ plugins {
     alias(libs.plugins.kover)
 }
 
+val plantuml: Configuration by configurations.creating
+
 sonarqube {
     properties {
         property("sonar.host.url", System.getenv("SONAR_HOST_URL") ?: "http://localhost:9000")
@@ -21,7 +23,16 @@ sonarqube {
     }
 }
 
+tasks.register<JavaExec>("generateArchitectureDiagrams") {
+    group = "documentation"
+    description = "Generates PlantUML diagrams as SVG."
+    classpath = plantuml
+    mainClass.set("net.sourceforge.plantuml.Run")
+    args("-tsvg", "-o", "${projectDir}/docs/architecture/generated", "${projectDir}/docs/architecture/src/**.puml")
+}
+
 dependencies {
+    plantuml(libs.plantuml)
     kover(project(":app"))
 }
 

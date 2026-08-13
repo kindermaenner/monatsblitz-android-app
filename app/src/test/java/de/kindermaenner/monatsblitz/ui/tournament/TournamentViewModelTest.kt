@@ -6,6 +6,7 @@ import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 import de.kindermaenner.monatsblitz.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -35,6 +36,8 @@ class TournamentViewModelTest {
     private val repository = mockk<TournamentRepository>()
     private val setGameResultUseCase = mockk<SetGameResultUseCase>(relaxed = true)
 
+    private val updateRankingsUseCaseTest = mockk<CreateTournamentRankingsUseCase>(relaxed = true)
+
     @Before
     fun setup() {
         mockkStatic(Log::class)
@@ -46,7 +49,7 @@ class TournamentViewModelTest {
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 2, listOf(Player(1, "A", "A")))
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
 
-        val viewModel = TournamentViewModel(repository, setGameResultUseCase, 1)
+        val viewModel = TournamentViewModel(repository, setGameResultUseCase, updateRankingsUseCaseTest, 1)
         
         // Wait for the state to be populated
         val state = viewModel.uiState.first { it.tournament != null }
@@ -58,7 +61,7 @@ class TournamentViewModelTest {
     fun `selectLeg updates leg state if within bounds`() = runTest {
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 2, listOf(Player(1, "A", "A")))
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
-        val viewModel = TournamentViewModel(repository, setGameResultUseCase, 1)
+        val viewModel = TournamentViewModel(repository, setGameResultUseCase, updateRankingsUseCaseTest, 1)
         
         // Ensure VM is active and has loaded the tournament
         backgroundScope.launch { viewModel.uiState.collect() }
@@ -78,7 +81,7 @@ class TournamentViewModelTest {
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1, p2))
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
         
-        val viewModel = TournamentViewModel(repository, setGameResultUseCase, 1)
+        val viewModel = TournamentViewModel(repository, setGameResultUseCase, updateRankingsUseCaseTest, 1)
         backgroundScope.launch { viewModel.uiState.collect() }
         advanceUntilIdle()
         

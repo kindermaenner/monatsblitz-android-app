@@ -54,6 +54,19 @@ android {
     }
 }
 
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        val appName = project.name
+        val versionName = android.defaultConfig.versionName
+
+        variant.outputs.forEach { output ->
+            output.outputFileName.set(
+                "monatsblitz-${variant.name}-v${versionName}.apk"
+            )
+        }
+    }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.runtime)

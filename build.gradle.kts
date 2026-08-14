@@ -50,13 +50,17 @@ kover {
 
 sonar {
     properties {
+        val appBuildDir = project(":app").layout.buildDirectory.get().asFile
         property("sonar.host.url", System.getenv("SONAR_HOST_URL") ?: "http://localhost:9000")
         property("sonar.token", System.getenv("SONAR_TOKEN") ?: "")
         property("sonar.projectKey", "monatsblitz-android")
         property("sonar.projectName", "monatsblitz-android")
         property("sonar.sourceEncoding", "UTF-8")
         property("sonar.android.lint.reportPaths", "app/build/reports/lint-results-debug.xml")
-        property("sonar.coverage.jacoco.xmlReportPaths", "${layout.buildDirectory.get().asFile}/reports/kover/report.xml")
+        property("sonar.coverage.jacoco.xmlReportPaths", listOf(
+            "$appBuildDir/reports/kover/report.xml",
+            "$appBuildDir/reports/jacoco/connectedDebugAndroidTestCoverageReport/connectedDebugAndroidTestCoverageReport.xml"
+        ).joinToString(","))
     }
 }
 

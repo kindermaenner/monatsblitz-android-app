@@ -26,6 +26,7 @@ jobs:
     secrets: inherit
     with:
       keystore-file: "monatsblitz-android-app-release.jks"
+      run-instrumented-tests: true
 
   sonar:
     needs: build

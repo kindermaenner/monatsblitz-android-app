@@ -7,6 +7,11 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kover)
+    id("jacoco")
+}
+
+configure<JacocoPluginExtension> {
+    toolVersion = "0.8.12"
 }
 
 android {
@@ -33,6 +38,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            enableAndroidTestCoverage = true
+        }
         release {
             isMinifyEnabled = false
 
@@ -118,4 +126,23 @@ tasks.withType<Test>().configureEach {
         "-XX:+EnableDynamicAgentLoading",
         "-Xshare:off"
     )
+}
+
+tasks.register<JacocoReport>("connectedDebugAndroidTestCoverageReport") {
+    dependsOn("connectedDebugAndroidTest")
+    group = "Reporting"
+    description = "Generate Jacoco coverage reports for instrumented tests."
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+
+    val javaClasses = fileTree("${project.layout.buildDirectory.get()}/intermediates/javac/debug/compileDebugJavaWithJavac/classes")
+    val kotlinClasses = fileTree("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug")
+    classDirectories.setFrom(files(javaClasses, kotlinClasses))
+
+    sourceDirectories.setFrom(files("$projectDir/src/main/java", "$projectDir/src/main/kotlin"))
+
+    executionData.setFrom(fileTree("${project.layout.buildDirectory.get()}/outputs/code_coverage/debugAndroidTest/connected/"))
 }

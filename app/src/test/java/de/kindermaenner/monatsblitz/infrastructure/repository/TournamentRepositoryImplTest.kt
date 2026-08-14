@@ -140,4 +140,10 @@ class TournamentRepositoryImplTest {
 
         coVerify { gameDao.insert(match { it.tournamentId == 1L && it.player1Id == 1L && it.result == GameResult.Win }) }
     }
+
+    @Test
+    fun `resetTournament should call resetAll on tournamentStorage`() = runTest {
+        repository.resetTournament()
+        coVerify { tournamentStorage.resetAll() }
+    }
 }

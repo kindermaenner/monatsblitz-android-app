@@ -5,6 +5,7 @@ import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.NewGame
 import de.kindermaenner.monatsblitz.domain.model.NewTournament
 import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.PlayerRankingEntry
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity
@@ -77,5 +78,27 @@ class TournamentMapperTest {
         assertEquals(5L, entity.tournamentId)
         assertEquals(1L, entity.player1Id)
         assertEquals(GameResult.Open, entity.result)
+    }
+
+    @Test
+    fun `PlayerRankingEntry toEntity maps correctly`() {
+        val domain = PlayerRankingEntry(playerId = 10, tournamentId = 100, points = 8.5, rank = 2)
+        val entity = domain.toEntity()
+        
+        assertEquals(10L, entity.playerId)
+        assertEquals(100L, entity.tournamentId)
+        assertEquals(8.5, entity.points ?: 0.0, 0.0)
+        assertEquals(2, entity.rank)
+    }
+
+    @Test
+    fun `TournamentPlayerCrossRef toDomain maps correctly`() {
+        val entity = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef(playerId = 20, tournamentId = 200, points = 5.0, rank = 1)
+        val domain = entity.toDomain()
+        
+        assertEquals(20L, domain.playerId)
+        assertEquals(200L, domain.tournamentId)
+        assertEquals(5.0, domain.points, 0.0)
+        assertEquals(1, domain.rank)
     }
 }

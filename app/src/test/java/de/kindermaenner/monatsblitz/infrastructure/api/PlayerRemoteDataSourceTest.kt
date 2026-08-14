@@ -36,4 +36,16 @@ class PlayerRemoteDataSourceTest {
         assertEquals(createdPlayer, result)
         coVerify { api.createPlayer(newPlayer) }
     }
+
+    @Test(expected = Exception::class)
+    fun `getPlayers should throw exception if api fails`() = runTest {
+        coEvery { api.getPlayers() } throws Exception("API Error")
+        dataSource.getPlayers()
+    }
+
+    @Test(expected = Exception::class)
+    fun `createPlayer should throw exception if api fails`() = runTest {
+        coEvery { api.createPlayer(any()) } throws Exception("API Error")
+        dataSource.createPlayer(NewPlayerDto(forename = "F", surname = "S"))
+    }
 }

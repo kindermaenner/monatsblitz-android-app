@@ -1,6 +1,6 @@
 # 3. Systemkontext und Abgrenzung
 
-![Systemkontext](./generated/system-context.svg)
+![Systemkontext](./out/system-context.svg)
 
 ### 3.1 Fachlicher Kontext
 *   **Turnierleiter:** Nutzt die App, um Turniere zu starten und Ergebnisse einzupflegen.

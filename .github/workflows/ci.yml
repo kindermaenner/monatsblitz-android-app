@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      build-type:
+        description: "Which version should be built?"
+        required: true
+        default: "Debug"
+        type: choice
+        options:
+          - Release
+          - Debug
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: kindermaenner/ci-templates/.github/workflows/android-build.yml@main
+    secrets: inherit
+    with:
+      keystore-file: "monatsblitz-android-app-release.jks"
+
+  sonar:
+    needs: build
+    uses: kindermaenner/ci-templates/.github/workflows/common-sonar-gradle.yml@main
+    secrets: inherit
+
+  upload:
+    needs: build
+    uses: kindermaenner/ci-templates/.github/workflows/common-ftp-upload.yml@main
+    secrets: inherit
+    with:
+      target-path: "kindermaenner.de/app-downloads/monatsblitz-android-app/"
+
+  update-badges:
+    needs: sonar
+    if: github.ref == 'refs/heads/main'
+    uses: kindermaenner/ci-templates/.github/workflows/common-badge-trigger.yml@main
+    secrets:
+      BADGE_APP_ID: ${{ secrets.BADGE_APP_ID }}
+      BADGE_APP_PRIVATE_KEY: ${{ secrets.BADGE_APP_PRIVATE_KEY }}

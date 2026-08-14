@@ -8,4 +8,4 @@ Die App ist in drei Hauptschichten unterteilt:
 2.  **Domain Layer (`de.kindermaenner.monatsblitz.domain`):** Enthält Modelle, Repository-Interfaces und Use Cases.
 3.  **Infrastructure Layer (`de.kindermaenner.monatsblitz.infrastructure`):** Enthält Implementierungen für API-Zugriff (Retrofit), Datenbank (Room), App-Zustand (DataStore) und Repositories.
 
-![Bausteinsicht Ebene 1](./generated/building-blocks-l1.svg)
+![Bausteinsicht Ebene 1](./out/building-blocks-l1.svg)

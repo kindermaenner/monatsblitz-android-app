@@ -32,8 +32,9 @@ class RankingViewModel(
                     val players = playerDao.getAllPlayers().associateBy { it.id }
                     val rows = entries.filter {e -> e.rank != null}.map { entry ->
                         val playerRankingEntry = entry.toDomain()
+                        val player = players[entry.playerId]
                         RankingRowData(
-                            name = players[entry.playerId]?.name ?: "Unbekannt",
+                            name = if (player != null) "${player.vorname} ${player.name}" else "Unbekannt",
                             points = playerRankingEntry.points,
                             rank = playerRankingEntry.rank
                         )

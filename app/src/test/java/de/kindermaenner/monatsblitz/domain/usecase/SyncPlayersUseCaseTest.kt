@@ -37,4 +37,22 @@ class SyncPlayersUseCaseTest {
         // Verify remote to local sync
         coVerify { playerDao.insert(match { it.remoteId == 200L && it.vorname == "V2" }) }
     }
+
+    @Test
+    fun `invoke with no dirty players should only fetch remote players`() = runTest {
+        coEvery { playerDao.getDirtyPlayers() } returns emptyList()
+        coEvery { remoteDataSource.getPlayers() } returns emptyList()
+
+        useCase()
+
+        coVerify(exactly = 0) { remoteDataSource.createPlayer(any()) }
+        coVerify { remoteDataSource.getPlayers() }
+    }
+
+    @Test(expected = Exception::class)
+    fun `invoke should rethrow exception if network fails`() = runTest {
+        coEvery { playerDao.getDirtyPlayers() } throws Exception("Network error")
+        
+        useCase()
+    }
 }

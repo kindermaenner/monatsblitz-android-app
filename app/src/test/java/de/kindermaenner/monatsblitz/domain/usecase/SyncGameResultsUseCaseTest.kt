@@ -41,4 +41,21 @@ class SyncGameResultsUseCaseTest {
         coVerify { api.createGames(match { it.tournamentId == 100 && it.games.size == 1 }) }
         coVerify { dao.markGameAsSynced(1, 1000) }
     }
+
+    @Test
+    fun `invoke should not mark games as synced if api returns success false`() = runTest {
+        val syncData = GameSyncData(1, 100, 10, 20, 1, GameResult.Win)
+        
+        coEvery { dao.getGamesForSync() } returns listOf(syncData)
+        coEvery { api.createGames(any()) } returns CreateGamesResponseDto(
+            success = false, 
+            count = 0,
+            items = emptyList()
+        )
+
+        useCase()
+
+        coVerify { api.createGames(any()) }
+        coVerify(exactly = 0) { dao.markGameAsSynced(any(), any()) }
+    }
 }

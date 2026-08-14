@@ -48,4 +48,17 @@ class CreateTournamentUseCaseTest {
         }) }
         coVerify { tournamentStorage.saveTournamentState(100, false) }
     }
+
+    @Test
+    fun `invoke with 2 rounds should pass 2 to createNewGamesUseCase`() = runTest {
+        val players = listOf(Player(1, "A", "A"))
+        val rounds = 2
+        
+        every { createNewGamesUseCase(players, 2) } returns emptyList()
+        coEvery { tournamentRepository.createTournament(any()) } returns Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 2, players)
+
+        useCase(players, GameMode.BLITZ_3_2, LocalDate.now(), rounds)
+
+        coVerify { createNewGamesUseCase(players, 2) }
+    }
 }

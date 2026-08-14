@@ -33,4 +33,18 @@ class SyncTournamentUseCaseTest {
         coVerify { api.createTournament(match { it.mode == "3+2" }) }
         coVerify { dao.updateTournamentRemoteId(1, 500) }
     }
+
+    @Test
+    fun `invoke should not update local db if api returns success false`() = runTest {
+        val tournamentEntity = TournamentEntity(id = 1, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
+        val dirtyTournament = TournamentWithDetails(tournamentEntity, listOf(), listOf())
+        
+        coEvery { dao.getDirtyTournaments() } returns listOf(dirtyTournament)
+        coEvery { api.createTournament(any()) } returns CreateTournamentResponseDto(success = false, tournament_id = 0)
+
+        useCase()
+
+        coVerify { api.createTournament(any()) }
+        coVerify(exactly = 0) { dao.updateTournamentRemoteId(any(), any()) }
+    }
 }

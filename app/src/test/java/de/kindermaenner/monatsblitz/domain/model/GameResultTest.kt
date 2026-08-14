@@ -24,4 +24,14 @@ class GameResultTest {
         assertEquals(GameResult.Open, GameResult.fromDisplayName(" "))
         assertNull(GameResult.fromDisplayName("invalid"))
     }
+
+    @Test
+    fun `points returns correct value for each result`() {
+        assertEquals(0.0, GameResult.Open.points, 0.0)
+        assertEquals(0.0, GameResult.Loss.points, 0.0)
+        assertEquals(1.0, GameResult.Win.points, 0.0)
+        assertEquals(0.5, GameResult.Remis.points, 0.0)
+        assertEquals(1.0, GameResult.ForfeitWin.points, 0.0)
+        assertEquals(0.0, GameResult.ForfeitLoss.points, 0.0)
+    }
 }

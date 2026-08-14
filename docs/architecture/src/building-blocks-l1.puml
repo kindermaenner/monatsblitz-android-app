@@ -1,27 +1,30 @@
 @startuml
-package "UI Layer" {
-    [Screens (Compose)]
-    [ViewModels]
+skinparam componentStyle uml2
+
+package "de.kindermaenner.monatsblitz.ui" {
+    component "Screens (Compose)" as Screens
+    component "ViewModels" as ViewModels
 }
 
-package "Domain Layer" {
-    [Use Cases]
-    [Models]
-    interface "Repository Interfaces"
+package "de.kindermaenner.monatsblitz.domain" {
+    component "Use Cases" as UseCases
+    component "Models" as Models
+    interface "Repository Interfaces" as IRepo
 }
 
-package "Infrastructure Layer" {
-    [Repository Implementations]
-    [Retrofit API]
-    [Room DAO]
-    [DataStore / Preferences]
+package "de.kindermaenner.monatsblitz.infrastructure" {
+    component "Repository Implementations" as RepoImpl
+    component "Retrofit API" as API
+    component "Room DAO" as DAO
+    component "DataStore / Preferences" as Storage
 }
 
-[ViewModels] --> [Use Cases]
-[ViewModels] --> "Repository Interfaces"
-[Use Cases] --> "Repository Interfaces"
-"Repository Interfaces" <|.. [Repository Implementations]
-[Repository Implementations] --> [Retrofit API]
-[Repository Implementations] --> [Room DAO]
-[Repository Implementations] --> [DataStore / Preferences]
+ViewModels ..> UseCases : nutzt
+ViewModels ..> IRepo : nutzt
+UseCases ..> IRepo : nutzt
+RepoImpl ..|> IRepo : realisiert
+RepoImpl ..> API : nutzt
+RepoImpl ..> DAO : nutzt
+RepoImpl ..> Storage : nutzt
+
 @enduml

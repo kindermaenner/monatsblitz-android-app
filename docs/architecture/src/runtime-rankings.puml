@@ -1,23 +1,42 @@
 @startuml
+autonumber
 actor User
 participant "TournamentScreen" as UI
 participant "TournamentViewModel" as TVM
 participant "CreateTournamentRankingsUseCase" as UC
 participant "TournamentRepository" as Repo
-participant "AppDatabase (Room)" as DB
+database "AppDatabase (Room)" as DB
 participant "RankingsViewModel" as RVM
 participant "RankingsScreen" as RUI
 
 User -> UI : Klickt "Rangliste"
+activate UI
 UI -> TVM : prepareRankingsAndNavigate()
+activate TVM
 TVM -> UC : invoke(tournament)
-UC -> DB : Berechnet & Speichert Rankings
-DB --> Repo : Flow-Update
-TVM -> UI : onNavigate()
-UI -> RUI : Zeige RankingsScreen
-RUI -> RVM : Beobachtet uiState
+activate UC
+UC -> DB : berechnet & speichert Rankings
+activate DB
+DB --> UC : success
+deactivate DB
+UC --> TVM : success
+deactivate UC
+TVM --> UI : onNavigate()
+deactivate TVM
+UI -> RUI : <<render>>
+deactivate UI
+
+activate RUI
+RUI -> RVM : beobachtet uiState
+activate RVM
 RVM -> Repo : observeRankings()
-Repo -> DB : Query
-DB --> RVM : Ranking Data
-RVM -> RUI : Update UI
+activate Repo
+Repo -> DB : query()
+activate DB
+DB --> Repo : ranking data
+deactivate DB
+Repo --> RVM : <<emit rankings>>
+deactivate Repo
+RVM --> RUI : update UI
+deactivate RVM
 @enduml

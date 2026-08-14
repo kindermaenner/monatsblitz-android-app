@@ -1,10 +1,21 @@
 @startuml
-!include <C4/C4_Context>
+skinparam componentStyle uml2
+left to right direction
 
-Person(user, "Turnierleiter", "Verwaltet Spieler und Spielergebnisse")
-System(monatsblitz, "Monatsblitz App", "Android App zur Verwaltung von Schachturnieren")
-System_Ext(wp, "WordPress Website", "SG Königslutter Website (REST API)")
+actor "Turnierleiter" as User
 
-Rel(user, monatsblitz, "Bedient UI")
-Rel(monatsblitz, wp, "Synchronisiert Spieler und veröffentlicht Ergebnisse", "REST/JSON")
+package "Mobiles Endgerät (Android)" {
+    component "Monatsblitz App" as App
+}
+
+cloud "Internet" as Internet
+
+node "Host (sg-koenigslutter.de)" {
+    component "WordPress Website\n(Backend Plugin)" as WP
+}
+
+User --> App : bedient
+App ..> Internet : HTTPS / REST
+Internet ..> WP : synchronisiert Daten /\nveroeffentlicht Ergebnisse
+
 @enduml

@@ -1,4 +1,5 @@
 @startuml
+autonumber
 participant "MainActivity" as MA
 participant "RootScreen" as RS
 participant "RootViewModel" as RVM
@@ -6,17 +7,31 @@ participant "TournamentStorage" as TS
 participant "HomeScreen" as Home
 participant "TournamentScreen" as Tour
 
-MA -> RS : Initialisierung
+MA -> RS : <<create>>
+activate RS
 RS -> RVM : beobachtet uiState
+activate RVM
 RVM -> TS : getTournamentState()
-TS --> RVM : Status (z.B. kein aktives Turnier)
-RVM -> RS : Emit ReadyWithoutTournament
-RS -> Home : Zeige HomeScreen
+activate TS
+TS --> RVM : Status (z.B. null)
+deactivate TS
+RVM --> RS : state: ReadyWithoutTournament
+deactivate RVM
+RS -> Home : <<render>>
+deactivate RS
 
 User -> Home : "Turnier starten"
-Home -> HomeViewModel : createTournament()
-HomeViewModel -> TS : saveTournamentState(id)
-TS --> RVM : Flow-Update
-RVM -> RS : Emit ReadyWithTournament(id)
-RS -> Tour : Zeige TournamentScreen
+activate Home
+Home -> "HomeViewModel" as HVM : createTournament()
+activate HVM
+HVM -> TS : saveTournamentState(id)
+activate TS
+TS --> RVM : <<trigger Flow update>>
+deactivate TS
+activate RVM
+RVM --> RS : state: ReadyWithTournament(id)
+deactivate RVM
+RS -> Tour : <<render>>
+deactivate Home
+deactivate HVM
 @enduml

@@ -1,13 +1,10 @@
 package de.kindermaenner.monatsblitz.ui.crosstable
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEvent
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.Tournament
@@ -38,7 +35,7 @@ class CrosstableScreenTest {
             Mode = GameMode.BLITZ_3_2,
             Date = date,
             rounds = 1,
-            players = listOf(Player(1, "Meier", "Alice"))
+            players = listOf(Player(1, "Meier", "Alice")),
         )
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
 
@@ -47,9 +44,10 @@ class CrosstableScreenTest {
         composeTestRule.setContent {
             CrosstableScreen(
                 viewModel = viewModel,
-                onNavigateToRanking = {},
-                onBackToSetup = {}
-            )
+                onNavigateToRanking = {}
+            ) {
+                // onBackToSetup lambda
+            }
         }
 
         composeTestRule.onNodeWithText("Turnier vom 14.08.26").assertIsDisplayed()
@@ -66,9 +64,10 @@ class CrosstableScreenTest {
         composeTestRule.setContent {
             CrosstableScreen(
                 viewModel = viewModel,
-                onNavigateToRanking = {},
-                onBackToSetup = {}
-            )
+                onNavigateToRanking = {}
+            ) {
+                // onBackToSetup lambda
+            }
         }
 
         // Initially no dialog
@@ -83,7 +82,7 @@ class CrosstableScreenTest {
                 // We use key event since Key.Back is special
                 // pressKey(Key.Back)
             }
-        } catch (e: Exception) {
+        } catch (ignored: Exception) {
             // ignore if not supported in this environment
         }
     }

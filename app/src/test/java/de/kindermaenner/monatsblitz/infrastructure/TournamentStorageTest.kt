@@ -52,7 +52,7 @@ class TournamentStorageTest {
     fun `saveTournamentState calls updateData`() = runTest {
         coEvery { dataStore.updateData(any()) } returns mockk()
 
-        storage.saveTournamentState(456L, true)
+        storage.saveTournamentState(456L, finalized = true)
 
         coVerify { dataStore.updateData(any()) }
     }

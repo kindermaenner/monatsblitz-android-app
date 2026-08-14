@@ -1,7 +1,7 @@
 package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import de.kindermaenner.monatsblitz.domain.model.Player
@@ -25,7 +25,7 @@ class TournamentSetupScreenTest {
     fun setupScreen_displaysPlayersAndButton() {
         val players = listOf(
             Player(1, "Meier", "Alice"),
-            Player(2, "Mueller", "Bob")
+            Player(2, "Mueller", "Bob"),
         )
         coEvery { playerRepository.observePlayers() } returns flowOf(players)
 
@@ -33,9 +33,10 @@ class TournamentSetupScreenTest {
 
         composeTestRule.setContent {
             TournamentSetupScreen(
-                viewModel = viewModel,
-                onNavigateToCrosstable = {}
-            )
+                viewModel = viewModel
+            ) { _ ->
+                // onNavigateToCrosstable lambda
+            }
         }
 
         composeTestRule.onNodeWithText("Neues Turnier").assertIsDisplayed()
@@ -53,9 +54,10 @@ class TournamentSetupScreenTest {
 
         composeTestRule.setContent {
             TournamentSetupScreen(
-                viewModel = viewModel,
-                onNavigateToCrosstable = {}
-            )
+                viewModel = viewModel
+            ) { _ ->
+                // onNavigateToCrosstable lambda
+            }
         }
 
         // InitiallyAlice is displayed. Checkbox is inside the same row.

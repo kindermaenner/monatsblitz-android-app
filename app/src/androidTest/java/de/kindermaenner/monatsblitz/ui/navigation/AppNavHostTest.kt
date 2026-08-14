@@ -1,7 +1,7 @@
 package de.kindermaenner.monatsblitz.ui.navigation
 
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.navigation.compose.ComposeNavigator
@@ -61,7 +61,7 @@ class AppNavHostTest {
             AppNavHost(
                 navController = navController,
                 appContainer = appContainer,
-                startDestination = AppRoute.TournamentSetup
+                startDestination = AppRoute.TournamentSetup,
             )
         }
 
@@ -76,7 +76,7 @@ class AppNavHostTest {
             AppNavHost(
                 navController = navController,
                 appContainer = appContainer,
-                startDestination = AppRoute.TournamentSetup
+                startDestination = AppRoute.TournamentSetup,
             )
         }
 
@@ -94,7 +94,7 @@ class AppNavHostTest {
             AppNavHost(
                 navController = navController,
                 appContainer = appContainer,
-                startDestination = AppRoute.Crosstable(1L)
+                startDestination = AppRoute.Crosstable(1L),
             )
         }
 

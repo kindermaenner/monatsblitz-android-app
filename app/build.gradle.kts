@@ -71,6 +71,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
 
     implementation(libs.androidx.navigation.compose)
+    androidTestImplementation(libs.androidx.navigation.testing)
 
     implementation(libs.retrofit)
     implementation(libs.retrofit.serialization)

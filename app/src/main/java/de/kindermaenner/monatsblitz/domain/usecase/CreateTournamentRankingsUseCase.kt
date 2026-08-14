@@ -25,18 +25,18 @@ class CreateTournamentRankingsUseCase(val tournamentPlayerDao: TournamentPlayerD
         return playerGames.sumOf { game -> game.result.points }
     }
 
-    private fun createDenseRanking(rankings: List<PlayerRankingEntry>): List<PlayerRankingEntry> {
+    internal fun createDenseRanking(rankings: List<PlayerRankingEntry>): List<PlayerRankingEntry> {
         val sortedRankings = rankings.sortedByDescending { it.points }
 
         val result = mutableListOf<PlayerRankingEntry>()
         var lastPoints: Double? = null
         var lastRank = 0
 
-        for ((index, p) in sortedRankings.withIndex()) {
+        for (p in sortedRankings) {
             val rank = if (lastPoints != null && p.points == lastPoints) {
                 lastRank
             } else {
-                index + 1
+                lastRank + 1
             }
 
             result += PlayerRankingEntry(
@@ -53,7 +53,7 @@ class CreateTournamentRankingsUseCase(val tournamentPlayerDao: TournamentPlayerD
         return result
     }
 
-    fun competitionRanking(rankings: List<PlayerRankingEntry>): List<PlayerRankingEntry> {
+    fun createCompetitionHandling(rankings: List<PlayerRankingEntry>): List<PlayerRankingEntry> {
         val sortedRankings = rankings.sortedByDescending { it.points }
 
         val result = mutableListOf<PlayerRankingEntry>()

@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.ui.tournament
+package de.kindermaenner.monatsblitz.ui.crosstable
 
 import android.util.Log
 import de.kindermaenner.monatsblitz.domain.model.GameMode
@@ -28,7 +28,7 @@ import org.junit.Test
 import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TournamentViewModelTest {
+class CrosstableViewModelTest {
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -36,7 +36,7 @@ class TournamentViewModelTest {
     private val repository = mockk<TournamentRepository>()
     private val setGameResultUseCase = mockk<SetGameResultUseCase>(relaxed = true)
 
-    private val updateRankingsUseCaseTest = mockk<CreateTournamentRankingsUseCase>(relaxed = true)
+    private val createTournamentRankingsUseCase = mockk<CreateTournamentRankingsUseCase>(relaxed = true)
 
     @Before
     fun setup() {
@@ -49,7 +49,7 @@ class TournamentViewModelTest {
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 2, listOf(Player(1, "A", "A")))
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
 
-        val viewModel = TournamentViewModel(repository, setGameResultUseCase, updateRankingsUseCaseTest, 1)
+        val viewModel = CrosstableViewModel(repository, setGameResultUseCase, createTournamentRankingsUseCase, 1)
         
         // Wait for the state to be populated
         val state = viewModel.uiState.first { it.tournament != null }
@@ -61,7 +61,7 @@ class TournamentViewModelTest {
     fun `selectLeg updates leg state if within bounds`() = runTest {
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 2, listOf(Player(1, "A", "A")))
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
-        val viewModel = TournamentViewModel(repository, setGameResultUseCase, updateRankingsUseCaseTest, 1)
+        val viewModel = CrosstableViewModel(repository, setGameResultUseCase, createTournamentRankingsUseCase, 1)
         
         // Ensure VM is active and has loaded the tournament
         backgroundScope.launch { viewModel.uiState.collect() }
@@ -81,7 +81,7 @@ class TournamentViewModelTest {
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1, p2))
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
         
-        val viewModel = TournamentViewModel(repository, setGameResultUseCase, updateRankingsUseCaseTest, 1)
+        val viewModel = CrosstableViewModel(repository, setGameResultUseCase, createTournamentRankingsUseCase, 1)
         backgroundScope.launch { viewModel.uiState.collect() }
         advanceUntilIdle()
         

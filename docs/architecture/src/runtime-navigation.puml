@@ -1,37 +1,24 @@
 @startuml
 autonumber
 participant "MainActivity" as MA
-participant "RootScreen" as RS
+participant "SplashScreen" as SS
 participant "RootViewModel" as RVM
-participant "TournamentStorage" as TS
-participant "HomeScreen" as Home
-participant "TournamentScreen" as Tour
+participant "MonatsblitzApp" as App
+participant "AppNavHost" as Nav
 
-MA -> RS : <<create>>
-activate RS
-RS -> RVM : beobachtet uiState
+MA -> SS : installSplashScreen()
+activate SS
+MA -> RVM : initialRoute beobachtet
 activate RVM
-RVM -> TS : getTournamentState()
-activate TS
-TS --> RVM : Status (z.B. null)
-deactivate TS
-RVM --> RS : state: ReadyWithoutTournament
+RVM -> RVM : determineInitialRoute()
+RVM --> MA : initialRoute != null
 deactivate RVM
-RS -> Home : <<render>>
-deactivate RS
+SS -> MA : finish splash
+deactivate SS
 
-User -> Home : "Turnier starten"
-activate Home
-Home -> "HomeViewModel" as HVM : createTournament()
-activate HVM
-HVM -> TS : saveTournamentState(id)
-activate TS
-TS --> RVM : <<trigger Flow update>>
-deactivate TS
-activate RVM
-RVM --> RS : state: ReadyWithTournament(id)
-deactivate RVM
-RS -> Tour : <<render>>
-deactivate Home
-deactivate HVM
+MA -> App : <<create>>
+activate App
+App -> Nav : <<render>>
+activate Nav
+Nav -> Nav : Navigiere zu startDestination\n(Setup oder Crosstable)
 @enduml

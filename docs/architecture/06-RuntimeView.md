@@ -1,7 +1,7 @@
 # 6. Laufzeitsicht
 
 ### 6.1 Navigation und Turnierstart
-Der aktuelle (manuelle) Navigationsfluss beim Start eines Turniers:
+Der standardisierte Navigationsfluss via Jetpack Navigation Component:
 
 ![Navigation Flow](./generated/runtime-navigation.svg)
 

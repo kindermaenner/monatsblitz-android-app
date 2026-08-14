@@ -1,6 +1,6 @@
 # 2. Randbedingungen
 *   **Plattform:** Android (Min SDK 26).
 *   **Sprache:** Kotlin 2.4.x.
-*   **UI-Framework:** Jetpack Compose mit Material 3.
+*   **UI-Framework:** Jetpack Compose mit **Material 3** (verbindlicher Design-Standard).
 *   **Persistenz:** Room Database.
 *   **Netzwerk:** Retrofit mit OkHttp.

@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.ui.tournament
+package de.kindermaenner.monatsblitz.ui.crosstable
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -6,10 +6,10 @@ import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 
-class TournamentViewModelFactory(
+class CrosstableViewModelFactory(
     private val tournamentRepository: TournamentRepository,
     private val setGameResultUseCase: SetGameResultUseCase,
-    private val updateRankingUseCase: CreateTournamentRankingsUseCase,
+    private val createTournamentRankingsUseCase: CreateTournamentRankingsUseCase,
     private val tournamentId: Long
 
 ) : ViewModelProvider.Factory {
@@ -20,15 +20,15 @@ class TournamentViewModelFactory(
     ): T {
 
         if (modelClass.isAssignableFrom(
-                TournamentViewModel::class.java
+                CrosstableViewModel::class.java
             )
         ) {
 
             @Suppress("UNCHECKED_CAST")
-            return TournamentViewModel(
+            return CrosstableViewModel(
                 tournamentRepository,
                 setGameResultUseCase,
-                updateRankingUseCase,
+                createTournamentRankingsUseCase,
                 tournamentId
             ) as T
         }

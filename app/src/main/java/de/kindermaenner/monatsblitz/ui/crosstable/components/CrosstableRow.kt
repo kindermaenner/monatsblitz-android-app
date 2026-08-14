@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.ui.tournament.components
+package de.kindermaenner.monatsblitz.ui.crosstable.components
 
 import android.util.Log
 import androidx.compose.foundation.ScrollState

@@ -1,11 +1,11 @@
-package de.kindermaenner.monatsblitz.ui.home
+package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 
-class HomeViewModelFactory(
+class TournamentSetupViewModelFactory(
     private val playerRepository: PlayerRepository,
     private val createTournamentUseCase: CreateTournamentUseCase
 ) : ViewModelProvider.Factory {
@@ -15,10 +15,10 @@ class HomeViewModelFactory(
         modelClass: Class<T>
     ): T {
 
-        if (modelClass.isAssignableFrom(HomeViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(TournamentSetupViewModel::class.java)) {
 
             @Suppress("UNCHECKED_CAST")
-            return HomeViewModel(
+            return TournamentSetupViewModel(
                 playerRepository,
                 createTournamentUseCase
             ) as T

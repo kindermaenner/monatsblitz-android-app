@@ -1,67 +1,69 @@
 package de.kindermaenner.monatsblitz.ui.navigation
 
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
+import androidx.navigation.toRoute
 import de.kindermaenner.monatsblitz.app.AppContainer
-import de.kindermaenner.monatsblitz.ui.home.HomeScreen
-import de.kindermaenner.monatsblitz.ui.home.HomeViewModel
+import de.kindermaenner.monatsblitz.ui.crosstable.CrosstableScreen
+import de.kindermaenner.monatsblitz.ui.crosstable.CrosstableViewModel
 import de.kindermaenner.monatsblitz.ui.ranking.RankingScreen
 import de.kindermaenner.monatsblitz.ui.ranking.RankingViewModel
-import de.kindermaenner.monatsblitz.ui.tournament.TournamentScreen
-import de.kindermaenner.monatsblitz.ui.tournament.TournamentViewModel
-
+import de.kindermaenner.monatsblitz.ui.tournamentsetup.TournamentSetupScreen
+import de.kindermaenner.monatsblitz.ui.tournamentsetup.TournamentSetupViewModel
 
 @Composable
 fun AppNavHost(
     navController: NavHostController,
     appContainer: AppContainer,
-    startDestination: String
+    startDestination: AppRoute
 ) {
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
-        // Home
-        composable(AppRoute.Home.path) {
-            val vm: HomeViewModel = viewModel(
-                factory = appContainer.homeViewModelFactory
+        // TournamentSetup
+        composable<AppRoute.TournamentSetup> {
+            val vm: TournamentSetupViewModel = viewModel(
+                factory = appContainer.tournamentSetupViewModelFactory
             )
-            HomeScreen(vm)
+            TournamentSetupScreen(
+                viewModel = vm,
+                onNavigateToCrosstable = { id ->
+                    navController.navigate(AppRoute.Crosstable(id))
+                }
+            )
         }
 
-        // Tournament (mit Parameter)
-        composable(AppRoute.Tournament.FULL,
-            arguments = listOf(
-            navArgument(AppRoute.Tournament.ARG_ID) {
-                type = NavType.LongType
-            }
-        )) { backStackEntry ->
-            val id = backStackEntry.arguments?.getLong(AppRoute.Tournament.ARG_ID)
-                ?: error("Tournament ID missing")
-            Log.i("AppNavHost", "Tournament ID: $id")
-
-
-            val vm: TournamentViewModel = viewModel(
-                factory = appContainer.tournamentViewModelFactory(id)
+        // Crosstable
+        composable<AppRoute.Crosstable> { backStackEntry ->
+            val route: AppRoute.Crosstable = backStackEntry.toRoute()
+            
+            val vm: CrosstableViewModel = viewModel(
+                factory = appContainer.crosstableViewModelFactory(route.id)
             )
-            TournamentScreen(vm, navController)
+            CrosstableScreen(
+                viewModel = vm,
+                onNavigateToRanking = { id ->
+                    navController.navigate(AppRoute.Ranking(id))
+                },
+                onBackToSetup = {
+                    vm.resetTournament()
+                    navController.navigate(AppRoute.TournamentSetup) {
+                        popUpTo<AppRoute.TournamentSetup> { inclusive = true }
+                    }
+                }
+            )
         }
 
-        composable(
-            route = AppRoute.Ranking.TEMPLATE,
-            arguments = listOf(navArgument(AppRoute.Ranking.ARG_ID) { type = NavType.LongType })
-        ) { backStackEntry ->
-
-            val tournamentId = backStackEntry.arguments!!.getLong(AppRoute.Ranking.ARG_ID)
+        // Ranking
+        composable<AppRoute.Ranking> { backStackEntry ->
+            val route: AppRoute.Ranking = backStackEntry.toRoute()
 
             val vm: RankingViewModel = viewModel(
-                factory = appContainer.rankingViewModelFactory(tournamentId)
+                factory = appContainer.rankingViewModelFactory(route.id)
             )
 
             RankingScreen(

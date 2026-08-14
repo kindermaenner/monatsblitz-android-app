@@ -17,14 +17,14 @@ import de.kindermaenner.monatsblitz.infrastructure.api.client.RetrofitClient
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
 import de.kindermaenner.monatsblitz.infrastructure.repository.PlayerRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.repository.TournamentRepositoryImpl
-import de.kindermaenner.monatsblitz.ui.home.HomeViewModelFactory
+import de.kindermaenner.monatsblitz.ui.crosstable.CrosstableViewModelFactory
 import de.kindermaenner.monatsblitz.ui.ranking.RankingViewModelFactory
 import de.kindermaenner.monatsblitz.ui.root.RootViewModelFactory
-import de.kindermaenner.monatsblitz.ui.tournament.TournamentViewModelFactory
+import de.kindermaenner.monatsblitz.ui.tournamentsetup.TournamentSetupViewModelFactory
 
 class AppContainer(context: Context) {
     private val Context.dataStore by preferencesDataStore(name = "tournament_state")
-    private val database = AppDatabase.getInstance(context)
+    val database = AppDatabase.getInstance(context)
 
     private val api = RetrofitClient.createApi(API_KEY)
 
@@ -70,14 +70,14 @@ class AppContainer(context: Context) {
         tournamentPlayerDao = database.tournamentPlayerDao()
     )
 
-    val homeViewModelFactory =
-        HomeViewModelFactory(
+    val tournamentSetupViewModelFactory =
+        TournamentSetupViewModelFactory(
             playerRepository,
             createTournamentUseCase
         )
 
-    fun tournamentViewModelFactory(tournamentId: Long) =
-        TournamentViewModelFactory(
+    fun crosstableViewModelFactory(tournamentId: Long) =
+        CrosstableViewModelFactory(
             tournamentRepository,
             setGameResultUseCase,
             createTournamentRankingUseCase,
@@ -91,10 +91,8 @@ class AppContainer(context: Context) {
         )
 
     fun rankingViewModelFactory(tournamentId: Long) = RankingViewModelFactory(
-        tournamentId = tournamentId, // Placeholder, will be set in the factory method
+        tournamentId = tournamentId,
         tournamentPlayerDao = database.tournamentPlayerDao(),
         playerDao = database.playerDao()
     )
-
-
 }

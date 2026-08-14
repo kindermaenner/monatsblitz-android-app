@@ -1,7 +1,9 @@
-package de.kindermaenner.monatsblitz.ui.tournament
+package de.kindermaenner.monatsblitz.ui.crosstable
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,18 +25,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import de.kindermaenner.monatsblitz.ui.navigation.AppRoute
-import de.kindermaenner.monatsblitz.ui.tournament.components.CrosstableHeader
-import de.kindermaenner.monatsblitz.ui.tournament.components.CrosstableRow
+import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableHeader
+import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableRow
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun TournamentScreen(
-    viewModel: TournamentViewModel,
-    navController : NavController
+fun CrosstableScreen(
+    viewModel: CrosstableViewModel,
+    onNavigateToRanking: (Long) -> Unit,
+    onBackToSetup: () -> Unit
 ) {
     val horizontalScrollState = rememberScrollState()
     var showBackDialog by remember { mutableStateOf(false) }
@@ -51,8 +53,8 @@ fun TournamentScreen(
             text = { Text("Das aktuelle Turnier wird gelöscht.") },
             confirmButton = {
                 Button(onClick = {
-                    //onBackToHome()
                     showBackDialog = false
+                    onBackToSetup()
                 }) {
                     Text("Ja, abbrechen")
                 }
@@ -64,33 +66,43 @@ fun TournamentScreen(
             }
         )
     }
+
     if (state.tournament == null) {
-        return;
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Turnier wird geladen oder wurde nicht gefunden...")
+        }
+        return
     }
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        var text = "Turnier vom ${state.tournament!!.Date.format(
+        val text = "Turnier vom ${state.tournament!!.Date.format(
             DateTimeFormatter.ofPattern("dd.MM.yy"))}"
+        
         Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleLarge,
+        
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-        )
-        // Ranking anzeigen
-        Button(
-            onClick = {
-                viewModel.updateRanking()
-                navController.navigate(AppRoute.Ranking(state.tournament!!.Id).path)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Ranking anzeigen")
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f)
+            )
+            Button(onClick = {
+                viewModel.prepareRankingsAndNavigate {
+                    onNavigateToRanking(state.tournament!!.Id)
+                }
+            }) {
+                Text("Rangliste")
+            }
         }
 
         if (state.tournament!!.rounds > 1) {

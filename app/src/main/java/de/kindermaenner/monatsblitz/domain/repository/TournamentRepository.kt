@@ -19,4 +19,6 @@ interface TournamentRepository {
         leg: Int,
         result: GameResult
     )
+
+    suspend fun resetTournament()
 }

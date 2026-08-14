@@ -106,6 +106,10 @@ class TournamentRepositoryImpl(
         }
     }
 
+    override suspend fun resetTournament() {
+        tournamentStorage.resetAll()
+    }
+
     companion object {
         const val TAG = "TournamentRepository"
     }

@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.ui.home.components
+package de.kindermaenner.monatsblitz.ui.tournamentsetup.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.DropdownMenuItem

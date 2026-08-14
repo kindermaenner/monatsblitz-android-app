@@ -1,23 +1,14 @@
 package de.kindermaenner.monatsblitz.ui.navigation
 
-sealed class AppRoute(val path: String) {
+import kotlinx.serialization.Serializable
 
-    data object Home : AppRoute("home")
+sealed interface AppRoute {
+    @Serializable
+    data object TournamentSetup : AppRoute
 
-    data class Tournament(val id: Long) : AppRoute("tournament/$id") {
-        companion object {
-            const val BASE = "tournament"
-            const val ARG_ID = "id"
-            const val FULL = "$BASE/{$ARG_ID}"
-        }
-    }
+    @Serializable
+    data class Crosstable(val id: Long) : AppRoute
 
-    data class Ranking(val tournamentId: Long) :
-        AppRoute("ranking/$tournamentId") {
-
-        companion object {
-            const val ARG_ID = "tournamentId"
-            const val TEMPLATE = "ranking/{$ARG_ID}"
-        }
-    }
+    @Serializable
+    data class Ranking(val id: Long) : AppRoute
 }

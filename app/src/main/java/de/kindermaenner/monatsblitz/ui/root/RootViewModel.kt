@@ -1,61 +1,44 @@
 package de.kindermaenner.monatsblitz.ui.root
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import de.kindermaenner.monatsblitz.ui.navigation.AppRoute
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class RootViewModel(
-    private val tournamentPreferences: TournamentStorage,
+    private val tournamentStorage: TournamentStorage,
     private val syncPlayersUseCase: SyncPlayersUseCase
 ) : ViewModel() {
 
-    private val _uiState =
-        MutableStateFlow<RootUiState>(RootUiState.Loading)
-    val uiState = _uiState.asStateFlow()
-
-    // --- Navigation-Events (Effect) ---
-    private val _effect = MutableSharedFlow<RootEffect>()
-    val effect = _effect.asSharedFlow()
+    private val _initialRoute = MutableStateFlow<AppRoute?>(null)
+    val initialRoute = _initialRoute.asStateFlow()
 
     init {
-        preloadPlayers()
-        observeCurrentTournament()
+        determineInitialRoute()
     }
 
-    private fun preloadPlayers() {
+    private fun determineInitialRoute() {
         viewModelScope.launch {
-            syncPlayersUseCase()
-        }
-    }
+            // 1. Spieler syncen
+            try {
+                syncPlayersUseCase()
+            } catch (e: Exception) {
+                // ignore
+            }
 
-    private fun observeCurrentTournament() {
-        viewModelScope.launch {
-            tournamentPreferences.getTournamentState().collect { state ->
-                val tournamentId = state?.tournamentId
-
-                _uiState.value = RootUiState.Ready(tournamentId)
-
-                if (tournamentId != null) {
-                    navigateTo(AppRoute.Tournament(tournamentId))
-                }
+            // 2. Aktuelles Turnier prüfen
+            val state = tournamentStorage.getTournamentState().first()
+            
+            _initialRoute.value = if (state?.tournamentId != null) {
+                AppRoute.Crosstable(state.tournamentId)
+            } else {
+                AppRoute.TournamentSetup
             }
         }
-    }
-    fun navigateTo(route: AppRoute) {
-        viewModelScope.launch {
-            _effect.emit(RootEffect.Navigate(route))
-        }
-    }
-
-    companion object {
-        const val TAG = "RootViewModel"
     }
 }

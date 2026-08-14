@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.ui.home
+package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -6,20 +6,25 @@ import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-class HomeViewModel(
+class TournamentSetupViewModel(
     private val playerRepository: PlayerRepository,
     private val createTournamentUseCase: CreateTournamentUseCase
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HomeUiState(isLoading = true))
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(TournamentSetupUiState(isLoading = true))
+    val uiState: StateFlow<TournamentSetupUiState> = _uiState.asStateFlow()
+
+    private val _navigationEffect = MutableSharedFlow<Long>()
+    val navigationEffect = _navigationEffect.asSharedFlow()
 
     init {
         viewModelScope.launch {
@@ -84,7 +89,7 @@ class HomeViewModel(
                 date = LocalDate.now(),
                 rounds = if (state.doubleRound) 2 else 1
             )
-            Log.i("HomeViewModel", "Created: $tournament")
+            _navigationEffect.emit(tournament.Id)
         }
     }
 }

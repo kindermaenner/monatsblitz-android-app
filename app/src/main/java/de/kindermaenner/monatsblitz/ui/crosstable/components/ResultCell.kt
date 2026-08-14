@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.ui.tournament.components
+package de.kindermaenner.monatsblitz.ui.crosstable.components
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable

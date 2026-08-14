@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.ui.tournament
+package de.kindermaenner.monatsblitz.ui.crosstable
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -7,20 +7,17 @@ import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
-import de.kindermaenner.monatsblitz.ui.navigation.AppRoute
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class TournamentViewModel(
+class CrosstableViewModel(
     private val repository: TournamentRepository,
     private val setGameResultUseCase: SetGameResultUseCase,
-    private val updateRankingUseCase: CreateTournamentRankingsUseCase,
+    private val createTournamentRankingsUseCase: CreateTournamentRankingsUseCase,
     tournamentId: Long) : ViewModel() {
     
     private val _selectedLeg = MutableStateFlow(1)
@@ -31,7 +28,7 @@ class TournamentViewModel(
             repository.observeTournament(tournamentId),
             _selectedLeg
         ) { tournament, leg ->
-            TournamentUiState(
+            CrosstableUiState(
                 tournament = tournament,
                 leg = leg,
                 isLoading = false
@@ -40,14 +37,22 @@ class TournamentViewModel(
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
-            TournamentUiState()
+            CrosstableUiState()
         )
 
     fun setResult(rowIndex : Int, columnIndex : Int, round : Int, result : GameResult) {
         val tournament = uiState.value.tournament ?: return
         viewModelScope.launch {
-            Log.i("TournamentViewModel", "setGameResultUseCase: tournament=${tournament.Id}, rowIndex=$rowIndex, columnIndex=$columnIndex, round=$round, result=$result")
+            Log.i("CrosstableViewModel", "setGameResultUseCase: tournament=${tournament.Id}, rowIndex=$rowIndex, columnIndex=$columnIndex, round=$round, result=$result")
             setGameResultUseCase(tournament.Id, tournament.playerIds[rowIndex], tournament.playerIds[columnIndex], round, result)
+        }
+    }
+
+    fun prepareRankingsAndNavigate(onNavigate: () -> Unit) {
+        val tournament = uiState.value.tournament ?: return
+        viewModelScope.launch {
+            createTournamentRankingsUseCase(tournament)
+            onNavigate()
         }
     }
 
@@ -58,10 +63,9 @@ class TournamentViewModel(
         }
     }
 
-    fun updateRanking() {
-        val tournament = uiState.value.tournament ?: return
+    fun resetTournament() {
         viewModelScope.launch {
-            updateRankingUseCase(tournament)
+            repository.resetTournament()
         }
     }
 }

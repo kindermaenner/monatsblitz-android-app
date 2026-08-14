@@ -1,9 +1,9 @@
-package de.kindermaenner.monatsblitz.ui.home
+package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
 
-data class HomeUiState(
+data class TournamentSetupUiState(
     val players: List<Player> = emptyList(),
     val selectedPlayerIds: Set<Long> = emptySet(),
 

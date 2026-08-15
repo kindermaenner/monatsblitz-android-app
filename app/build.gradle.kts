@@ -138,11 +138,19 @@ tasks.register<JacocoReport>("connectedDebugAndroidTestCoverageReport") {
         html.required.set(true)
     }
 
-    val javaClasses = fileTree("${project.layout.buildDirectory.get()}/intermediates/javac/debug/compileDebugJavaWithJavac/classes")
-    val kotlinClasses = fileTree("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug")
+    val javaClasses = fileTree(project.layout.buildDirectory.asFile) {
+        include("**/intermediates/javac/debug/**/classes/**")
+    }
+    val kotlinClasses = fileTree(project.layout.buildDirectory.asFile) {
+        include("**/intermediates/kotlin_classes/debug/**")
+        include("**/classes/kotlin/debug/**")
+    }
     classDirectories.setFrom(files(javaClasses, kotlinClasses))
 
     sourceDirectories.setFrom(files("$projectDir/src/main/java", "$projectDir/src/main/kotlin"))
 
-    executionData.setFrom(fileTree("${project.layout.buildDirectory.get()}/outputs/code_coverage/debugAndroidTest/connected/"))
+    executionData.setFrom(fileTree(project.layout.buildDirectory.asFile) {
+        include("**/outputs/code_coverage/**/*.ec")
+        include("**/outputs/connected_android_test_additional_output/**/*.ec")
+    })
 }

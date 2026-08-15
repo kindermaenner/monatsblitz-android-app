@@ -147,6 +147,14 @@ tasks.register<JacocoReport>("connectedDebugAndroidTestCoverageReport") {
     }
     classDirectories.setFrom(files(javaClasses, kotlinClasses))
 
+    doFirst {
+        println("Jacoco: Searching for classes in ${project.layout.buildDirectory.asFile}")
+        println("Jacoco: Found ${javaClasses.files.size} Java class files")
+        println("Jacoco: Found ${kotlinClasses.files.size} Kotlin class files")
+        println("Jacoco: Found ${executionData.files.size} execution data files (.ec)")
+        executionData.files.forEach { println("Jacoco: Data file: ${it.absolutePath}") }
+    }
+
     sourceDirectories.setFrom(files("$projectDir/src/main/java", "$projectDir/src/main/kotlin"))
 
     executionData.setFrom(fileTree(project.layout.buildDirectory.asFile) {

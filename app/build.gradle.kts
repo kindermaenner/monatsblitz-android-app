@@ -140,14 +140,14 @@ tasks.register<JacocoReport>("connectedDebugAndroidTestCoverageReport") {
 
     val buildDir = layout.buildDirectory
 
-    val javaClasses = fileTree(buildDir) {
-        include("**/intermediates/javac/debug/**/classes/**")
-    }
-    val kotlinClasses = fileTree(buildDir) {
+    val allDebugClasses = fileTree(buildDir) {
+        include("**/intermediates/**/debug/**/classes/**")
         include("**/intermediates/kotlin_classes/debug/**")
         include("**/classes/kotlin/debug/**")
+        // Exclude common generated/system classes
+        exclude("**/R.class", "**/R$*.class", "**/BuildConfig.*", "**/Manifest*.*")
     }
-    classDirectories.setFrom(files(javaClasses, kotlinClasses))
+    classDirectories.setFrom(allDebugClasses)
 
     sourceDirectories.setFrom(files("$projectDir/src/main/java", "$projectDir/src/main/kotlin"))
 

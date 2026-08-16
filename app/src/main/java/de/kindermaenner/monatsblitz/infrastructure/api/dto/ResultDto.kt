@@ -2,7 +2,7 @@ package de.kindermaenner.monatsblitz.infrastructure.api.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ResultDto(val player_id : Int, val points : Int, val rank : Int) {
+data class ResultDto(val player_id : Int, val points : Double, val rank : Int) {
     companion object {
     }
 }

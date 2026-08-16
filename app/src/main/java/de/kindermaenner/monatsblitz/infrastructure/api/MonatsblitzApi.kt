@@ -12,6 +12,7 @@ import de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewPlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewTournamentDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerBatchResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.RecreatePostsDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.ResultDto
@@ -20,6 +21,7 @@ import de.kindermaenner.monatsblitz.infrastructure.api.dto.UpdateGameDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 
 interface MonatsblitzApi {
@@ -33,12 +35,17 @@ interface MonatsblitzApi {
         @Body request: NewPlayerDto
     ): PlayerDto
 
+    @POST("player")
+    suspend fun createPlayers(
+        @Body request: List<NewPlayerDto>
+    ): PlayerBatchResponseDto
+
     // tournament interface
 
     @GET(value = "tournaments")
     suspend fun getTournaments(): List<TournamentDto>
 
-    @GET("tournaments/{id}")
+    @GET("tournament/{id}")
     suspend fun getTournament(
         @Path("id") id: Int
     ): TournamentDto
@@ -63,6 +70,11 @@ interface MonatsblitzApi {
 
     @POST(value = "game")
     suspend fun updateGame(
+        @Body request: UpdateGameDto
+    ): GameDto
+
+    @PUT(value = "game")
+    suspend fun updateGamePut(
         @Body request: UpdateGameDto
     ): GameDto
 

@@ -13,3 +13,10 @@ Diese Dokumentation beschreibt die Ist-Architektur der Monatsblitz Android App. 
 9. [Architekturentscheidungen](09-ArchitectureDecisions.md)
 10. [Qualitätsanforderungen](10-QualityRequirements.md)
 11. [Risiken und technische Schulden](11-RisksAndTechnicalDebt.md)
+
+---
+
+## Spezifikation (Requirements)
+Die fachlichen und technischen Anforderungen sind separat dokumentiert:
+1. [Funktionale Anforderungen](../specs/01-FunctionalRequirements.md)
+2. [Technische Anforderungen](../specs/02-TechnicalRequirements.md)

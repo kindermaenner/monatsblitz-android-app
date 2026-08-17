@@ -5,24 +5,20 @@ import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.toEntity
 
-class CreateTournamentRankingsUseCase(val tournamentPlayerDao: TournamentPlayerDao) {
+class CreateTournamentRankingsUseCase(
+    val tournamentPlayerDao: TournamentPlayerDao,
+    val calculatePlayerPointsUseCase: CalculatePlayerPointsUseCase = CalculatePlayerPointsUseCase()
+) {
     suspend operator fun invoke(tournament : Tournament) {
         val playerResult = mutableListOf<PlayerRankingEntry>()
         tournament.players.forEach { player ->
-            val points = getPointsForPlayer(tournament, player.id)
+            val points = calculatePlayerPointsUseCase(tournament, player.id)
             playerResult.add(PlayerRankingEntry(playerId = player.id, tournamentId = tournament.Id, points = points))
         }
         val playerRanks = createDenseRanking(playerResult)
 
         val entities = playerRanks.map { rankEntry ->  rankEntry.toEntity()}
         tournamentPlayerDao.upsertAll(entities.toList())
-    }
-
-    private fun getPointsForPlayer(tournament: Tournament, playerId: Long): Double {
-        val playerGames = tournament.games.values.filter { game ->
-            game.player1Id == playerId
-        }
-        return playerGames.sumOf { game -> game.result.points }
     }
 
     internal fun createDenseRanking(rankings: List<PlayerRankingEntry>): List<PlayerRankingEntry> {

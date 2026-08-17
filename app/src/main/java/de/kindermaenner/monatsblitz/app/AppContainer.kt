@@ -5,6 +5,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import de.kindermaenner.monatsblitz.BuildConfig.API_KEY
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
@@ -69,8 +70,11 @@ class AppContainer(context: Context) {
         gameDao = database.gameDao()
     )
 
+    val calculatePlayerPointsUseCase = CalculatePlayerPointsUseCase()
+
     val createTournamentRankingUseCase = CreateTournamentRankingsUseCase(
-        tournamentPlayerDao = database.tournamentPlayerDao()
+        tournamentPlayerDao = database.tournamentPlayerDao(),
+        calculatePlayerPointsUseCase = calculatePlayerPointsUseCase
     )
 
     val tournamentSetupViewModelFactory =
@@ -85,6 +89,7 @@ class AppContainer(context: Context) {
             tournamentRepository,
             setGameResultUseCase,
             createTournamentRankingUseCase,
+            calculatePlayerPointsUseCase,
             tournamentId
         )
 

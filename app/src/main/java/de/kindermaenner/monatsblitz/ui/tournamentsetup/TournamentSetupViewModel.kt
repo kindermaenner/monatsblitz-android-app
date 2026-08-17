@@ -41,7 +41,7 @@ class TournamentSetupViewModel(
         }
     }
 
-    fun togglePlayer(playerId:Long) {
+    fun togglePlayer(playerId: Long) {
         _uiState.update { state ->
             val selected = state.selectedPlayerIds.toMutableSet()
             if (selected.contains(playerId)) {
@@ -64,6 +64,18 @@ class TournamentSetupViewModel(
 
             state.copy(selectedPlayerIds = selected)
         }
+    }
+
+    fun onSearchQueryChanged(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun onShowOnlySelectedChanged(showOnly: Boolean) {
+        _uiState.update { it.copy(showOnlySelected = showOnly) }
+    }
+
+    fun clearSelectedPlayers() {
+        _uiState.update { it.copy(selectedPlayerIds = emptySet()) }
     }
 
     fun onModeChanged(mode: GameMode) {

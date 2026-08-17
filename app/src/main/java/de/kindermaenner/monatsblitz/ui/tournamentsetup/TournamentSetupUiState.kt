@@ -6,6 +6,8 @@ import de.kindermaenner.monatsblitz.domain.model.Player
 data class TournamentSetupUiState(
     val players: List<Player> = emptyList(),
     val selectedPlayerIds: Set<Long> = emptySet(),
+    val searchQuery: String = "",
+    val showOnlySelected: Boolean = false,
 
     val selectedMode: GameMode = GameMode.BLITZ_5_0,
     val doubleRound: Boolean = false,

@@ -50,6 +50,49 @@ class TournamentSetupViewModelTest {
     }
 
     @Test
+    fun `search query and filter updates state`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+
+        viewModel.onSearchQueryChanged("Müller")
+        assertEquals("Müller", viewModel.uiState.value.searchQuery)
+
+        viewModel.onShowOnlySelectedChanged(true)
+        assertTrue(viewModel.uiState.value.showOnlySelected)
+
+        viewModel.onPlayerChecked(1L, true)
+        viewModel.onPlayerChecked(2L, true)
+        assertEquals(2, viewModel.uiState.value.selectedPlayerIds.size)
+
+        viewModel.clearSelectedPlayers()
+        assertTrue(viewModel.uiState.value.selectedPlayerIds.isEmpty())
+    }
+
+    @Test
+    fun `matchesPlayerSearch handles umlauts seamlessly`() {
+        val player1 = Player(1, "Mühe", "Jörn")
+        val player2 = Player(2, "Müller", "Anna")
+        val player3 = Player(3, "Weiß", "Stefan")
+
+        // Jörn Mühe matches with or without umlauts
+        assertTrue(matchesPlayerSearch(player1, "Jörn"))
+        assertTrue(matchesPlayerSearch(player1, "Joern"))
+        assertTrue(matchesPlayerSearch(player1, "Jorn"))
+        assertTrue(matchesPlayerSearch(player1, "Mühe"))
+        assertTrue(matchesPlayerSearch(player1, "Muehe"))
+        assertTrue(matchesPlayerSearch(player1, "Muhe"))
+
+        // Müller matches
+        assertTrue(matchesPlayerSearch(player2, "Müller"))
+        assertTrue(matchesPlayerSearch(player2, "Mueller"))
+        assertTrue(matchesPlayerSearch(player2, "Muller"))
+
+        // Weiß matches
+        assertTrue(matchesPlayerSearch(player3, "Weiß"))
+        assertTrue(matchesPlayerSearch(player3, "Weiss"))
+    }
+
+    @Test
     fun `createTournament calls usecase with selected players`() = runTest {
         val p1 = Player(1, "A", "A")
         val p2 = Player(2, "B", "B")

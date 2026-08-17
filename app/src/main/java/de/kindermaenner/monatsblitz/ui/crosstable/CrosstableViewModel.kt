@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,22 @@ class CrosstableViewModel(
     private val repository: TournamentRepository,
     private val setGameResultUseCase: SetGameResultUseCase,
     private val createTournamentRankingsUseCase: CreateTournamentRankingsUseCase,
-    tournamentId: Long) : ViewModel() {
+    private val calculatePlayerPointsUseCase: CalculatePlayerPointsUseCase,
+    tournamentId: Long
+) : ViewModel() {
+
+    constructor(
+        repository: TournamentRepository,
+        setGameResultUseCase: SetGameResultUseCase,
+        createTournamentRankingsUseCase: CreateTournamentRankingsUseCase,
+        tournamentId: Long
+    ) : this(
+        repository,
+        setGameResultUseCase,
+        createTournamentRankingsUseCase,
+        CalculatePlayerPointsUseCase(),
+        tournamentId
+    )
     
     private val _selectedLeg = MutableStateFlow(1)
     val selectedLeg = _selectedLeg.asStateFlow()
@@ -28,9 +44,14 @@ class CrosstableViewModel(
             repository.observeTournament(tournamentId),
             _selectedLeg
         ) { tournament, leg ->
+            val pointsMap = tournament?.players?.associate { player ->
+                player.id to calculatePlayerPointsUseCase(tournament, player.id)
+            } ?: emptyMap()
+
             CrosstableUiState(
                 tournament = tournament,
                 leg = leg,
+                playerPoints = pointsMap,
                 isLoading = false
             )
         }
@@ -40,7 +61,7 @@ class CrosstableViewModel(
             CrosstableUiState()
         )
 
-    fun setResult(rowIndex : Int, columnIndex : Int, round : Int, result : GameResult) {
+    fun setResult(rowIndex: Int, columnIndex: Int, round: Int, result: GameResult) {
         val tournament = uiState.value.tournament ?: return
         viewModelScope.launch {
             Log.i("CrosstableViewModel", "setGameResultUseCase: tournament=${tournament.Id}, rowIndex=$rowIndex, columnIndex=$columnIndex, round=$round, result=$result")

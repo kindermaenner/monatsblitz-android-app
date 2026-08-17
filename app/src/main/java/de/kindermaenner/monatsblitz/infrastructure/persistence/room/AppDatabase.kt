@@ -21,7 +21,7 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.Tourn
         GameEntity::class,
         TournamentPlayerCrossRef::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -44,7 +44,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "monatsblitz.db"
-                ).build().also { INSTANCE = it }
+                )
+                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .build().also { INSTANCE = it }
             }
     }
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.preferencesDataStore
 import de.kindermaenner.monatsblitz.BuildConfig.API_KEY
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
+import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
@@ -47,6 +48,8 @@ class AppContainer(context: Context) {
         remoteDataSource = playerRemoteDataSource,
         playerDao = database.playerDao())
 
+    val addPlayerUseCase = AddPlayerUseCase(playerRepository)
+
     val createNewGamesUseCase = CreateNewGamesUseCase()
 
     val createTournamentUseCase = CreateTournamentUseCase(
@@ -73,7 +76,8 @@ class AppContainer(context: Context) {
     val tournamentSetupViewModelFactory =
         TournamentSetupViewModelFactory(
             playerRepository,
-            createTournamentUseCase
+            createTournamentUseCase,
+            addPlayerUseCase
         )
 
     fun crosstableViewModelFactory(tournamentId: Long) =

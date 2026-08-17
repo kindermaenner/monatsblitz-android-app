@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 
@@ -26,7 +27,7 @@ fun CrosstableRow(
     setResult : (rowIndex: Int, columnIndex: Int, round : Int, result: de.kindermaenner.monatsblitz.domain.model.GameResult) -> Unit
 ) {
     val NumberWidth = 40.dp
-    val NameWidth = 140.dp
+    val NameWidth = 180.dp
 
     Row(
         modifier = Modifier.height(48.dp),
@@ -48,7 +49,8 @@ fun CrosstableRow(
         ) {
             Text(
                 text = playerName,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
 

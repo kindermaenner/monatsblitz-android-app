@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
+import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -20,6 +21,7 @@ class TournamentSetupScreenTest {
 
     private val playerRepository = mockk<PlayerRepository>(relaxed = true)
     private val createTournamentUseCase = mockk<CreateTournamentUseCase>(relaxed = true)
+    private val addPlayerUseCase = mockk<AddPlayerUseCase>(relaxed = true)
 
     @Test
     fun setupScreen_displaysPlayersAndButton() {
@@ -29,7 +31,7 @@ class TournamentSetupScreenTest {
         )
         coEvery { playerRepository.observePlayers() } returns flowOf(players)
 
-        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase)
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
 
         composeTestRule.setContent {
             TournamentSetupScreen(
@@ -50,7 +52,7 @@ class TournamentSetupScreenTest {
         val players = listOf(Player(1, "Meier", "Alice"))
         coEvery { playerRepository.observePlayers() } returns flowOf(players)
 
-        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase)
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
 
         composeTestRule.setContent {
             TournamentSetupScreen(

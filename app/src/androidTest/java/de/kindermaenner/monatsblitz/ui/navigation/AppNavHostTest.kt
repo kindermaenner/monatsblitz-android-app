@@ -36,12 +36,12 @@ class AppNavHostTest {
 
     @Before
     fun setup() {
-        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")), emptyMap())
         coEvery { tournamentRepository.observeTournament(any()) } returns flowOf(tournament)
         coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
 
         // Setup factories in mock container
-        val setupFactory = TournamentSetupViewModelFactory(playerRepository, mockk(relaxed = true))
+        val setupFactory = TournamentSetupViewModelFactory(playerRepository, mockk(relaxed = true), mockk(relaxed = true))
         every { appContainer.tournamentSetupViewModelFactory } returns setupFactory
 
         every { appContainer.crosstableViewModelFactory(any()) } answers {

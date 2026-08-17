@@ -15,7 +15,13 @@ Die App nutzt zwei unterschiedliche Persistenz-Technologien je nach Anwendungsfa
 *   **Room (SQLite):** Wird für strukturierte, relationale Daten verwendet (Spieler, Turniere, Games, Rankings). Dies bildet die fachliche SSoT.
 *   **Jetpack DataStore (Preferences):** Wird für einfache Schlüssel-Wert-Paare zur Steuerung des App-Zustands verwendet (z. B. `tournament_id` des aktiven Turniers). Dies ermöglicht die nahtlose Fortführung einer Sitzung nach App-Neustarts.
 
-### 8.4 User Interface & Design System
+### 8.4 Eindeutigkeit von Spielernamen
+Da das WordPress-Backend keine strikte Eindeutigkeit für Personen erzwingt, implementiert die App ein **Suffix-System**:
+*   Bei der Neuanlage wird geprüft, ob Vor- und Nachname bereits existieren.
+*   Gleiche Namen werden durch ein automatisches Suffix wie `(1)`, `(2)` etc. lokal und remote unterscheidbar gemacht.
+*   Dies stellt sicher, dass in der Kreuztabelle und im Ranking keine Verwechslungen auftreten.
+
+### 8.5 User Interface & Design System
 Die visuelle Gestaltung folgt dem **Material 3 (M3)** Standard. 
 *   **Theming:** Zentral definiert in `ui/theme/Theme.kt`. Es unterstützt sowohl Light- als auch Dark-Mode sowie Dynamic Color (ab Android 12).
 *   **Farben:** Die Farbpalette ist in `ui/theme/Color.kt` definiert und nutzt M3-spezifische Rollen (Primary, Secondary, Tertiary, Surface etc.).

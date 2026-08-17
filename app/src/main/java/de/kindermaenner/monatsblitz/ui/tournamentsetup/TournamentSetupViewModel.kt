@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
+import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +18,8 @@ import java.time.LocalDate
 
 class TournamentSetupViewModel(
     private val playerRepository: PlayerRepository,
-    private val createTournamentUseCase: CreateTournamentUseCase
+    private val createTournamentUseCase: CreateTournamentUseCase,
+    private val addPlayerUseCase: AddPlayerUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TournamentSetupUiState(isLoading = true))
@@ -90,6 +92,27 @@ class TournamentSetupViewModel(
                 rounds = if (state.doubleRound) 2 else 1
             )
             _navigationEffect.emit(tournament.Id)
+        }
+    }
+
+    fun onShowAddPlayerDialog(show: Boolean) {
+        _uiState.update { it.copy(showAddPlayerDialog = show) }
+    }
+
+    fun onNewPlayerNameChanged(vorname: String, name: String) {
+        _uiState.update { it.copy(newPlayerVorname = vorname, newPlayerName = name) }
+    }
+
+    fun addNewPlayer() {
+        val state = uiState.value
+        if (state.newPlayerVorname.isBlank() || state.newPlayerName.isBlank()) return
+
+        viewModelScope.launch {
+            val newPlayer = addPlayerUseCase(state.newPlayerVorname, state.newPlayerName)
+            // Automatisches Auswählen des neuen Spielers
+            onPlayerChecked(newPlayer.id, true)
+            onShowAddPlayerDialog(false)
+            onNewPlayerNameChanged("", "")
         }
     }
 }

@@ -3,6 +3,7 @@ package de.kindermaenner.monatsblitz.ui.tournamentsetup
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
+import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import de.kindermaenner.monatsblitz.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -23,13 +24,14 @@ class TournamentSetupViewModelTest {
 
     private val playerRepository = mockk<PlayerRepository>()
     private val createTournamentUseCase = mockk<CreateTournamentUseCase>()
+    private val addPlayerUseCase = mockk<AddPlayerUseCase>()
 
     @Test
     fun `initial state loads players from repository`() = runTest {
         val players = listOf(Player(1, "N", "V"))
         coEvery { playerRepository.observePlayers() } returns flowOf(players)
 
-        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase)
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
 
         assertEquals(players, viewModel.uiState.value.players)
         assertFalse(viewModel.uiState.value.isLoading)
@@ -38,7 +40,7 @@ class TournamentSetupViewModelTest {
     @Test
     fun `togglePlayer updates selected ids`() = runTest {
         coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
-        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase)
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
 
         viewModel.togglePlayer(1L)
         assertTrue(viewModel.uiState.value.selectedPlayerIds.contains(1L))
@@ -57,7 +59,7 @@ class TournamentSetupViewModelTest {
         coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1, p2))
         coEvery { createTournamentUseCase(any(), any(), any(), any()) } returns mockTournament
 
-        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase)
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
         viewModel.togglePlayer(1L)
         viewModel.onModeChanged(GameMode.BLITZ_5_0)
         

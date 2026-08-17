@@ -20,7 +20,7 @@ fun CrosstableHeader(
     horizontalScrollState: ScrollState
 ) {
     val NumberWidth = 40.dp
-    val NameWidth = 140.dp
+    val NameWidth = 180.dp
     val CellWidth = 40.dp
 
     Row(

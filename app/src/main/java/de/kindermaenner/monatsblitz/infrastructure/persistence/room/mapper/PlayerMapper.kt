@@ -8,7 +8,8 @@ fun PlayerEntity.toDomain(): Player =
     Player(
         id = id,
         Name = name,
-        Vorname = vorname
+        Vorname = vorname,
+        displaySuffix = displaySuffix
     )
 
 fun Player.toEntity(): PlayerEntity =
@@ -16,6 +17,7 @@ fun Player.toEntity(): PlayerEntity =
         id = id,
         name = Name,
         vorname = Vorname,
+        displaySuffix = displaySuffix,
         remoteId = null,
         dirty = true
     )
@@ -24,6 +26,7 @@ fun NewPlayer.toEntity() :PlayerEntity =
     PlayerEntity(
         name = Name,
         vorname = Vorname,
+        displaySuffix = displaySuffix,
         remoteId = null,
         dirty = true
     )

@@ -25,6 +25,9 @@ class PlayerRepositoryImpl(
                 entity?.toDomain()
             }
 
+    override suspend fun findPlayersByName(vorname: String, name: String): List<Player> =
+        playerDao.findPlayersByName(vorname, name).map { it.toDomain() }
+
     override suspend fun createPlayer(newPlayer: NewPlayer): Player {
         val e = newPlayer.toEntity()
         val id = playerDao.insert(e)

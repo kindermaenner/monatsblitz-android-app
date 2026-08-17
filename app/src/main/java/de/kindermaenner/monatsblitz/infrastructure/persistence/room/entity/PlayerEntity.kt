@@ -10,5 +10,6 @@ data class PlayerEntity(
     val remoteId : Long? = null,
     val name: String,
     val vorname: String,
+    val displaySuffix: String? = null,
     val dirty : Boolean = true
 )

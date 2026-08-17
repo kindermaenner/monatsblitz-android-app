@@ -10,5 +10,9 @@ data class TournamentSetupUiState(
     val selectedMode: GameMode = GameMode.BLITZ_5_0,
     val doubleRound: Boolean = false,
 
+    val showAddPlayerDialog: Boolean = false,
+    val newPlayerVorname: String = "",
+    val newPlayerName: String = "",
+
     val isLoading: Boolean = false
 )

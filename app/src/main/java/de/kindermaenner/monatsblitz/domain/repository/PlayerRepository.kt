@@ -9,5 +9,7 @@ interface PlayerRepository {
 
     fun observePlayer(id: Long): Flow<Player?>
 
+    suspend fun findPlayersByName(vorname: String, name: String): List<Player>
+
     suspend fun createPlayer(newPlayer: NewPlayer) : Player
 }

@@ -16,10 +16,11 @@ Die App nutzt zwei unterschiedliche Persistenz-Technologien je nach Anwendungsfa
 *   **Jetpack DataStore (Preferences):** Wird für einfache Schlüssel-Wert-Paare zur Steuerung des App-Zustands verwendet (z. B. `tournament_id` des aktiven Turniers). Dies ermöglicht die nahtlose Fortführung einer Sitzung nach App-Neustarts.
 
 ### 8.4 Eindeutigkeit von Spielernamen
-Da das WordPress-Backend keine strikte Eindeutigkeit für Personen erzwingt, implementiert die App ein **Suffix-System**:
-*   Bei der Neuanlage wird geprüft, ob Vor- und Nachname bereits existieren.
-*   Gleiche Namen werden durch ein automatisches Suffix wie `(1)`, `(2)` etc. lokal und remote unterscheidbar gemacht.
-*   Dies stellt sicher, dass in der Kreuztabelle und im Ranking keine Verwechslungen auftreten.
+Es darf keine zwei Spieler mit gleichem Namen (Vor- und Nachname) geben:
+*   Die Eindeutigkeit wird über die Kombination aus Vor- und Nachname (`UNIQUE(vorname, name)`) definiert (case-insensitive und getrimmt).
+*   Bei der Neuanlage wird geprüft, ob bereits ein Spieler mit identischem Vor- und Nachnamen existiert. Bei Duplikaten wird die Anlage mit einer Fehlermeldung abgewiesen.
+*   In der lokalen Room-Datenbank wird die Eindeutigkeit über einen Unique-Index auf `(vorname, name)` erzwungen.
+*   Dies entspricht auch dem Schema im WordPress-Backend (`UNIQUE KEY forename_surname (forename, surname)`).
 
 ### 8.5 User Interface & Design System
 Die visuelle Gestaltung folgt dem **Material 3 (M3)** Standard. 

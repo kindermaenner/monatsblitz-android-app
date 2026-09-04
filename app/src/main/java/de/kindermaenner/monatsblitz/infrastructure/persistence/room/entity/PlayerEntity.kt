@@ -1,15 +1,18 @@
 package de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "players")
+@Entity(
+    tableName = "players",
+    indices = [Index(value = ["vorname", "name"], unique = true)]
+)
 data class PlayerEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val remoteId : Long? = null,
+    val remoteId: Long? = null,
     val name: String,
     val vorname: String,
-    val displaySuffix: String? = null,
-    val dirty : Boolean = true
+    val dirty: Boolean = true
 )

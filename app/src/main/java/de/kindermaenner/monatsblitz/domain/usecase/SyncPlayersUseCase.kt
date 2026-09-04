@@ -24,12 +24,17 @@ class SyncPlayersUseCase(private val remoteDataSource : PlayerRemoteDataSource,
         val remotePlayers =
             remoteDataSource.getPlayers().map { it.toEntity() }
 
-        remotePlayers.forEach {
-            val r = playerDao.getPlayerByRemoteId(it.remoteId!!)
-            if (r == null) {
-                playerDao.insert(it)
+        remotePlayers.forEach { remotePlayer ->
+            val r = playerDao.getPlayerByRemoteId(remotePlayer.remoteId!!)
+            if (r != null) {
+                playerDao.update(remotePlayer.copy(id = r.id))
             } else {
-                playerDao.update(it.copy(id = r.id))
+                val existingByName = playerDao.findPlayersByName(remotePlayer.vorname, remotePlayer.name).firstOrNull()
+                if (existingByName != null) {
+                    playerDao.setRemoteId(playerId = existingByName.id, remoteId = remotePlayer.remoteId)
+                } else {
+                    playerDao.insert(remotePlayer)
+                }
             }
         }
     }

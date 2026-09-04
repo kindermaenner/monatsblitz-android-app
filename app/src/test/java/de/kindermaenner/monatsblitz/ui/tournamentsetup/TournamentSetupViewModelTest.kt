@@ -115,4 +115,44 @@ class TournamentSetupViewModelTest {
             rounds = 1
         ) }
     }
+
+    @Test
+    fun `addNewPlayer success selects new player, closes dialog, and clears fields`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val newPlayer = Player(99L, "Mustermann", "Max")
+        coEvery { addPlayerUseCase("Max", "Mustermann") } returns newPlayer
+
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        viewModel.onShowAddPlayerDialog(true)
+        viewModel.onNewPlayerNameChanged("Max", "Mustermann")
+
+        viewModel.addNewPlayer()
+
+        assertTrue(viewModel.uiState.value.selectedPlayerIds.contains(99L))
+        assertFalse(viewModel.uiState.value.showAddPlayerDialog)
+        assertEquals("", viewModel.uiState.value.newPlayerVorname)
+        assertEquals("", viewModel.uiState.value.newPlayerName)
+        assertEquals(null, viewModel.uiState.value.addPlayerError)
+    }
+
+    @Test
+    fun `addNewPlayer duplicate sets addPlayerError and leaves dialog open`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val errorMessage = "Ein Spieler mit dem Namen 'Max Mustermann' existiert bereits."
+        coEvery { addPlayerUseCase("Max", "Mustermann") } throws IllegalArgumentException(errorMessage)
+
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        viewModel.onShowAddPlayerDialog(true)
+        viewModel.onNewPlayerNameChanged("Max", "Mustermann")
+
+        viewModel.addNewPlayer()
+
+        assertTrue(viewModel.uiState.value.showAddPlayerDialog)
+        assertEquals(errorMessage, viewModel.uiState.value.addPlayerError)
+        assertFalse(viewModel.uiState.value.selectedPlayerIds.contains(99L))
+
+        // Typing again clears error
+        viewModel.onNewPlayerNameChanged("Maxi", "Mustermann")
+        assertEquals(null, viewModel.uiState.value.addPlayerError)
+    }
 }

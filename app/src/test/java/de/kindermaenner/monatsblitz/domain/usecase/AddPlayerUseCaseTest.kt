@@ -8,6 +8,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
 import org.junit.Test
 
 class AddPlayerUseCaseTest {
@@ -16,50 +17,69 @@ class AddPlayerUseCaseTest {
     private val useCase = AddPlayerUseCase(repository)
 
     @Test
-    fun `invoke with new name should create player without suffix`() = runTest {
+    fun `invoke with new name should create player successfully`() = runTest {
         val vorname = "Alice"
         val name = "Meier"
-        val expectedPlayer = Player(1, name, vorname, null)
+        val expectedPlayer = Player(1, name, vorname)
 
         coEvery { repository.findPlayersByName(vorname, name) } returns emptyList()
-        coEvery { repository.createPlayer(any()) } returns expectedPlayer
+        coEvery { repository.createPlayer(NewPlayer(name, vorname)) } returns expectedPlayer
 
         val result = useCase(vorname, name)
 
         assertEquals(expectedPlayer, result)
-        coVerify { repository.createPlayer(match { it.displaySuffix == null }) }
+        coVerify { repository.createPlayer(NewPlayer(Name = name, Vorname = vorname)) }
     }
 
     @Test
-    fun `invoke with existing name should create player with suffix`() = runTest {
+    fun `invoke with existing name should throw IllegalArgumentException and not create player`() = runTest {
         val vorname = "Max"
         val name = "Mustermann"
-        val existing = listOf(Player(1, name, vorname, null))
-        val expectedPlayer = Player(2, name, vorname, "(2)")
+        val existing = listOf(Player(1, name, vorname))
 
         coEvery { repository.findPlayersByName(vorname, name) } returns existing
-        coEvery { repository.createPlayer(any()) } returns expectedPlayer
+
+        try {
+            useCase(vorname, name)
+            fail("Expected IllegalArgumentException was not thrown")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Ein Spieler mit dem Namen 'Max Mustermann' existiert bereits.", e.message)
+        }
+
+        coVerify(exactly = 0) { repository.createPlayer(any()) }
+    }
+
+    @Test
+    fun `invoke with whitespace should trim names before checking and creating`() = runTest {
+        val vorname = "  Alice  "
+        val name = "  Meier  "
+        val expectedPlayer = Player(1, "Meier", "Alice")
+
+        coEvery { repository.findPlayersByName("Alice", "Meier") } returns emptyList()
+        coEvery { repository.createPlayer(NewPlayer("Meier", "Alice")) } returns expectedPlayer
 
         val result = useCase(vorname, name)
 
         assertEquals(expectedPlayer, result)
-        coVerify { repository.createPlayer(match { it.displaySuffix == "(2)" }) }
+        coVerify { repository.createPlayer(NewPlayer(Name = "Meier", Vorname = "Alice")) }
     }
 
     @Test
-    fun `invoke with multiple existing names should increment suffix`() = runTest {
-        val vorname = "Uwe"
-        val name = "Schmidt"
-        val existing = listOf(
-            Player(1, name, vorname, null),
-            Player(2, name, vorname, "(2)")
-        )
-        
-        coEvery { repository.findPlayersByName(vorname, name) } returns existing
-        coEvery { repository.createPlayer(any()) } returns mockk()
+    fun `invoke with blank vorname or name should throw IllegalArgumentException`() = runTest {
+        try {
+            useCase("", "Meier")
+            fail("Expected IllegalArgumentException for blank vorname")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Vorname und Nachname dürfen nicht leer sein.", e.message)
+        }
 
-        useCase(vorname, name)
+        try {
+            useCase("Alice", "   ")
+            fail("Expected IllegalArgumentException for blank name")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Vorname und Nachname dürfen nicht leer sein.", e.message)
+        }
 
-        coVerify { repository.createPlayer(match { it.displaySuffix == "(3)" }) }
+        coVerify(exactly = 0) { repository.createPlayer(any()) }
     }
 }

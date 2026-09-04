@@ -108,23 +108,31 @@ class TournamentSetupViewModel(
     }
 
     fun onShowAddPlayerDialog(show: Boolean) {
-        _uiState.update { it.copy(showAddPlayerDialog = show) }
+        _uiState.update { it.copy(showAddPlayerDialog = show, addPlayerError = null) }
     }
 
     fun onNewPlayerNameChanged(vorname: String, name: String) {
-        _uiState.update { it.copy(newPlayerVorname = vorname, newPlayerName = name) }
+        _uiState.update { it.copy(newPlayerVorname = vorname, newPlayerName = name, addPlayerError = null) }
     }
 
     fun addNewPlayer() {
         val state = uiState.value
-        if (state.newPlayerVorname.isBlank() || state.newPlayerName.isBlank()) return
+        val vorname = state.newPlayerVorname.trim()
+        val name = state.newPlayerName.trim()
+        if (vorname.isBlank() || name.isBlank()) return
 
         viewModelScope.launch {
-            val newPlayer = addPlayerUseCase(state.newPlayerVorname, state.newPlayerName)
-            // Automatisches Auswählen des neuen Spielers
-            onPlayerChecked(newPlayer.id, true)
-            onShowAddPlayerDialog(false)
-            onNewPlayerNameChanged("", "")
+            try {
+                val newPlayer = addPlayerUseCase(vorname, name)
+                // Automatisches Auswählen des neuen Spielers
+                onPlayerChecked(newPlayer.id, true)
+                onShowAddPlayerDialog(false)
+                onNewPlayerNameChanged("", "")
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(addPlayerError = e.message ?: "Fehler beim Anlegen des Spielers.")
+                }
+            }
         }
     }
 }

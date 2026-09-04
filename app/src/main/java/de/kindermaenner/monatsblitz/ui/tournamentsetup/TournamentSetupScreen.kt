@@ -101,6 +101,7 @@ fun TournamentSetupScreen(
                         value = state.newPlayerVorname,
                         onValueChange = { viewModel.onNewPlayerNameChanged(it, state.newPlayerName) },
                         label = { Text("Vorname") },
+                        isError = state.addPlayerError != null,
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Text,
@@ -112,6 +113,7 @@ fun TournamentSetupScreen(
                         value = state.newPlayerName,
                         onValueChange = { viewModel.onNewPlayerNameChanged(state.newPlayerVorname, it) },
                         label = { Text("Nachname") },
+                        isError = state.addPlayerError != null,
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Text,
@@ -119,6 +121,13 @@ fun TournamentSetupScreen(
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
+                    state.addPlayerError?.let { error ->
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             },
             confirmButton = {

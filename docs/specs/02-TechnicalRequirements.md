@@ -3,15 +3,22 @@
 Dieses Dokument beschreibt die technischen Details, Datenstrukturen und Algorithmen zur Umsetzung der funktionalen Anforderungen.
 
 ## 2.1 Domain-Modell: Player
-Das Modell für Spieler muss erweitert werden, um die Synchronisations- und Unterscheidungslogik zu unterstützen.
+Das Modell für Spieler unterstützt die Identifikation und Synchronisation mit dem WordPress-Backend.
 
 | Feld | Typ | Beschreibung |
 | :--- | :--- | :--- |
-| `localId` | Long | Eindeutige Kennung in der lokalen Room-Datenbank. |
-| `remoteKey` | Long? | ID des Spielers in der WordPress-Datenbank (`null` bei fehlendem Sync). |
+| `localId` | Long | Eindeutige Kennung in der lokalen Room-Datenbank (Primary Key). |
+| `remoteKey` | Long? | ID des Spielers in der WordPress-Datenbank (`null` bei noch nicht synchronisierten Spielern). |
 | `firstName` | String | Vorname des Spielers. |
 | `lastName` | String | Nachname des Spielers. |
-| `displaySuffix` | String? | Optionaler Zusatz zur Unterscheidung bei Namensgleichheit (z. B. "(1)"). |
+
+### Namenseindeutigkeit (Constraint & Validierung)
+*   **Eindeutigkeit:** Es darf keine zwei Spieler mit gleichem Namen geben (Kombination aus `firstName` und `lastName`).
+*   **Validierung:**
+    *   Vor dem Anlegen oder Speichern eines Spielers werden Vor- und Nachname getrimmt (führende/nachfolgende Whitespaces entfernt).
+    *   Die Eindeutigkeitsprüfung erfolgt case-insensitive über `firstName` und `lastName`.
+    *   In der lokalen Room-Datenbank wird ein `Index(value = ["firstName", "lastName"], unique = true)` geführt.
+    *   Sowohl im UI-Layer (`AddPlayerViewModel`) als auch im Use Case (`CreatePlayerUseCase`) wird vor dem Einfügen geprüft, ob bereits ein Spieler mit identischem Vor- und Nachnamen existiert. Bei Duplikaten wird die Operation abgewiesen.
 
 ## 2.2 Zustandsmodell der App
 Der Turnier-Lifecycle wird über Zustände gesteuert, die im `TournamentStorage` (DataStore) und in der Datenbank persistiert werden.
@@ -19,9 +26,8 @@ Der Turnier-Lifecycle wird über Zustände gesteuert, die im `TournamentStorage`
 | Zustand | Trigger | Auswirkung |
 | :--- | :--- | :--- |
 | **Setup** | App-Start ohne aktives Turnier | Anzeige `TournamentSetupScreen`, Spieler-Sync aktiv. |
-| **Running (Master)** | Klick "Turnier starten" oder Übernahme | Schreibzugriff auf Kreuztabelle, automatischer Sync der Ergebnisse. |
-| **Running (Read-Only)** | Übernahme durch anderes Gerät | Eingabefelder gesperrt, lesender Sync vom Server zur Aktualisierung der Anzeige. |
-| **Conflict** | Sync-Fehler (409 Conflict) | Anzeige des Konflikt-Dialogs, Stopp des automatischen Syncs. |
+| **Running** | Klick "Turnier starten" oder Fortsetzen | Schreibzugriff auf Kreuztabelle, manueller und automatischer Sync möglich. |
+| **Conflict** | Datenkonflikt beim Read-before-Write Sync | Anzeige des Konflikt-Dialogs mit Optionen (Force Read, Force Write, Keine Aktion), Stopp des automatischen Syncs bis zur Entscheidung. |
 | **Finalized** | Erfolgreicher Aufruf von `/finalize` | Schreibschutz für alle Geräte, Wechsel zur Ranking-Ansicht. |
 
 ## 2.3 Algorithmen
@@ -32,37 +38,49 @@ Bei Turnierstart werden alle Paarungen nach dem Prinzip "Jeder-gegen-Jeden" erze
 *   **Doppelrundig:** `n * (n - 1)` Spiele (Hin- und Rückspiel mit vertauschten Farben/Legs).
 *   Die Generierung erfolgt initial im `CreateNewGamesUseCase`.
 
-### 2.3.2 Grand Prix Berechnung (Jahreswertung)
-Die Berechnung der Jahreswertung erfolgt lokal in der App basierend auf den vom Server geladenen historischen Daten.
-1.  **Punkte-Zuweisung:** 
-    *   Rang 1: 5 Pkt, Rang 2: 4 Pkt, Rang 3: 3 Pkt, Rang 4: 2 Pkt, Rang 5: 1 Pkt.
-    *   Bei Dense Ranking (z.B. zwei Spieler auf Rang 2) erhalten beide die volle Punktzahl (4 Pkt). Der nächste Spieler (Rang 3) erhält 3 Pkt.
-2.  **Aggregation:** 
-    *   Abruf aller Platzierungspunkte des Spielers im aktuellen Kalenderjahr.
-    *   Sortierung der Punkte absteigend.
-    *   Summe der ersten 5 Einträge (Top 5).
+### 2.3.2 Synchronisations- und Merge-Algorithmus (Read-before-Write)
+Um gleichzeitige Erfassungen auf mehreren Geräten ohne Datenverlust zu ermöglichen, folgt der Sync einem strikten **Read-before-Write**-Ablauf:
 
-## 2.4 API Gaps (Änderungsbedarf WordPress Plugin)
-Basierend auf der existierenden `MonatsblitzApi` fehlen folgende Funktionen für die neuen Anforderungen:
+1.  **Read (Server-Abruf):**
+    *   Abruf des aktuellen Turnierstands vom Backend (`GET /games/{tournament_id}`).
+2.  **Klassifizierung & Merge:**
+    *   Die lokalen Spiele (Room) und Remote-Spiele werden anhand der Paarung (z. B. Spieler-IDs und Runde) abgeglichen:
+        *   **Remote-Aktualisierung (Merge):** Liegt remote ein Ergebnis vor, das lokal noch nicht erfasst oder identisch ist (lokal `dirty = 0`), wird der Remote-Stand lokal übernommen.
+        *   **Lokale Neuerung:** Wurde das Spiel nur lokal geändert (`dirty = 1`) und ist remote noch unberührt bzw. ohne Ergebnis, wird das Spiel für den Upload vorgemerkt.
+        *   **Konflikt:** Wurde das Spiel lokal geändert (`dirty = 1`) **und** auf dem Server liegt ein abweichendes Ergebnis vor, liegt ein Datenkonflikt vor.
+3.  **Konfliktbehandlung:**
+    *   Wird mindestens ein Konflikt festgestellt, wechselt der Zustand zu **Conflict**.
+    *   Dem Benutzer wird ein Dialog mit den abweichenden Ergebnissen und drei Optionen präsentiert:
+        *   **Force Read:** Remote-Ergebnisse überschreiben die lokalen Daten. Für die betroffenen Spiele wird `dirty = 0` gesetzt.
+        *   **Force Write:** Lokale Ergebnisse überschreiben die Daten im Backend. Die Spiele bleiben für den Upload vorgemerkt (`dirty = 1`) und werden per Schreibaufruf an den Server gesendet.
+        *   **Keine Aktion:** Der Synchronisationsvorgang wird abgebrochen. Lokale und Remote-Daten bleiben unverändert, die betroffenen Spiele behalten `dirty = 1`. Der Konflikt bleibt bestehen und wird beim nächsten Sync erneut erkannt.
+4.  **Write (Upload unstrittiger / freigegebener Daten):**
+    *   Alle für den Upload vorgemerkten Spiele mit `dirty = 1` werden an das Backend gesendet (`POST /game` bzw. Batch).
+    *   Bei HTTP 200 OK wird lokal `dirty = 0` gesetzt.
+    *   Rückkehr in den Zustand **Running**.
 
-### 2.4.1 Master-Management & Concurrency
-Um den Multi-Device-Support sicherzustellen, muss die API den Master-Status verwalten.
-*   **NEU: `POST /tournaments/{id}/claim-master`**
-    *   Ermöglicht einem Gerät, die Schreibhoheit anzufordern.
-    *   Speichert eine eindeutige `device_id` als aktuellen Master auf dem Server.
-*   **ÄNDERUNG: `POST /game` (Update/Create)**
-    *   Muss HTTP 409 (Conflict) zurückgeben, wenn die anfragende `device_id` nicht der aktuelle Master ist.
-    *   Antwort-Body bei 409 muss den aktuellen Stand der Spiele auf dem Server enthalten.
+## 2.4 API-Schnittstellen (WordPress Plugin)
+Anforderungen an die REST-API zur Unterstützung der Multi-Device-Synchronisation und Datenintegrität:
 
-### 2.4.2 Historische Grand Prix Daten
-*   **NEU: `GET /results/yearly/{year}`**
-    *   Liefert eine Liste aller bisherigen Turnierplatzierungen und vergebenen Grand-Prix-Punkte für alle Spieler im Jahr.
-    *   Wird von der App nach der Finalisierung zur Berechnung der neuen Gesamtwertung benötigt.
+### 2.4.1 Geräteunabhängige Synchronisation
+*   Alle Geräte sind gleichberechtigt; es gibt keine Bindung an eine `device_id` oder Master-Rolle.
+*   **Lese-Endpunkte:**
+    *   `GET /games/{tournament_id}`: Liefert alle Spiele und aktuellen Ergebnisse eines Turniers für den Read-before-Write-Schritt.
+    *   `GET /players`: Liefert alle registrierten Spieler.
+*   **Schreib-Endpunkte:**
+    *   `POST /game`: Erstellt oder aktualisiert Spiele/Ergebnisse. Unterstützt das Überschreiben bestehender Ergebnisse (für reguläre Updates sowie Force-Write).
+    *   `POST /player`: Erstellt neue Spieler. Lehnt Duplikate (gleicher Vor- und Nachname) mit HTTP 400/409 ab.
+    *   `POST /finalize`: Setzt den Turnierstatus serverseitig auf `finalized`. Weitere Schreibzugriffe für dieses Turnier werden danach mit HTTP 403 / 409 abgewiesen.
 
 ## 2.5 Datenfluss & Dirty-Flags
 Änderungen werden lokal in Room mit einem `dirty`-Flag markiert.
-1.  **Sync-Trigger:** `SyncGameResultsUseCase` sucht alle Games mit `dirty = 1`.
-2.  **Upload:** Senden der Daten an den Server inkl. `device_id`.
-3.  **Success:** Bei Erfolg (HTTP 200) wird das `dirty`-Flag auf `0` gesetzt.
-4.  **Conflict:** Bei HTTP 409 wird der lokale Zustand in den Modus **Conflict** versetzt (siehe 2.2).
-5.  **Download Sync (Read-Only):** In diesem Modus darf die App regelmäßig den Server-Zustand abfragen. Sofern lokal keine ungesynchronisierten Daten (`dirty = 1`) vorliegen, werden lokale Datensätze durch die Server-Antwort aktualisiert.
+1.  **Sync-Trigger:**
+    *   Manuell durch Benutzerinteraktion (Sync-Button in TopBar oder Pull-to-Refresh).
+    *   Optional automatisch (z. B. beim Start/Fortsetzen des Turniers bei bestehender Internetverbindung).
+2.  **Read (Pre-Sync):** Abruf des Remote-Stands vom Server (`GET`).
+3.  **Merge & Diff:**
+    *   Fehlende/neuere Remote-Daten werden ohne Konflikt lokal übernommen.
+    *   Lokale Änderungen (`dirty = 1`) werden ermittelt.
+4.  **Conflict-Check:** Bei Widersprüchen zwischen lokalem und remote Ergebnis -> Benutzerentscheidung (Force Read, Force Write, Keine Aktion).
+5.  **Write (Upload):** Senden der bestätigten Daten an den Server (`POST`).
+6.  **Success:** Nach erfolgreicher Server-Bestätigung (HTTP 200) wird `dirty = 0` gesetzt.

@@ -49,8 +49,7 @@ class CrosstableScreenTest {
                 // onBackToSetup lambda
             }
         }
-
-        composeTestRule.onNodeWithText("Turnier vom 14.08.26").assertIsDisplayed()
+        composeTestRule.onNodeWithText("14.08.26 • 3+2").assertIsDisplayed()
         composeTestRule.onNodeWithText("Rangliste").assertIsDisplayed()
         composeTestRule.onNodeWithText("Alice Meier").assertIsDisplayed()
     }

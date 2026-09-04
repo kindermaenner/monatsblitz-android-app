@@ -11,9 +11,22 @@ class CrosstableViewModelFactory(
     private val tournamentRepository: TournamentRepository,
     private val setGameResultUseCase: SetGameResultUseCase,
     private val createTournamentRankingsUseCase: CreateTournamentRankingsUseCase,
-    private val calculatePlayerPointsUseCase: CalculatePlayerPointsUseCase = CalculatePlayerPointsUseCase(),
+    private val calculatePlayerPointsUseCase: CalculatePlayerPointsUseCase,
     private val tournamentId: Long
 ) : ViewModelProvider.Factory {
+
+    constructor(
+        tournamentRepository: TournamentRepository,
+        setGameResultUseCase: SetGameResultUseCase,
+        createTournamentRankingsUseCase: CreateTournamentRankingsUseCase,
+        tournamentId: Long
+    ) : this(
+        tournamentRepository,
+        setGameResultUseCase,
+        createTournamentRankingsUseCase,
+        CalculatePlayerPointsUseCase(),
+        tournamentId
+    )
 
     override fun <T : ViewModel> create(
         modelClass: Class<T>

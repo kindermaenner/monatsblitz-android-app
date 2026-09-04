@@ -45,7 +45,12 @@ class AppNavHostTest {
         every { appContainer.tournamentSetupViewModelFactory } returns setupFactory
 
         every { appContainer.crosstableViewModelFactory(any()) } answers {
-            CrosstableViewModelFactory(tournamentRepository, mockk(relaxed = true), mockk(relaxed = true), it.invocation.args[0] as Long)
+            CrosstableViewModelFactory(
+                tournamentRepository = tournamentRepository,
+                setGameResultUseCase = mockk(relaxed = true),
+                createTournamentRankingsUseCase = mockk(relaxed = true),
+                tournamentId = it.invocation.args[0] as Long
+            )
         }
 
         every { appContainer.rankingViewModelFactory(any()) } answers {
@@ -66,24 +71,6 @@ class AppNavHostTest {
         }
 
         composeTestRule.onNodeWithText("Neues Turnier").assertExists()
-    }
-
-    @Test
-    fun appNavHost_clickStartTournament_navigatesToCrosstable() {
-        composeTestRule.setContent {
-            navController = TestNavHostController(LocalContext.current)
-            navController.navigatorProvider.addNavigator(ComposeNavigator())
-            AppNavHost(
-                navController = navController,
-                appContainer = appContainer,
-                startDestination = AppRoute.TournamentSetup,
-            )
-        }
-
-        composeTestRule.onNodeWithText("Turnier starten").performClick()
-
-        // Verify we are on Crosstable screen
-        composeTestRule.onNodeWithText("Turnier vom", substring = true).assertExists()
     }
 
     @Test

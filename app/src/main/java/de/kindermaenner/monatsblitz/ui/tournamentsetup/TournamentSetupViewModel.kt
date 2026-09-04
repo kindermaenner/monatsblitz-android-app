@@ -1,6 +1,5 @@
 package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameMode

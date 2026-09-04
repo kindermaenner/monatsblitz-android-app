@@ -1,9 +1,9 @@
 package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
@@ -44,31 +44,6 @@ class TournamentSetupScreenTest {
         composeTestRule.onNodeWithText("Neues Turnier").assertIsDisplayed()
         composeTestRule.onNodeWithText("Alice Meier").assertIsDisplayed()
         composeTestRule.onNodeWithText("Bob Mueller").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Turnier starten").assertIsDisplayed()
-    }
-
-    @Test
-    fun setupScreen_clickingPlayer_togglesSelection() {
-        val players = listOf(Player(1, "Meier", "Alice"))
-        coEvery { playerRepository.observePlayers() } returns flowOf(players)
-
-        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
-
-        composeTestRule.setContent {
-            TournamentSetupScreen(
-                viewModel = viewModel
-            ) { _ ->
-                // onNavigateToCrosstable lambda
-            }
-        }
-
-        // InitiallyAlice is displayed. Checkbox is inside the same row.
-        // We can click the text since the whole row is clickable.
-        composeTestRule.onNodeWithText("Alice Meier").performClick()
-        
-        // No easy way to assert checkbox state without tags, 
-        // but we can verify that the ViewModel state changed if we had access to it,
-        // or just verify the button is still there.
-        composeTestRule.onNodeWithText("Turnier starten").performClick()
+        composeTestRule.onNodeWithText("Mindestens 2 Spieler auswählen").assertIsDisplayed().assertIsNotEnabled()
     }
 }

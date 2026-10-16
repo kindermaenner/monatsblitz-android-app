@@ -21,29 +21,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    uses: kindermaenner/ci-templates/.github/workflows/android-build.yml@main
+  pipeline:
+    uses: kindermaenner/ci-templates/.github/workflows/android-pipeline.yml@main
     secrets: inherit
     with:
       keystore-file: "monatsblitz-android-app-release.jks"
+      build-type: ${{ inputs.build-type || 'Debug' }}
       run-instrumented-tests: true
-
-  sonar:
-    needs: build
-    uses: kindermaenner/ci-templates/.github/workflows/common-sonar-gradle.yml@main
-    secrets: inherit
-
-  upload:
-    needs: build
-    uses: kindermaenner/ci-templates/.github/workflows/common-ftp-upload.yml@main
-    secrets: inherit
-    with:
-      target-path: "kindermaenner.de/app-downloads/monatsblitz-android-app/"
-
-  update-badges:
-    needs: sonar
-    if: github.ref == 'refs/heads/main'
-    uses: kindermaenner/ci-templates/.github/workflows/common-badge-trigger.yml@main
-    secrets:
-      BADGE_APP_ID: ${{ secrets.BADGE_APP_ID }}
-      BADGE_APP_PRIVATE_KEY: ${{ secrets.BADGE_APP_PRIVATE_KEY }}
+      test-api-level: "34"
+      run-sonar: true
+      run-ftp-upload: ${{ github.ref == 'refs/heads/main' }}
+      ftp-target-path: "kindermaenner.de/app-downloads/monatsblitz-android-app/"
+      trigger-badges: ${{ github.ref == 'refs/heads/main' }}

@@ -69,7 +69,7 @@ class TournamentRepositoryImplTest {
         val result = repository.observeTournaments().first()
 
         assertEquals(1, result.size)
-        assertEquals(1L, result[0].Id)
+        assertEquals(1L, result[0].id)
     }
 
     @Test
@@ -77,8 +77,8 @@ class TournamentRepositoryImplTest {
         val date = LocalDate.now()
         val players = listOf(Player(1, "A", "A"))
         val request = NewTournament(
-            Mode = GameMode.BLITZ_3_2,
-            Date = date,
+            mode = GameMode.BLITZ_3_2,
+            date = date,
             rounds = 1,
             players = players,
             games = listOf()
@@ -90,7 +90,7 @@ class TournamentRepositoryImplTest {
 
         val result = repository.createTournament(request)
 
-        assertEquals(10L, result.Id)
+        assertEquals(10L, result.id)
         coVerify { tournamentDao.insert(match { it.mode == GameMode.BLITZ_3_2 }) }
         coVerify { tournamentPlayerDao.insertAll(match { it.size == 1 && it[0].tournamentId == 10L }) }
         coVerify { tournamentStorage.saveTournamentState(10L, false) }
@@ -106,7 +106,7 @@ class TournamentRepositoryImplTest {
 
         val result = repository.getTournamentById(1)
 
-        assertEquals(1L, result?.Id)
+        assertEquals(1L, result?.id)
     }
 
     @Test
@@ -119,7 +119,7 @@ class TournamentRepositoryImplTest {
 
         val result = repository.observeTournament(1).first()
 
-        assertEquals(1L, result?.Id)
+        assertEquals(1L, result?.id)
     }
 
     @Test

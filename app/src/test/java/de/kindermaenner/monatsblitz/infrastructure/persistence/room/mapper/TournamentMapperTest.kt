@@ -25,8 +25,8 @@ class TournamentMapperTest {
         
         val domain = tournamentEntity.toDomain(listOf(gameEntity), listOf(player))
         
-        assertEquals(1L, domain.Id)
-        assertEquals(GameMode.BLITZ_3_2, domain.Mode)
+        assertEquals(1L, domain.id)
+        assertEquals(GameMode.BLITZ_3_2, domain.mode)
         assertEquals(1, domain.games.size)
         assertEquals(GameResult.Win, domain.games[10L]?.result)
         assertEquals(1, domain.players.size)
@@ -43,14 +43,14 @@ class TournamentMapperTest {
         )
         
         val domain = details.toDomain()
-        assertEquals(1L, domain.Id)
-        assertEquals(date, domain.Date)
+        assertEquals(1L, domain.id)
+        assertEquals(date, domain.date)
     }
 
     @Test
     fun `Tournament toEntities maps correctly`() {
         val date = LocalDate.now()
-        val domain = Tournament(Id = 1, Mode = GameMode.BLITZ_3_2, Date = date, rounds = 1, players = listOf())
+        val domain = Tournament(id = 1, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, players = listOf())
         
         val (entity, games) = domain.toEntities()
         
@@ -62,7 +62,7 @@ class TournamentMapperTest {
     @Test
     fun `NewTournament toEntity maps correctly`() {
         val date = LocalDate.now()
-        val domain = NewTournament(Mode = GameMode.BLITZ_5_0, Date = date, rounds = 2, players = listOf(), games = listOf())
+        val domain = NewTournament(mode = GameMode.BLITZ_5_0, date = date, rounds = 2, players = listOf(), games = listOf())
         
         val entity = domain.toEntity()
         

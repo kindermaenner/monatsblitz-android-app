@@ -28,14 +28,14 @@ fun GameResult.toResultString(): String = when (this) {
 }
 
 fun NewPlayer.toDto(): NewPlayerDto = NewPlayerDto(
-    forename = Vorname,
-    surname = Name
+    forename = vorname,
+    surname = name
 )
 
 fun NewTournament.toDto() : NewTournamentDto = NewTournamentDto(
-    date = Date.toString(),
-    mode = Mode.displayName,
-    round_count = rounds
+    date = date.toString(),
+    mode = mode.displayName,
+    roundCount = rounds
 )
 
 fun PlayerEntity.toNewPlayerDto() : NewPlayerDto =

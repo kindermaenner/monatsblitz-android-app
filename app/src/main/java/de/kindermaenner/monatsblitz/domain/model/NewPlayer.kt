@@ -1,6 +1,6 @@
 package de.kindermaenner.monatsblitz.domain.model
 
 data class NewPlayer(
-    val Name: String,
-    val Vorname: String
+    val name: String,
+    val vorname: String
 )

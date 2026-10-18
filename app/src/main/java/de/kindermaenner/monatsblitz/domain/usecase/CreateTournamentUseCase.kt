@@ -18,14 +18,14 @@ class CreateTournamentUseCase(
                                 rounds: Int) : Tournament {
         val games = createNewGamesUseCase(players, rounds)
         val newTournament = NewTournament(
-            Mode = mode,
-            Date = date,
+            mode = mode,
+            date = date,
             rounds = rounds,
             players = players,
             games = games
         )
         val tournament = tournamentRepository.createTournament(newTournament)
-        tournamentStorage.saveTournamentState(tournament.Id, false)
+        tournamentStorage.saveTournamentState(tournament.id, false)
         return tournament
     }
 }

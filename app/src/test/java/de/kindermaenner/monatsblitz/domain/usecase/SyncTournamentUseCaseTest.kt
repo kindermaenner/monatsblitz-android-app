@@ -26,7 +26,7 @@ class SyncTournamentUseCaseTest {
         val dirtyTournament = TournamentWithDetails(tournamentEntity, listOf(), listOf())
         
         coEvery { dao.getDirtyTournaments() } returns listOf(dirtyTournament)
-        coEvery { api.createTournament(any()) } returns CreateTournamentResponseDto(success = true, tournament_id = 500)
+        coEvery { api.createTournament(any()) } returns CreateTournamentResponseDto(success = true, tournamentId = 500)
 
         useCase()
 
@@ -40,7 +40,7 @@ class SyncTournamentUseCaseTest {
         val dirtyTournament = TournamentWithDetails(tournamentEntity, listOf(), listOf())
         
         coEvery { dao.getDirtyTournaments() } returns listOf(dirtyTournament)
-        coEvery { api.createTournament(any()) } returns CreateTournamentResponseDto(success = false, tournament_id = 0)
+        coEvery { api.createTournament(any()) } returns CreateTournamentResponseDto(success = false, tournamentId = 0)
 
         useCase()
 

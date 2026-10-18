@@ -44,7 +44,7 @@ class CreateTournamentUseCaseTest {
 
         assertEquals(expectedTournament, result)
         coVerify { tournamentRepository.createTournament(match { 
-            it.Mode == mode && it.players == players && it.games == newGames 
+            it.mode == mode && it.players == players && it.games == newGames 
         }) }
         coVerify { tournamentStorage.saveTournamentState(100, false) }
     }

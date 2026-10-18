@@ -43,39 +43,10 @@ fun RankingScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
 
-        TopAppBar(
-            title = { Text("Ranking") },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
-                }
-            },
-            actions = {
-                val state = uiState
-                if (state is RankingUiState.Ready) {
-                    FilledTonalButton(
-                        onClick = { showFinalizeConfirmDialog = true },
-                        enabled = !state.isFinalizing && !state.isFinalized,
-                        modifier = Modifier.padding(end = 8.dp)
-                    ) {
-                        if (state.isFinalizing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Wird abgeschlossen...")
-                        } else {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
-                            Text("Turnier abschließen")
-                        }
-                    }
-                }
-            }
+        RankingTopBar(
+            uiState = uiState,
+            onBack = onBack,
+            onFinalizeClick = { showFinalizeConfirmDialog = true }
         )
 
         when (val state = uiState) {
@@ -91,57 +62,129 @@ fun RankingScreen(
             is RankingUiState.Ready -> {
                 RankingTable(state.rows)
 
-                if (showFinalizeConfirmDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showFinalizeConfirmDialog = false },
-                        title = { Text("Turnier abschließen?") },
-                        text = {
-                            Text("Die Ergebnisse werden an das WordPress-Backend gesendet und auf der Website veröffentlicht. Danach sind keine Änderungen mehr möglich.")
-                        },
-                        confirmButton = {
-                            Button(
-                                onClick = {
-                                    showFinalizeConfirmDialog = false
-                                    viewModel.finalizeTournament()
-                                }
-                            ) {
-                                Text("Jetzt abschließen")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showFinalizeConfirmDialog = false }) {
-                                Text("Abbrechen")
-                            }
-                        }
-                    )
-                }
+                FinalizeConfirmDialog(
+                    show = showFinalizeConfirmDialog,
+                    onConfirm = {
+                        showFinalizeConfirmDialog = false
+                        viewModel.finalizeTournament()
+                    },
+                    onDismiss = { showFinalizeConfirmDialog = false }
+                )
 
-                if (state.finalizeError != null) {
-                    AlertDialog(
-                        onDismissRequest = { viewModel.clearFinalizeError() },
-                        title = { Text("Fehler beim Abschluss") },
-                        text = { Text(state.finalizeError) },
-                        confirmButton = {
-                            Button(onClick = { viewModel.clearFinalizeError() }) {
-                                Text("OK")
-                            }
-                        }
-                    )
-                }
+                FinalizeErrorDialog(
+                    error = state.finalizeError,
+                    onDismiss = { viewModel.clearFinalizeError() }
+                )
 
-                if (state.isFinalized) {
-                    AlertDialog(
-                        onDismissRequest = onFinalized,
-                        title = { Text("Turnier abgeschlossen") },
-                        text = { Text("Das Turnier wurde erfolgreich finalisiert und auf der Vereins-Website veröffentlicht.") },
-                        confirmButton = {
-                            Button(onClick = onFinalized) {
-                                Text("Zum Hauptmenü")
-                            }
-                        }
-                    )
-                }
+                FinalizeSuccessDialog(
+                    show = state.isFinalized,
+                    onConfirm = onFinalized
+                )
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RankingTopBar(
+    uiState: RankingUiState,
+    onBack: () -> Unit,
+    onFinalizeClick: () -> Unit
+) {
+    TopAppBar(
+        title = { Text("Ranking") },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
+            }
+        },
+        actions = {
+            if (uiState is RankingUiState.Ready) {
+                FilledTonalButton(
+                    onClick = onFinalizeClick,
+                    enabled = !uiState.isFinalizing && !uiState.isFinalized,
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    if (uiState.isFinalizing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Wird abgeschlossen...")
+                    } else {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        Text("Turnier abschließen")
+                    }
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun FinalizeConfirmDialog(
+    show: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (!show) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Turnier abschließen?") },
+        text = {
+            Text("Die Ergebnisse werden an das WordPress-Backend gesendet und auf der Website veröffentlicht. Danach sind keine Änderungen mehr möglich.")
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Jetzt abschließen")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        }
+    )
+}
+
+@Composable
+private fun FinalizeErrorDialog(
+    error: String?,
+    onDismiss: () -> Unit
+) {
+    if (error == null) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Fehler beim Abschluss") },
+        text = { Text(error) },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("OK")
+            }
+        }
+    )
+}
+
+@Composable
+private fun FinalizeSuccessDialog(
+    show: Boolean,
+    onConfirm: () -> Unit
+) {
+    if (!show) return
+    AlertDialog(
+        onDismissRequest = onConfirm,
+        title = { Text("Turnier abgeschlossen") },
+        text = { Text("Das Turnier wurde erfolgreich finalisiert und auf der Vereins-Website veröffentlicht.") },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Zum Hauptmenü")
+            }
+        }
+    )
 }

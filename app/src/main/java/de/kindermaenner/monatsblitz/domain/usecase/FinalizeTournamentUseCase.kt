@@ -56,7 +56,7 @@ class FinalizeTournamentUseCase(
                 ?: throw IllegalStateException("Spieler ${player.vorname} ${player.name} hat keine Remote-ID")
 
             ResultDto(
-                player_id = playerRemoteId.toInt(),
+                playerId = playerRemoteId.toInt(),
                 points = entry.points ?: 0.0,
                 rank = entry.rank ?: 0
             )
@@ -65,7 +65,7 @@ class FinalizeTournamentUseCase(
         // 5. Gesamtergebnisse an Backend senden
         val createResultsResponse = monatsblitzApi.createResults(
             CreateResultsDto(
-                tournament_id = remoteId.toInt(),
+                tournamentId = remoteId.toInt(),
                 results = resultDtos
             )
         )

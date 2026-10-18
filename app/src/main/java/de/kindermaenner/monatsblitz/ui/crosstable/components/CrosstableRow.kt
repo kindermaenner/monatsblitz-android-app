@@ -21,18 +21,22 @@ import androidx.compose.ui.unit.dp
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 
+data class CrosstableRowData(
+    val rowIndex: Int,
+    val playerName: String,
+    val totalPoints: Double,
+    val results: List<String>,
+    val dirtyFlags: List<Boolean> = emptyList(),
+    val showDetailedSyncIndicators: Boolean = true,
+    val enabled: Boolean = true
+)
+
 @Composable
 fun CrosstableRow(
     tournament: Tournament,
     round: Int,
-    rowIndex: Int,
-    playerName: String,
-    totalPoints: Double,
+    rowData: CrosstableRowData,
     horizontalScrollState: ScrollState,
-    results: List<String>,
-    dirtyFlags: List<Boolean> = emptyList(),
-    showDetailedSyncIndicators: Boolean = true,
-    enabled: Boolean = true,
     setResult: (rowIndex: Int, columnIndex: Int, round: Int, result: GameResult) -> Unit
 ) {
     Row(
@@ -47,7 +51,7 @@ fun CrosstableRow(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = (rowIndex + 1).toString(),
+                text = (rowData.rowIndex + 1).toString(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -61,7 +65,7 @@ fun CrosstableRow(
             contentAlignment = Alignment.CenterStart
         ) {
             Text(
-                text = playerName,
+                text = rowData.playerName,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -81,17 +85,19 @@ fun CrosstableRow(
                     contentAlignment = Alignment.Center
                 ) {
                     ResultCell(
-                        value = results[columnIndex],
-                        enabled = rowIndex != columnIndex,
-                        player1Name = playerName,
-                        player2Name = tournament.players.getOrNull(columnIndex)?.fullName ?: "",
-                        round = round,
-                        isDirty = dirtyFlags.getOrElse(columnIndex) { false },
-                        showDetailedSyncIndicator = showDetailedSyncIndicators,
-                        readOnly = !enabled,
+                        params = ResultCellParams(
+                            value = rowData.results[columnIndex],
+                            enabled = rowData.rowIndex != columnIndex,
+                            player1Name = rowData.playerName,
+                            player2Name = tournament.players.getOrNull(columnIndex)?.fullName ?: "",
+                            round = round,
+                            isDirty = rowData.dirtyFlags.getOrElse(columnIndex) { false },
+                            showDetailedSyncIndicator = rowData.showDetailedSyncIndicators,
+                            readOnly = !rowData.enabled
+                        ),
                         onResultSelected = { result ->
-                            Log.i("ResultCell", "Result selected: rowIndex=$rowIndex, columnIndex=$columnIndex, round=$round, result=$result")
-                            setResult(rowIndex, columnIndex, round, result)
+                            Log.i("ResultCell", "Result selected: rowIndex=${rowData.rowIndex}, columnIndex=$columnIndex, round=$round, result=$result")
+                            setResult(rowData.rowIndex, columnIndex, round, result)
                         }
                     )
                 }
@@ -99,10 +105,10 @@ fun CrosstableRow(
         }
 
         // Gesamtpunkte (fixiert rechts)
-        val formattedPoints = if (totalPoints % 1.0 == 0.0) {
-            totalPoints.toInt().toString()
+        val formattedPoints = if (rowData.totalPoints % 1.0 == 0.0) {
+            rowData.totalPoints.toInt().toString()
         } else {
-            totalPoints.toString()
+            rowData.totalPoints.toString()
         }
 
         Box(

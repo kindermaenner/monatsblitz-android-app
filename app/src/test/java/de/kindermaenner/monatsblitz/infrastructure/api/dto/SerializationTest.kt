@@ -23,7 +23,7 @@ class SerializationTest {
 
     @Test
     fun `NewTournamentDto serializes to snake_case for WordPress`() {
-        val dto = NewTournamentDto(date = "2026-08-09", mode = "3+2", round_count = 2)
+        val dto = NewTournamentDto(date = "2026-08-09", mode = "3+2", roundCount = 2)
         val result = json.encodeToString(dto)
 
         assertTrue("Should contain date", result.contains("\"date\":\"2026-08-09\""))
@@ -33,10 +33,11 @@ class SerializationTest {
 
     @Test
     fun `ResultDto serializes points as double for remis`() {
-        val dto = ResultDto(player_id = 1, points = 0.5, rank = 2)
+        val dto = ResultDto(playerId = 1, points = 0.5, rank = 2)
         val result = json.encodeToString(dto)
 
         assertTrue("Should contain points as 0.5", result.contains("\"points\":0.5"))
+        assertTrue("Should contain player_id", result.contains("\"player_id\":1"))
     }
 
     @Test

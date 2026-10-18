@@ -2,10 +2,10 @@ package de.kindermaenner.monatsblitz.domain.model
 
 data class Player(
     val id: Long,
-    val Name: String,
-    val Vorname: String
+    val name: String,
+    val vorname: String
 ) {
     val fullName: String
-        get() = "$Vorname $Name"
+        get() = "$vorname $name"
 }
 

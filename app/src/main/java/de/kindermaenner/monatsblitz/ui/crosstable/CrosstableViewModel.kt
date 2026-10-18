@@ -83,9 +83,9 @@ class CrosstableViewModel(
         val tournament = uiState.value.tournament ?: return
         if (uiState.value.syncStatus == SyncStatus.FINALIZED) return
         viewModelScope.launch {
-            Log.i("CrosstableViewModel", "setGameResultUseCase: tournament=${tournament.Id}, rowIndex=$rowIndex, columnIndex=$columnIndex, round=$round, result=$result")
-            setGameResultUseCase(tournament.Id, tournament.playerIds[rowIndex], tournament.playerIds[columnIndex], round, result)
-            tournamentSyncManager?.triggerSync(tournament.Id)
+            Log.i("CrosstableViewModel", "setGameResultUseCase: tournament=${tournament.id}, rowIndex=$rowIndex, columnIndex=$columnIndex, round=$round, result=$result")
+            setGameResultUseCase(tournament.id, tournament.playerIds[rowIndex], tournament.playerIds[columnIndex], round, result)
+            tournamentSyncManager?.triggerSync(tournament.id)
         }
     }
 
@@ -96,7 +96,7 @@ class CrosstableViewModel(
             return
         }
         viewModelScope.launch {
-            tournamentSyncManager?.triggerSync(tournament.Id)
+            tournamentSyncManager?.triggerSync(tournament.id)
         }
     }
 

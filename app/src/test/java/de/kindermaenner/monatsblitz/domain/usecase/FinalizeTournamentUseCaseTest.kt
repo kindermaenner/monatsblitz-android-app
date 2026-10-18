@@ -92,10 +92,10 @@ class FinalizeTournamentUseCaseTest {
         coVerify {
             monatsblitzApi.createResults(
                 CreateResultsDto(
-                    tournament_id = 50,
+                    tournamentId = 50,
                     results = listOf(
-                        ResultDto(player_id = 101, points = 3.0, rank = 1),
-                        ResultDto(player_id = 102, points = 1.0, rank = 2)
+                        ResultDto(playerId = 101, points = 3.0, rank = 1),
+                        ResultDto(playerId = 102, points = 1.0, rank = 2)
                     )
                 )
             )

@@ -102,7 +102,7 @@ class TournamentSetupViewModel(
                 date = LocalDate.now(),
                 rounds = if (state.doubleRound) 2 else 1
             )
-            _navigationEffect.emit(tournament.Id)
+            _navigationEffect.emit(tournament.id)
         }
     }
 

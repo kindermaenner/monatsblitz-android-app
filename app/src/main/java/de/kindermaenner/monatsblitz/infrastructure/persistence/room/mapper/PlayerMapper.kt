@@ -7,23 +7,23 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.Playe
 fun PlayerEntity.toDomain(): Player =
     Player(
         id = id,
-        Name = name,
-        Vorname = vorname
+        name = name,
+        vorname = vorname
     )
 
 fun Player.toEntity(): PlayerEntity =
     PlayerEntity(
         id = id,
-        name = Name,
-        vorname = Vorname,
+        name = name,
+        vorname = vorname,
         remoteId = null,
         dirty = true
     )
 
 fun NewPlayer.toEntity(): PlayerEntity =
     PlayerEntity(
-        name = Name,
-        vorname = Vorname,
+        name = name,
+        vorname = vorname,
         remoteId = null,
         dirty = true
     )

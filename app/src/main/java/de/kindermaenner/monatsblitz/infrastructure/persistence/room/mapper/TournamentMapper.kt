@@ -24,9 +24,9 @@ fun GameEntity.toDomain(): Game =
 
 fun Tournament.toEntities() : Pair<TournamentEntity, List<GameEntity>> {
     val tournamentEntity = TournamentEntity(
-        id = Id,
-        mode = Mode,
-        date = Date,
+        id = id,
+        mode = mode,
+        date = date,
         rounds = rounds,
         dirty = true,
         remoteId = null
@@ -34,7 +34,7 @@ fun Tournament.toEntities() : Pair<TournamentEntity, List<GameEntity>> {
     val gameEntities = games.values.map {
         GameEntity(
             id = it.id,
-            tournamentId = Id,
+            tournamentId = id,
             player1Id = it.player1Id,
             player2Id = it.player2Id,
             leg = it.leg,
@@ -46,9 +46,9 @@ fun Tournament.toEntities() : Pair<TournamentEntity, List<GameEntity>> {
 
 fun TournamentEntity.toDomain(games: List<GameEntity>, players : List<Player>): Tournament =
     Tournament(
-        Id =  id,
-        Mode =  mode,
-        Date  =  date,
+        id = id,
+        mode = mode,
+        date = date,
         rounds = rounds,
         games = games.associateBy { it.id }
             .mapKeys { it.key }
@@ -60,9 +60,9 @@ fun TournamentEntity.toDomain(games: List<GameEntity>, players : List<Player>): 
 
 fun TournamentWithDetails.toDomain(): Tournament {
     return Tournament(
-        Id = tournament.id,
-        Mode = tournament.mode,
-        Date = tournament.date,
+        id = tournament.id,
+        mode = tournament.mode,
+        date = tournament.date,
         rounds = tournament.rounds,
         players = players.map { it -> it.toDomain() },
         games = games.associate { gameEntity ->
@@ -73,8 +73,8 @@ fun TournamentWithDetails.toDomain(): Tournament {
 
 fun NewTournament.toEntity() : TournamentEntity =
     TournamentEntity(
-        mode = Mode,
-        date = Date,
+        mode = mode,
+        date = date,
         rounds = rounds,
         dirty = true,
         remoteId = null

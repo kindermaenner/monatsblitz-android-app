@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.ui.tournamentsetup.components.GameModeDropdownSelector
 
@@ -55,7 +57,7 @@ internal fun matchesPlayerSearch(player: Player, query: String): Boolean {
     val cleanQuery = query.trim().lowercase()
     if (cleanQuery.isEmpty()) return true
 
-    val targets = listOf(player.fullName, player.Vorname, player.Name)
+    val targets = listOf(player.fullName, player.vorname, player.name)
 
     return targets.any { target ->
         val cleanTarget = target.lowercase()
@@ -93,110 +95,26 @@ fun TournamentSetupScreen(
         }
     }
 
-    if (state.showAddPlayerDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.onShowAddPlayerDialog(false) },
-            title = { Text("Neuen Spieler anlegen") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = state.newPlayerVorname,
-                        onValueChange = { viewModel.onNewPlayerNameChanged(it, state.newPlayerName) },
-                        label = { Text("Vorname") },
-                        isError = state.addPlayerError != null,
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Text,
-                            capitalization = KeyboardCapitalization.Words
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = state.newPlayerName,
-                        onValueChange = { viewModel.onNewPlayerNameChanged(state.newPlayerVorname, it) },
-                        label = { Text("Nachname") },
-                        isError = state.addPlayerError != null,
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Text,
-                            capitalization = KeyboardCapitalization.Words
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    state.addPlayerError?.let { error ->
-                        Text(
-                            text = error,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { viewModel.addNewPlayer() },
-                    enabled = state.newPlayerVorname.isNotBlank() && state.newPlayerName.isNotBlank()
-                ) {
-                    Text("Anlegen")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onShowAddPlayerDialog(false) }) {
-                    Text("Abbrechen")
-                }
-            }
-        )
-    }
-
-    // --- FILTERED PLAYERS WITH UMLAUT TOLERANCE ---
-    val query = state.searchQuery.trim()
-    val matchingPlayers = if (query.isEmpty()) {
-        state.players
-    } else {
-        state.players.filter { matchesPlayerSearch(it, query) }
-    }
-
-    val selectedMatching = matchingPlayers.filter { it.id in state.selectedPlayerIds }
-    val unselectedMatching = matchingPlayers.filter { it.id !in state.selectedPlayerIds }
+    AddPlayerDialog(
+        show = state.showAddPlayerDialog,
+        vorname = state.newPlayerVorname,
+        name = state.newPlayerName,
+        error = state.addPlayerError,
+        onNameChanged = viewModel::onNewPlayerNameChanged,
+        onConfirm = viewModel::addNewPlayer,
+        onDismiss = { viewModel.onShowAddPlayerDialog(false) }
+    )
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Neues Turnier") },
-                actions = {
-                    if (onNavigateToSettings != null) {
-                        IconButton(onClick = onNavigateToSettings) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Einstellungen"
-                            )
-                        }
-                    }
-                }
-            )
+            TournamentSetupTopBar(onNavigateToSettings = onNavigateToSettings)
         },
         bottomBar = {
-            Surface(
-                shadowElevation = 8.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Button(
-                        onClick = { viewModel.createTournament() },
-                        enabled = canStartTournament,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            if (canStartTournament) "Turnier starten (${state.selectedPlayerIds.size} Spieler)"
-                            else "Mindestens 2 Spieler auswählen"
-                        )
-                    }
-                }
-            }
+            TournamentSetupBottomBar(
+                selectedCount = state.selectedPlayerIds.size,
+                canStartTournament = canStartTournament,
+                onStartTournament = viewModel::createTournament
+            )
         }
     ) { padding ->
         Column(
@@ -206,238 +124,406 @@ fun TournamentSetupScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // --- EINSTELLUNGEN CARD ---
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.outlinedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+            TournamentSettingsCard(
+                selectedMode = state.selectedMode,
+                doubleRound = state.doubleRound,
+                onModeChanged = viewModel::onModeChanged,
+                onDoubleRoundChanged = viewModel::onDoubleRoundChanged
+            )
+
+            TournamentPlayerList(
+                state = state,
+                onShowAddPlayerDialog = { viewModel.onShowAddPlayerDialog(true) },
+                onSearchQueryChanged = viewModel::onSearchQueryChanged,
+                onShowOnlySelectedChanged = viewModel::onShowOnlySelectedChanged,
+                onClearSelectedPlayers = viewModel::clearSelectedPlayers,
+                onPlayerChecked = viewModel::onPlayerChecked,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AddPlayerDialog(
+    show: Boolean,
+    vorname: String,
+    name: String,
+    error: String?,
+    onNameChanged: (String, String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (!show) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Neuen Spieler anlegen") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = vorname,
+                    onValueChange = { onNameChanged(it, name) },
+                    label = { Text("Vorname") },
+                    isError = error != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        capitalization = KeyboardCapitalization.Words
+                    ),
+                    modifier = Modifier.fillMaxWidth()
                 )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { onNameChanged(vorname, it) },
+                    label = { Text("Nachname") },
+                    isError = error != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        capitalization = KeyboardCapitalization.Words
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                error?.let { err ->
                     Text(
-                        text = "Einstellungen",
-                        style = MaterialTheme.typography.titleMedium
+                        text = err,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
                     )
-
-                    GameModeDropdownSelector(
-                        selectedMode = state.selectedMode,
-                        onModeSelected = { mode -> viewModel.onModeChanged(mode) }
-                    )
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { viewModel.onDoubleRoundChanged(!state.doubleRound) }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text("Doppelrundig", style = MaterialTheme.typography.bodyLarge)
-                            Text(
-                                "Hin- und Rückrunde spielen",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = state.doubleRound,
-                            onCheckedChange = { viewModel.onDoubleRoundChanged(it) }
-                        )
-                    }
                 }
             }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = vorname.isNotBlank() && name.isNotBlank()
+            ) {
+                Text("Anlegen")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        }
+    )
+}
 
-            // --- SPIELER HEADER MIT AKTION ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TournamentSetupTopBar(
+    onNavigateToSettings: (() -> Unit)?
+) {
+    TopAppBar(
+        title = { Text("Neues Turnier") },
+        actions = {
+            if (onNavigateToSettings != null) {
+                IconButton(onClick = onNavigateToSettings) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Einstellungen"
+                    )
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun TournamentSetupBottomBar(
+    selectedCount: Int,
+    canStartTournament: Boolean,
+    onStartTournament: () -> Unit
+) {
+    Surface(
+        shadowElevation = 8.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Button(
+                onClick = onStartTournament,
+                enabled = canStartTournament,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    if (canStartTournament) "Turnier starten ($selectedCount Spieler)"
+                    else "Mindestens 2 Spieler auswählen"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TournamentSettingsCard(
+    selectedMode: GameMode,
+    doubleRound: Boolean,
+    onModeChanged: (GameMode) -> Unit,
+    onDoubleRoundChanged: (Boolean) -> Unit
+) {
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Einstellungen",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            GameModeDropdownSelector(
+                selectedMode = selectedMode,
+                onModeSelected = onModeChanged
+            )
+
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onDoubleRoundChanged(!doubleRound) }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
+                    Text("Doppelrundig", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        text = "Teilnehmer",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "${state.selectedPlayerIds.size} von ${state.players.size} ausgewählt",
+                        "Hin- und Rückrunde spielen",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                Switch(
+                    checked = doubleRound,
+                    onCheckedChange = onDoubleRoundChanged
+                )
+            }
+        }
+    }
+}
 
-                TextButton(
-                    onClick = { viewModel.onShowAddPlayerDialog(true) }
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 4.dp)
-                    )
-                    Text("Neuer Spieler")
-                }
+@Composable
+private fun TournamentPlayerList(
+    state: TournamentSetupUiState,
+    onShowAddPlayerDialog: () -> Unit,
+    onSearchQueryChanged: (String) -> Unit,
+    onShowOnlySelectedChanged: (Boolean) -> Unit,
+    onClearSelectedPlayers: () -> Unit,
+    onPlayerChecked: (Long, Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val query = state.searchQuery.trim()
+    val matchingPlayers = if (query.isEmpty()) {
+        state.players
+    } else {
+        state.players.filter { matchesPlayerSearch(it, query) }
+    }
+    val selectedMatching = matchingPlayers.filter { it.id in state.selectedPlayerIds }
+    val unselectedMatching = matchingPlayers.filter { it.id !in state.selectedPlayerIds }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // --- SPIELER HEADER MIT AKTION ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Teilnehmer",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "${state.selectedPlayerIds.size} von ${state.players.size} ausgewählt",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
-            // --- SUCHLEISTE MIT UMLAUT-UNTERSTÜTZUNG ---
-            OutlinedTextField(
-                value = state.searchQuery,
-                onValueChange = { viewModel.onSearchQueryChanged(it) },
-                placeholder = { Text("Spieler suchen...") },
-                leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = null)
-                },
-                trailingIcon = {
-                    if (state.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Suche leeren")
-                        }
+            TextButton(onClick = onShowAddPlayerDialog) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+                Text("Neuer Spieler")
+            }
+        }
+
+        // --- SUCHLEISTE ---
+        OutlinedTextField(
+            value = state.searchQuery,
+            onValueChange = onSearchQueryChanged,
+            placeholder = { Text("Spieler suchen...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (state.searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { onSearchQueryChanged("") }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Suche leeren")
                     }
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    capitalization = KeyboardCapitalization.Words,
-                    imeAction = ImeAction.Search
-                ),
-                modifier = Modifier.fillMaxWidth()
+                }
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Text,
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Search
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // --- FILTER-CHIPS & SCHNELLAKTIONEN ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilterChip(
+                selected = !state.showOnlySelected,
+                onClick = { onShowOnlySelectedChanged(false) },
+                label = { Text("Alle (${state.players.size})") }
             )
 
-            // --- FILTER-CHIPS & SCHNELLAKTIONEN ---
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                FilterChip(
-                    selected = !state.showOnlySelected,
-                    onClick = { viewModel.onShowOnlySelectedChanged(false) },
-                    label = { Text("Alle (${state.players.size})") }
-                )
+            FilterChip(
+                selected = state.showOnlySelected,
+                onClick = { onShowOnlySelectedChanged(true) },
+                label = { Text("Ausgewählt (${state.selectedPlayerIds.size})") }
+            )
 
-                FilterChip(
-                    selected = state.showOnlySelected,
-                    onClick = { viewModel.onShowOnlySelectedChanged(true) },
-                    label = { Text("Ausgewählt (${state.selectedPlayerIds.size})") }
-                )
-
-                if (state.selectedPlayerIds.isNotEmpty()) {
-                    Spacer(modifier = Modifier.weight(1f))
-                    TextButton(
-                        onClick = { viewModel.clearSelectedPlayers() },
-                        contentPadding = PaddingValues(horizontal = 4.dp)
-                    ) {
-                        Text(
-                            text = "Alle abwählen",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
+            if (state.selectedPlayerIds.isNotEmpty()) {
+                Spacer(modifier = Modifier.weight(1f))
+                TextButton(
+                    onClick = onClearSelectedPlayers,
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    Text(
+                        text = "Alle abwählen",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
+        }
 
-            HorizontalDivider()
+        HorizontalDivider()
 
-            // --- SPIELERLISTE ---
-            LazyColumn(
+        // --- SPIELERLISTE ---
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            if (state.showOnlySelected) {
+                renderSelectedOnlyPlayers(selectedMatching, query, onPlayerChecked)
+            } else {
+                renderAllPlayers(selectedMatching, unselectedMatching, query, onPlayerChecked)
+            }
+        }
+    }
+}
+
+private fun LazyListScope.renderSelectedOnlyPlayers(
+    selectedMatching: List<Player>,
+    query: String,
+    onPlayerChecked: (Long, Boolean) -> Unit
+) {
+    if (selectedMatching.isEmpty()) {
+        item {
+            Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center
             ) {
-                if (state.showOnlySelected) {
-                    if (selectedMatching.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 24.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = if (query.isEmpty()) "Noch keine Spieler ausgewählt."
-                                    else "Kein ausgewählter Spieler für '$query' gefunden.",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    } else {
-                        items(selectedMatching, key = { it.id }) { player ->
-                            PlayerRow(
-                                name = player.fullName,
-                                selected = true,
-                                onCheckedChange = { checked ->
-                                    viewModel.onPlayerChecked(player.id, checked)
-                                }
-                            )
-                        }
-                    }
-                } else {
-                    if (matchingPlayers.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 24.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Kein Spieler gefunden für '$query'.",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    } else {
-                        // 1. Ausgewählte Spieler oben pinnen
-                        if (selectedMatching.isNotEmpty()) {
-                            item {
-                                Text(
-                                    text = "AUSGEWÄHLT (${selectedMatching.size})",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
-                                )
-                            }
-                            items(selectedMatching, key = { it.id }) { player ->
-                                PlayerRow(
-                                    name = player.fullName,
-                                    selected = true,
-                                    onCheckedChange = { checked ->
-                                        viewModel.onPlayerChecked(player.id, checked)
-                                    }
-                                )
-                            }
-                        }
+                Text(
+                    text = if (query.isEmpty()) "Noch keine Spieler ausgewählt."
+                    else "Kein ausgewählter Spieler für '$query' gefunden.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    } else {
+        items(selectedMatching, key = { it.id }) { player ->
+            PlayerRow(
+                name = player.fullName,
+                selected = true,
+                onCheckedChange = { checked -> onPlayerChecked(player.id, checked) }
+            )
+        }
+    }
+}
 
-                        // 2. Nicht ausgewählte Spieler
-                        if (unselectedMatching.isNotEmpty()) {
-                            if (selectedMatching.isNotEmpty()) {
-                                item {
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = "WEITERE SPIELER (${unselectedMatching.size})",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
-                                    )
-                                }
-                            }
-                            items(unselectedMatching, key = { it.id }) { player ->
-                                PlayerRow(
-                                    name = player.fullName,
-                                    selected = false,
-                                    onCheckedChange = { checked ->
-                                        viewModel.onPlayerChecked(player.id, checked)
-                                    }
-                                )
-                            }
-                        }
-                    }
+private fun LazyListScope.renderAllPlayers(
+    selectedMatching: List<Player>,
+    unselectedMatching: List<Player>,
+    query: String,
+    onPlayerChecked: (Long, Boolean) -> Unit
+) {
+    if (selectedMatching.isEmpty() && unselectedMatching.isEmpty()) {
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Kein Spieler gefunden für '$query'.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    } else {
+        if (selectedMatching.isNotEmpty()) {
+            item {
+                Text(
+                    text = "AUSGEWÄHLT (${selectedMatching.size})",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+                )
+            }
+            items(selectedMatching, key = { it.id }) { player ->
+                PlayerRow(
+                    name = player.fullName,
+                    selected = true,
+                    onCheckedChange = { checked -> onPlayerChecked(player.id, checked) }
+                )
+            }
+        }
+
+        if (unselectedMatching.isNotEmpty()) {
+            if (selectedMatching.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "WEITERE SPIELER (${unselectedMatching.size})",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+                    )
                 }
+            }
+            items(unselectedMatching, key = { it.id }) { player ->
+                PlayerRow(
+                    name = player.fullName,
+                    selected = false,
+                    onCheckedChange = { checked -> onPlayerChecked(player.id, checked) }
+                )
             }
         }
     }

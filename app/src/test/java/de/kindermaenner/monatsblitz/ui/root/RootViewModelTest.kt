@@ -82,7 +82,7 @@ class RootViewModelTest {
             id = remoteId.toInt(),
             date = "2026-10-18",
             mode = "3+2",
-            round_count = 1,
+            roundCount = 1,
             status = "finalized"
         )
 
@@ -109,7 +109,7 @@ class RootViewModelTest {
             id = remoteId.toInt(),
             date = "2026-10-18",
             mode = "3+2",
-            round_count = 1,
+            roundCount = 1,
             status = "open"
         )
 

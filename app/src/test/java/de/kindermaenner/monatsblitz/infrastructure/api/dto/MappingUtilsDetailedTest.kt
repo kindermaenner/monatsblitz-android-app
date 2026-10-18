@@ -13,7 +13,7 @@ class MappingUtilsDetailedTest {
 
     @Test
     fun `NewPlayer toDto maps correctly`() {
-        val domain = NewPlayer(Name = "Surname", Vorname = "Forename")
+        val domain = NewPlayer(name = "Surname", vorname = "Forename")
         val dto = domain.toDto()
         
         assertEquals("Forename", dto.forename)
@@ -24,8 +24,8 @@ class MappingUtilsDetailedTest {
     fun `NewTournament toDto maps correctly`() {
         val date = LocalDate.of(2026, 8, 9)
         val domain = NewTournament(
-            Mode = GameMode.BLITZ_3_2,
-            Date = date,
+            mode = GameMode.BLITZ_3_2,
+            date = date,
             rounds = 2,
             players = listOf(),
             games = listOf()
@@ -34,7 +34,7 @@ class MappingUtilsDetailedTest {
         
         assertEquals("2026-08-09", dto.date)
         assertEquals("3+2", dto.mode)
-        assertEquals(2, dto.round_count)
+        assertEquals(2, dto.roundCount)
     }
 
     @Test

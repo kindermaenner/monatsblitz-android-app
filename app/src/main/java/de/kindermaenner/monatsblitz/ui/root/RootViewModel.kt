@@ -28,44 +28,45 @@ class RootViewModel(
 
     private fun determineInitialRoute() {
         viewModelScope.launch {
-            // 1. Spieler syncen
-            try {
-                syncPlayersUseCase()
-            } catch (e: Exception) {
-                // ignore
-            }
+            safeSyncPlayers()
 
-            // 2. Aktuelles Turnier prüfen
             val state = tournamentStorage.getTournamentState().first()
-
             if (state == null || state.finalized) {
                 _initialRoute.value = AppRoute.TournamentSetup
                 return@launch
             }
 
-            // 3. Wenn lokal offen, gegen Server-Status prüfen (falls remoteId vorhanden)
-            var isRemoteFinalized = false
-            if (tournamentDao != null && monatsblitzApi != null) {
-                try {
-                    val tournament = tournamentDao.getTournament(state.tournamentId)
-                    val remoteId = tournament?.tournament?.remoteId
-                    if (remoteId != null) {
-                        val remoteTournament = monatsblitzApi.getTournament(remoteId.toInt())
-                        if (remoteTournament.status.equals("finalized", ignoreCase = true)) {
-                            isRemoteFinalized = true
-                            tournamentStorage.finalizeTournament()
-                        }
-                    }
-                } catch (e: Exception) {
-                    // Offline-First: Netzwerkfehler ignorieren, lokales offenes Turnier fortsetzen
-                }
-            }
-
+            val isRemoteFinalized = isRemoteTournamentFinalized(state.tournamentId)
             _initialRoute.value = if (isRemoteFinalized) {
                 AppRoute.TournamentSetup
             } else {
                 AppRoute.Crosstable(state.tournamentId)
             }
+        }
+    }
+
+    private suspend fun safeSyncPlayers() {
+        try {
+            syncPlayersUseCase()
+        } catch (_: Exception) {
+            // Offline-First: Netzwerkfehler ignorieren
+        }
+    }
+
+    private suspend fun isRemoteTournamentFinalized(tournamentId: Long): Boolean {
+        if (tournamentDao == null || monatsblitzApi == null) return false
+        return try {
+            val tournament = tournamentDao.getTournament(tournamentId)
+            val remoteId = tournament?.tournament?.remoteId ?: return false
+            val remoteTournament = monatsblitzApi.getTournament(remoteId.toInt())
+            val finalized = remoteTournament.status.equals("finalized", ignoreCase = true)
+            if (finalized) {
+                tournamentStorage.finalizeTournament()
+            }
+            finalized
+        } catch (_: Exception) {
+            // Offline-First: Netzwerkfehler ignorieren, lokales offenes Turnier fortsetzen
+            false
         }
     }
 }

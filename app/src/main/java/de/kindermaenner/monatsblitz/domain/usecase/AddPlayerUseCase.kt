@@ -20,8 +20,8 @@ class AddPlayerUseCase(private val playerRepository: PlayerRepository) {
 
         return playerRepository.createPlayer(
             NewPlayer(
-                Vorname = trimmedVorname,
-                Name = trimmedName
+                vorname = trimmedVorname,
+                name = trimmedName
             )
         )
     }

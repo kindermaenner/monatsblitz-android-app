@@ -14,13 +14,13 @@ class PlayerMapperTest {
         val domain = entity.toDomain()
         
         assertEquals(1L, domain.id)
-        assertEquals("Carlsen", domain.Name)
-        assertEquals("Magnus", domain.Vorname)
+        assertEquals("Carlsen", domain.name)
+        assertEquals("Magnus", domain.vorname)
     }
 
     @Test
     fun `toEntity maps Player correctly`() {
-        val player = Player(id = 1, Name = "Carlsen", Vorname = "Magnus")
+        val player = Player(id = 1, name = "Carlsen", vorname = "Magnus")
         val entity = player.toEntity()
         
         assertEquals(1L, entity.id)

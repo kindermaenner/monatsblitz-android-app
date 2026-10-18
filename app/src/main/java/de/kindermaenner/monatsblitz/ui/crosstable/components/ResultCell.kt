@@ -42,51 +42,31 @@ import de.kindermaenner.monatsblitz.domain.model.GameResult
 
 import androidx.compose.foundation.shape.CircleShape
 
+data class ResultCellParams(
+    val value: String,
+    val enabled: Boolean,
+    val player1Name: String = "",
+    val player2Name: String = "",
+    val round: Int = 1,
+    val isDirty: Boolean = false,
+    val showDetailedSyncIndicator: Boolean = false,
+    val readOnly: Boolean = false
+)
+
 @Composable
 fun ResultCell(
-    value: String,
-    enabled: Boolean,
-    player1Name: String = "",
-    player2Name: String = "",
-    round: Int = 1,
-    isDirty: Boolean = false,
-    showDetailedSyncIndicator: Boolean = false,
-    readOnly: Boolean = false,
+    params: ResultCellParams,
     onResultSelected: (GameResult) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
+    val isDiagonal = !params.enabled || params.value == "x"
 
-    val isDiagonal = !enabled || value == "x"
-
-    // --- CELL DISPLAY ---
-    val cellModifier = if (isDiagonal) {
-        Modifier
-            .size(44.dp)
-            .padding(1.dp)
-            .clip(RoundedCornerShape(4.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-    } else {
-        val base = Modifier
-            .size(44.dp)
-            .padding(1.dp)
-            .clip(RoundedCornerShape(4.dp))
-            .border(
-                width = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(4.dp)
-            )
-            .background(
-                if (value.isNotBlank() && value != " ")
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                else
-                    MaterialTheme.colorScheme.surface
-            )
-        if (!readOnly) {
-            base.clickable { showDialog = true }
-        } else {
-            base
-        }
-    }
+    val cellModifier = getResultCellModifier(
+        isDiagonal = isDiagonal,
+        value = params.value,
+        readOnly = params.readOnly,
+        onClick = { showDialog = true }
+    )
 
     Box(
         modifier = cellModifier,
@@ -99,26 +79,17 @@ fun ResultCell(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
             )
         } else {
-            val (textColor, fontWeight) = when (value) {
-                GameResult.Win.displayName, GameResult.ForfeitWin.displayName ->
-                    MaterialTheme.colorScheme.primary to FontWeight.Bold
-                GameResult.Remis.displayName ->
-                    MaterialTheme.colorScheme.onSurface to FontWeight.SemiBold
-                GameResult.Loss.displayName, GameResult.ForfeitLoss.displayName ->
-                    MaterialTheme.colorScheme.onSurfaceVariant to FontWeight.Normal
-                else ->
-                    MaterialTheme.colorScheme.onSurface to FontWeight.Normal
-            }
+            val (textColor, fontWeight) = getResultTextStyle(params.value)
 
             Text(
-                text = value,
+                text = params.value,
                 fontSize = 14.sp,
                 fontWeight = fontWeight,
                 color = textColor,
                 textAlign = TextAlign.Center
             )
 
-            if (isDirty && showDetailedSyncIndicator && value.isNotBlank() && value != " ") {
+            if (params.isDirty && params.showDetailedSyncIndicator && params.value.isNotBlank() && params.value != " ") {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -131,219 +102,264 @@ fun ResultCell(
         }
     }
 
-    // --- TOUCH-FRIENDLY RESULT PICKER DIALOG ---
     if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = {
-                Column {
-                    Text(
-                        text = "Ergebnis eintragen (R$round)",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    if (player1Name.isNotBlank() && player2Name.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "$player1Name  vs.  $player2Name",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+        ResultPickerDialog(
+            params = params,
+            onResultSelected = {
+                onResultSelected(it)
+                showDialog = false
             },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Ergebnis für $player1Name",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    // --- REGULAR RESULTS: 1, ½, 0 ---
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                onResultSelected(GameResult.Win)
-                                showDialog = false
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(vertical = 8.dp, horizontal = 2.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = "1",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Sieg",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-
-                        FilledTonalButton(
-                            onClick = {
-                                onResultSelected(GameResult.Remis)
-                                showDialog = false
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(vertical = 8.dp, horizontal = 2.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = "½",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Remis",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                onResultSelected(GameResult.Loss)
-                                showDialog = false
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(vertical = 8.dp, horizontal = 2.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = "0",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Niederlage",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-
-                    Text(
-                        text = "Kampflos",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    // --- FORFEIT RESULTS: +, - ---
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                onResultSelected(GameResult.ForfeitWin)
-                                showDialog = false
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = "+",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = "kl. Sieg",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                onResultSelected(GameResult.ForfeitLoss)
-                                showDialog = false
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = "-",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                                Text(
-                                    text = "kl. Niederlage",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
-
-                    // --- RESET BUTTON ---
-                    if (value.isNotBlank() && value != " ") {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        TextButton(
-                            onClick = {
-                                onResultSelected(GameResult.Open)
-                                showDialog = false
-                            },
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
-                            Text("Ergebnis zurücksetzen / löschen")
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
-                    Text("Abbrechen")
-                }
-            }
+            onDismiss = { showDialog = false }
         )
     }
+}
+
+@Composable
+private fun getResultCellModifier(
+    isDiagonal: Boolean,
+    value: String,
+    readOnly: Boolean,
+    onClick: () -> Unit
+): Modifier {
+    if (isDiagonal) {
+        return Modifier
+            .size(44.dp)
+            .padding(1.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+    }
+
+    val base = Modifier
+        .size(44.dp)
+        .padding(1.dp)
+        .clip(RoundedCornerShape(4.dp))
+        .border(
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant,
+            shape = RoundedCornerShape(4.dp)
+        )
+        .background(
+            if (value.isNotBlank() && value != " ")
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            else
+                MaterialTheme.colorScheme.surface
+        )
+
+    return if (!readOnly) base.clickable(onClick = onClick) else base
+}
+
+@Composable
+private fun getResultTextStyle(value: String): Pair<androidx.compose.ui.graphics.Color, FontWeight> {
+    return when (value) {
+        GameResult.Win.displayName, GameResult.ForfeitWin.displayName ->
+            MaterialTheme.colorScheme.primary to FontWeight.Bold
+        GameResult.Remis.displayName ->
+            MaterialTheme.colorScheme.onSurface to FontWeight.SemiBold
+        GameResult.Loss.displayName, GameResult.ForfeitLoss.displayName ->
+            MaterialTheme.colorScheme.onSurfaceVariant to FontWeight.Normal
+        else ->
+            MaterialTheme.colorScheme.onSurface to FontWeight.Normal
+    }
+}
+
+@Composable
+private fun ResultPickerDialog(
+    params: ResultCellParams,
+    onResultSelected: (GameResult) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(
+                    text = "Ergebnis eintragen (R${params.round})",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                if (params.player1Name.isNotBlank() && params.player2Name.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${params.player1Name}  vs.  ${params.player2Name}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Ergebnis für ${params.player1Name}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // --- REGULAR RESULTS: 1, ½, 0 ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { onResultSelected(GameResult.Win) },
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp, horizontal = 2.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "1",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Sieg",
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    FilledTonalButton(
+                        onClick = { onResultSelected(GameResult.Remis) },
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp, horizontal = 2.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "½",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Remis",
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = { onResultSelected(GameResult.Loss) },
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp, horizontal = 2.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "0",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Niederlage",
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = "Kampflos",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // --- FORFEIT RESULTS: +, - ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { onResultSelected(GameResult.ForfeitWin) },
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "+",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "kl. Sieg",
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = { onResultSelected(GameResult.ForfeitLoss) },
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "-",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                text = "kl. Niederlage",
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+
+                // --- RESET BUTTON ---
+                if (params.value.isNotBlank() && params.value != " ") {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    TextButton(
+                        onClick = { onResultSelected(GameResult.Open) },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        Text("Ergebnis zurücksetzen / löschen")
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        }
+    )
 }

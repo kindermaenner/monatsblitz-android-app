@@ -1,9 +1,11 @@
 package de.kindermaenner.monatsblitz.ui.crosstable
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -46,6 +48,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import de.kindermaenner.monatsblitz.domain.model.GameResult
+import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableHeader
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableRow
@@ -70,136 +74,34 @@ fun CrosstableScreen(
         showBackDialog = true
     }
 
-    if (showBackDialog) {
-        AlertDialog(
-            onDismissRequest = { showBackDialog = false },
-            title = { Text("Turnier abbrechen?") },
-            text = { Text("Das aktuelle Turnier wird beendet.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showBackDialog = false
-                        onBackToSetup()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("Ja, abbrechen")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBackDialog = false }) {
-                    Text("Nein, weitermachen")
-                }
-            }
-        )
-    }
+    CrosstableCancelDialog(
+        show = showBackDialog,
+        onConfirm = {
+            showBackDialog = false
+            onBackToSetup()
+        },
+        onDismiss = { showBackDialog = false }
+    )
 
     val tournament = state.tournament
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("Kreuztabelle")
-                        if (tournament != null) {
-                            Text(
-                                text = "${tournament.Date.format(DateTimeFormatter.ofPattern("dd.MM.yy"))} • ${tournament.Mode.displayName}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+            CrosstableTopBar(
+                tournament = tournament,
+                syncStatus = state.syncStatus,
+                onBackClick = { showBackDialog = true },
+                onTriggerSync = { viewModel.triggerManualSync() },
+                onShowSyncedSnackbar = {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Bereits synchronisiert")
                     }
                 },
-                navigationIcon = {
-                    IconButton(onClick = { showBackDialog = true }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Turnier abbrechen"
-                        )
-                    }
-                },
-                actions = {
-                    when (state.syncStatus) {
-                        SyncStatus.SYNCING -> {
-                            Box(
-                                modifier = Modifier
-                                    .padding(horizontal = 8.dp)
-                                    .size(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            }
-                        }
-                        SyncStatus.FAILED -> {
-                            IconButton(onClick = { viewModel.triggerManualSync() }) {
-                                Icon(
-                                    imageVector = Icons.Default.SyncProblem,
-                                    contentDescription = "Sync fehlgeschlagen. Tippen zum Synchronisieren.",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                        SyncStatus.SYNCED -> {
-                            IconButton(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Bereits synchronisiert")
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CloudDone,
-                                    contentDescription = "Alles synchronisiert",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                        SyncStatus.FINALIZED -> {
-                            Box(
-                                modifier = Modifier
-                                    .padding(horizontal = 8.dp)
-                                    .size(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Lock,
-                                    contentDescription = "Turnier abgeschlossen",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Einstellungen"
-                        )
-                    }
-
-                    if (tournament != null) {
-                        FilledTonalButton(
-                            onClick = {
-                                viewModel.prepareRankingsAndNavigate {
-                                    onNavigateToRanking(tournament.Id)
-                                }
-                            },
-                            modifier = Modifier.padding(end = 8.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Leaderboard,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
-                            Text("Rangliste")
-                        }
+                onNavigateToSettings = onNavigateToSettings,
+                onNavigateToRanking = { tournamentId ->
+                    viewModel.prepareRankingsAndNavigate {
+                        onNavigateToRanking(tournamentId)
                     }
                 }
             )
@@ -214,84 +116,249 @@ fun CrosstableScreen(
             ) {
                 CircularProgressIndicator()
             }
-            return@Scaffold
+        } else {
+            CrosstableTableContent(
+                tournament = tournament,
+                state = state,
+                padding = padding,
+                horizontalScrollState = horizontalScrollState,
+                onSelectLeg = viewModel::selectLeg,
+                onSetResult = viewModel::setResult
+            )
         }
+    }
+}
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // --- MULTI-ROUND SELECTOR ---
-            if (tournament.rounds > 1) {
-                SingleChoiceSegmentedButtonRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+@Composable
+private fun CrosstableCancelDialog(
+    show: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (!show) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Turnier abbrechen?") },
+        text = { Text("Das aktuelle Turnier wird beendet.") },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Ja, abbrechen")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Nein, weitermachen")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CrosstableTopBar(
+    tournament: Tournament?,
+    syncStatus: SyncStatus,
+    onBackClick: () -> Unit,
+    onTriggerSync: () -> Unit,
+    onShowSyncedSnackbar: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToRanking: (Long) -> Unit
+) {
+    TopAppBar(
+        title = {
+            Column {
+                Text("Kreuztabelle")
+                if (tournament != null) {
+                    Text(
+                        text = "${tournament.date.format(DateTimeFormatter.ofPattern("dd.MM.yy"))} • ${tournament.mode.displayName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Turnier abbrechen"
+                )
+            }
+        },
+        actions = {
+            SyncStatusAction(
+                syncStatus = syncStatus,
+                onTriggerSync = onTriggerSync,
+                onShowSyncedSnackbar = onShowSyncedSnackbar
+            )
+
+            IconButton(onClick = onNavigateToSettings) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Einstellungen"
+                )
+            }
+
+            if (tournament != null) {
+                FilledTonalButton(
+                    onClick = { onNavigateToRanking(tournament.id) },
+                    modifier = Modifier.padding(end = 8.dp)
                 ) {
-                    repeat(tournament.rounds) { index ->
-                        SegmentedButton(
-                            selected = state.leg - 1 == index,
-                            onClick = { viewModel.selectLeg(index + 1) },
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Runde ${index + 1}")
-                        }
+                    Icon(
+                        Icons.Default.Leaderboard,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 4.dp)
+                    )
+                    Text("Rangliste")
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun SyncStatusAction(
+    syncStatus: SyncStatus,
+    onTriggerSync: () -> Unit,
+    onShowSyncedSnackbar: () -> Unit
+) {
+    when (syncStatus) {
+        SyncStatus.SYNCING -> {
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
+                    .size(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp
+                )
+            }
+        }
+        SyncStatus.FAILED -> {
+            IconButton(onClick = onTriggerSync) {
+                Icon(
+                    imageVector = Icons.Default.SyncProblem,
+                    contentDescription = "Sync fehlgeschlagen. Tippen zum Synchronisieren.",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+        SyncStatus.SYNCED -> {
+            IconButton(onClick = onShowSyncedSnackbar) {
+                Icon(
+                    imageVector = Icons.Default.CloudDone,
+                    contentDescription = "Alles synchronisiert",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+        SyncStatus.FINALIZED -> {
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
+                    .size(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Turnier abgeschlossen",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CrosstableTableContent(
+    tournament: Tournament,
+    state: CrosstableUiState,
+    padding: PaddingValues,
+    horizontalScrollState: ScrollState,
+    onSelectLeg: (Int) -> Unit,
+    onSetResult: (rowIndex: Int, columnIndex: Int, round: Int, result: GameResult) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)
+    ) {
+        if (tournament.rounds > 1) {
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                repeat(tournament.rounds) { index ->
+                    SegmentedButton(
+                        selected = state.leg - 1 == index,
+                        onClick = { onSelectLeg(index + 1) },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Runde ${index + 1}")
                     }
                 }
             }
+        }
 
-            // --- CROSSTABLE HEADER ---
-            CrosstableHeader(
-                tournament = tournament,
-                horizontalScrollState = horizontalScrollState
-            )
+        CrosstableHeader(
+            tournament = tournament,
+            horizontalScrollState = horizontalScrollState
+        )
 
-            HorizontalDivider()
+        HorizontalDivider()
 
-            // --- CROSSTABLE ROWS ---
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(tournament.playerIds.size) { rowIndex ->
-                    val playerId = tournament.playerIds[rowIndex]
-                    val points = state.playerPoints[playerId] ?: 0.0
+        LazyColumn(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(tournament.playerIds.size) { rowIndex ->
+                val playerId = tournament.playerIds[rowIndex]
+                val points = state.playerPoints[playerId] ?: 0.0
 
-                    val results = mutableListOf<String>()
-                    val dirtyFlags = mutableListOf<Boolean>()
-                    for (columnIndex in tournament.playerIds.indices) {
-                        if (columnIndex == rowIndex) {
-                            results.add("x")
-                            dirtyFlags.add(false)
-                        } else {
-                            val game = tournament.findGame(
-                                tournament.playerIds[rowIndex],
-                                tournament.playerIds[columnIndex],
-                                state.leg
-                            )
-                            results.add(game?.result?.displayName ?: "")
-                            dirtyFlags.add(game?.dirty ?: false)
-                        }
+                val results = mutableListOf<String>()
+                val dirtyFlags = mutableListOf<Boolean>()
+                for (columnIndex in tournament.playerIds.indices) {
+                    if (columnIndex == rowIndex) {
+                        results.add("x")
+                        dirtyFlags.add(false)
+                    } else {
+                        val game = tournament.findGame(
+                            tournament.playerIds[rowIndex],
+                            tournament.playerIds[columnIndex],
+                            state.leg
+                        )
+                        results.add(game?.result?.displayName ?: "")
+                        dirtyFlags.add(game?.dirty ?: false)
                     }
+                }
 
-                    CrosstableRow(
-                        tournament = tournament,
-                        round = state.leg,
+                CrosstableRow(
+                    tournament = tournament,
+                    round = state.leg,
+                    rowData = de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableRowData(
                         rowIndex = rowIndex,
                         playerName = tournament.players[rowIndex].fullName,
                         totalPoints = points,
-                        horizontalScrollState = horizontalScrollState,
                         results = results,
                         dirtyFlags = dirtyFlags,
                         showDetailedSyncIndicators = state.showDetailedSyncIndicators,
-                        enabled = state.syncStatus != SyncStatus.FINALIZED,
-                        setResult = viewModel::setResult
-                    )
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-                }
+                        enabled = state.syncStatus != SyncStatus.FINALIZED
+                    ),
+                    horizontalScrollState = horizontalScrollState,
+                    setResult = onSetResult
+                )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
             }
         }
     }

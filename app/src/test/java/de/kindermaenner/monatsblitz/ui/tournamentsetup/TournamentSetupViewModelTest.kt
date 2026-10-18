@@ -97,7 +97,7 @@ class TournamentSetupViewModelTest {
         val p1 = Player(1, "A", "A")
         val p2 = Player(2, "B", "B")
         val mockTournament = mockk<de.kindermaenner.monatsblitz.domain.model.Tournament>()
-        io.mockk.every { mockTournament.Id } returns 123L
+        io.mockk.every { mockTournament.id } returns 123L
         
         coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1, p2))
         coEvery { createTournamentUseCase(any(), any(), any(), any()) } returns mockTournament

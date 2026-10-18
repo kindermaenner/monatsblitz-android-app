@@ -28,7 +28,7 @@ class AddPlayerUseCaseTest {
         val result = useCase(vorname, name)
 
         assertEquals(expectedPlayer, result)
-        coVerify { repository.createPlayer(NewPlayer(Name = name, Vorname = vorname)) }
+        coVerify { repository.createPlayer(NewPlayer(name = name, vorname = vorname)) }
     }
 
     @Test
@@ -61,7 +61,7 @@ class AddPlayerUseCaseTest {
         val result = useCase(vorname, name)
 
         assertEquals(expectedPlayer, result)
-        coVerify { repository.createPlayer(NewPlayer(Name = "Meier", Vorname = "Alice")) }
+        coVerify { repository.createPlayer(NewPlayer(name = "Meier", vorname = "Alice")) }
     }
 
     @Test

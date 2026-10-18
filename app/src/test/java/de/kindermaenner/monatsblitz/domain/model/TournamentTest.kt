@@ -14,9 +14,9 @@ class TournamentTest {
     @Test
     fun `playerIds returns list of all player ids`() {
         val tournament = Tournament(
-            Id = 1,
-            Mode = GameMode.BLITZ_3_2,
-            Date = LocalDate.now(),
+            id = 1,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
             rounds = 1,
             players = players
         )
@@ -27,9 +27,9 @@ class TournamentTest {
     fun `findGame returns correct game by player ids and leg`() {
         val game = Game(id = 10, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Open)
         val tournament = Tournament(
-            Id = 1,
-            Mode = GameMode.BLITZ_3_2,
-            Date = LocalDate.now(),
+            id = 1,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
             rounds = 1,
             players = players,
             games = mapOf(10L to game)

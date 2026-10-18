@@ -41,13 +41,13 @@ class PlayerRepositoryImplTest {
         val result1 = repository.observePlayer(1).first()
         val result2 = repository.observePlayer(2).first()
 
-        assertEquals("Magnus", result1?.Vorname)
+        assertEquals("Magnus", result1?.vorname)
         assertEquals(null, result2)
     }
 
     @Test
     fun `createPlayer inserts entity and returns domain player`() = runTest {
-        val newPlayer = NewPlayer(Name = "Ding", Vorname = "Liren")
+        val newPlayer = NewPlayer(name = "Ding", vorname = "Liren")
         coEvery { playerDao.insert(any()) } returns 3L
 
         val result = repository.createPlayer(newPlayer)

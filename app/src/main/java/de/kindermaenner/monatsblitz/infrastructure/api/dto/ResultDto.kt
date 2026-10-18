@@ -1,14 +1,25 @@
 package de.kindermaenner.monatsblitz.infrastructure.api.dto
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ResultDto(val player_id : Int, val points : Double, val rank : Int) {
+data class ResultDto(
+    @SerialName("player_id") val playerId: Int,
+    val points: Double,
+    val rank: Int
+) {
     companion object {
     }
 }
 
 @Serializable
-data class CreateResultDto(val tournament_id : Int, val result: ResultDto)
+data class CreateResultDto(
+    @SerialName("tournament_id") val tournamentId: Int,
+    val result: ResultDto
+)
 
 @Serializable
-data class CreateResultsDto(val tournament_id : Int, val results: List<ResultDto>)
+data class CreateResultsDto(
+    @SerialName("tournament_id") val tournamentId: Int,
+    val results: List<ResultDto>
+)

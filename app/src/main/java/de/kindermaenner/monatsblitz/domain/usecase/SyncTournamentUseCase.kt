@@ -9,15 +9,15 @@ class SyncTournamentUseCase(val monatsblitzApi: MonatsblitzApi, val tournamentDa
     suspend operator fun invoke() {
         tournamentDao.getDirtyTournaments().forEach {
             val newTournament = NewTournament(
-                Mode = it.tournament.mode,
-                Date = it.tournament.date,
+                mode = it.tournament.mode,
+                date = it.tournament.date,
                 rounds = it.tournament.rounds,
                 players = listOf(),
                 games = listOf()
             )
             val response = monatsblitzApi.createTournament(newTournament.toDto())
             if (response.success) {
-                tournamentDao.updateTournamentRemoteId(it.tournament.id, response.tournament_id)
+                tournamentDao.updateTournamentRemoteId(it.tournament.id, response.tournamentId)
             }
         }
     }

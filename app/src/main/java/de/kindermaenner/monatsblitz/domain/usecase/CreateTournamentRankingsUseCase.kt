@@ -13,7 +13,7 @@ class CreateTournamentRankingsUseCase(
         val playerResult = mutableListOf<PlayerRankingEntry>()
         tournament.players.forEach { player ->
             val points = calculatePlayerPointsUseCase(tournament, player.id)
-            playerResult.add(PlayerRankingEntry(playerId = player.id, tournamentId = tournament.Id, points = points))
+            playerResult.add(PlayerRankingEntry(playerId = player.id, tournamentId = tournament.id, points = points))
         }
         val playerRanks = createDenseRanking(playerResult)
 

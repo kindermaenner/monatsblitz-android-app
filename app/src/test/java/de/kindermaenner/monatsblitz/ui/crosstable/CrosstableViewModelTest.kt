@@ -162,4 +162,104 @@ class CrosstableViewModelTest {
 
         coVerify { syncManager.triggerSync(1L) }
     }
+
+    @Test
+    fun `triggerManualSync does nothing when status is SYNCING or FINALIZED`() = runTest {
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        val syncManager = mockk<de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager>(relaxed = true)
+        val statusFlow = kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus.SYNCING)
+        every { syncManager.syncStatus } returns statusFlow
+
+        val viewModel = CrosstableViewModel(
+            repository,
+            setGameResultUseCase,
+            createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase,
+            1L,
+            syncManager
+        )
+        backgroundScope.launch { viewModel.uiState.collect() }
+        advanceUntilIdle()
+
+        viewModel.triggerManualSync()
+        advanceUntilIdle()
+        coVerify(exactly = 0) { syncManager.triggerSync(any()) }
+
+        statusFlow.value = de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus.FINALIZED
+        advanceUntilIdle()
+
+        viewModel.triggerManualSync()
+        advanceUntilIdle()
+        coVerify(exactly = 0) { syncManager.triggerSync(any()) }
+    }
+
+    @Test
+    fun `setResult does not call usecase when syncStatus is FINALIZED`() = runTest {
+        val p1 = Player(10, "A", "A")
+        val p2 = Player(20, "B", "B")
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1, p2))
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        val syncManager = mockk<de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager>(relaxed = true)
+        every { syncManager.syncStatus } returns kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus.FINALIZED)
+
+        val viewModel = CrosstableViewModel(
+            repository,
+            setGameResultUseCase,
+            createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase,
+            1L,
+            syncManager
+        )
+        backgroundScope.launch { viewModel.uiState.collect() }
+        advanceUntilIdle()
+
+        viewModel.setResult(0, 1, 1, GameResult.Win)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { setGameResultUseCase(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `prepareRankingsAndNavigate invokes usecase and callback`() = runTest {
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+
+        val viewModel = CrosstableViewModel(
+            repository,
+            setGameResultUseCase,
+            createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase,
+            1L
+        )
+        backgroundScope.launch { viewModel.uiState.collect() }
+        advanceUntilIdle()
+
+        var navigated = false
+        viewModel.prepareRankingsAndNavigate { navigated = true }
+        advanceUntilIdle()
+
+        coVerify { createTournamentRankingsUseCase(tournament) }
+        org.junit.Assert.assertTrue("Callback should be invoked", navigated)
+    }
+
+    @Test
+    fun `resetTournament calls repository reset`() = runTest {
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        coEvery { repository.resetTournament() } returns Unit
+
+        val viewModel = CrosstableViewModel(
+            repository,
+            setGameResultUseCase,
+            createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase,
+            1L
+        )
+
+        viewModel.resetTournament()
+        advanceUntilIdle()
+
+        coVerify { repository.resetTournament() }
+    }
 }

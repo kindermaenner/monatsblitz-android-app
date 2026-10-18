@@ -98,5 +98,23 @@ class SerializationTest {
         val dtoFinalized = json.decodeFromString<TournamentDto>(jsonFinalized)
         assertTrue("Status should be finalized", dtoFinalized.status == "finalized")
     }
+
+    @Test
+    fun `BatchResponseDto deserializes correctly with items and errors`() {
+        val jsonString = """
+            {
+              "success": false,
+              "count": 0,
+              "items": [],
+              "errors": ["Fehler beim Speichern"]
+            }
+        """.trimIndent()
+
+        val response = json.decodeFromString<BatchResponseDto<String>>(jsonString)
+        org.junit.Assert.assertFalse("Success should be false", response.success)
+        org.junit.Assert.assertEquals(0, response.count)
+        org.junit.Assert.assertTrue("Items should be empty", response.items.isEmpty())
+        org.junit.Assert.assertEquals(listOf("Fehler beim Speichern"), response.errors)
+    }
 }
 

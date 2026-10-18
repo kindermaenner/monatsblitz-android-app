@@ -129,4 +129,41 @@ class RankingViewModelTest {
         val cleared = viewModel.uiState.value as RankingUiState.Ready
         assertEquals(null, cleared.finalizeError)
     }
+
+    @Test
+    fun `finalizeTournament should set error when finalizeTournamentUseCase is null`() = runTest {
+        val tournamentId = 100L
+        val rankingRefs = listOf(TournamentPlayerCrossRef(tournamentId, 1, 2.5, 1))
+
+        coEvery { tournamentPlayerDao.observeRankingForTournament(tournamentId) } returns flowOf(rankingRefs)
+        coEvery { playerDao.getAllPlayers() } returns listOf(PlayerEntity(id = 1, name = "Meier", vorname = "Alice", dirty = false))
+
+        val viewModel = RankingViewModel(tournamentId, tournamentPlayerDao, playerDao, finalizeTournamentUseCase = null)
+
+        viewModel.finalizeTournament()
+
+        val state = viewModel.uiState.value as RankingUiState.Ready
+        assertEquals("Finalisierung nicht konfiguriert", state.finalizeError)
+    }
+
+    @Test
+    fun `observeRanking should filter out entries with rank null`() = runTest {
+        val tournamentId = 100L
+        val rankingRefs = listOf(
+            TournamentPlayerCrossRef(tournamentId, 1, 2.5, null),
+            TournamentPlayerCrossRef(tournamentId, 2, 1.0, 1)
+        )
+
+        coEvery { tournamentPlayerDao.observeRankingForTournament(tournamentId) } returns flowOf(rankingRefs)
+        coEvery { playerDao.getAllPlayers() } returns listOf(
+            PlayerEntity(id = 1, name = "Meier", vorname = "Alice", dirty = false),
+            PlayerEntity(id = 2, name = "Mueller", vorname = "Bob", dirty = false)
+        )
+
+        val viewModel = RankingViewModel(tournamentId, tournamentPlayerDao, playerDao)
+
+        val state = viewModel.uiState.value as RankingUiState.Ready
+        assertEquals(1, state.rows.size)
+        assertEquals("Bob Mueller", state.rows[0].name)
+    }
 }

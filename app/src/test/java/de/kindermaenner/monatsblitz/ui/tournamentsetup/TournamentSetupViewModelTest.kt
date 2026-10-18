@@ -155,4 +155,51 @@ class TournamentSetupViewModelTest {
         viewModel.onNewPlayerNameChanged("Maxi", "Mustermann")
         assertEquals(null, viewModel.uiState.value.addPlayerError)
     }
+
+    @Test
+    fun `addNewPlayer with blank input does nothing`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        viewModel.onNewPlayerNameChanged("", "   ")
+
+        viewModel.addNewPlayer()
+
+        coVerify(exactly = 0) { addPlayerUseCase(any(), any()) }
+    }
+
+    @Test
+    fun `createTournament with doubleRound enables 2 rounds`() = runTest {
+        val p1 = Player(1, "A", "A")
+        val mockTournament = mockk<de.kindermaenner.monatsblitz.domain.model.Tournament>()
+        io.mockk.every { mockTournament.id } returns 123L
+
+        coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1))
+        coEvery { createTournamentUseCase(any(), any(), any(), any()) } returns mockTournament
+
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        viewModel.onPlayerChecked(1L, true)
+        viewModel.onModeChanged(GameMode.BLITZ_3_2)
+        viewModel.onDoubleRoundChanged(true)
+
+        viewModel.createTournament()
+
+        coVerify { createTournamentUseCase(
+            players = listOf(p1),
+            mode = GameMode.BLITZ_3_2,
+            date = any(),
+            rounds = 2
+        ) }
+    }
+
+    @Test
+    fun `onPlayerChecked with false removes player`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+
+        viewModel.onPlayerChecked(1L, true)
+        assertTrue(viewModel.uiState.value.selectedPlayerIds.contains(1L))
+
+        viewModel.onPlayerChecked(1L, false)
+        assertFalse(viewModel.uiState.value.selectedPlayerIds.contains(1L))
+    }
 }

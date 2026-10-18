@@ -61,7 +61,7 @@ fun ResultCell(
     var showDialog by remember { mutableStateOf(false) }
     val isDiagonal = !params.enabled || params.value == "x"
 
-    val cellModifier = getResultCellModifier(
+    val cellModifier = Modifier.resultCellModifier(
         isDiagonal = isDiagonal,
         value = params.value,
         readOnly = params.readOnly,
@@ -115,21 +115,21 @@ fun ResultCell(
 }
 
 @Composable
-private fun getResultCellModifier(
+private fun Modifier.resultCellModifier(
     isDiagonal: Boolean,
     value: String,
     readOnly: Boolean,
     onClick: () -> Unit
 ): Modifier {
     if (isDiagonal) {
-        return Modifier
+        return this
             .size(44.dp)
             .padding(1.dp)
             .clip(RoundedCornerShape(4.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
     }
 
-    val base = Modifier
+    val base = this
         .size(44.dp)
         .padding(1.dp)
         .clip(RoundedCornerShape(4.dp))

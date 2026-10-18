@@ -81,8 +81,8 @@ private fun String.simplifyUmlauts(): String = this
 @Composable
 fun TournamentSetupScreen(
     viewModel: TournamentSetupViewModel,
-    onNavigateToCrosstable: (Long) -> Unit,
-    onNavigateToSettings: (() -> Unit)? = null
+    onNavigateToSettings: (() -> Unit)? = null,
+    onNavigateToCrosstable: (Long) -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     val canStartTournament = state.selectedPlayerIds.size >= 2

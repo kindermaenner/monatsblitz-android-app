@@ -30,13 +30,15 @@ Auf Basis der Abstimmung für Release 1 ergibt sich folgendes Bild:
 
 ## 2. Status der Kernbereiche
 
-### 2.1 Multi-Device-Support & Synchronisation
-
-* **Referenz App-Spezifikation:** [01-FunctionalRequirements.md §1.4](./specs/01-FunctionalRequirements.md#14-multi-device-support-und-synchronisation), [02-TechnicalRequirements.md §2.4.1](./specs/02-TechnicalRequirements.md#241-ger%C3%A4teunabh%C3%A4ngige-synchronisation)
-* **Status:** **Geplant für zukünftiges Release (V2+)**.
-* **Für Release 1:**
-  * Einfacher Datenfluss: Turnier anlegen (`POST /tournament`) -> Spiele/Ergebnisse erfassen (`POST /game`, `POST /result`) -> Turnier abschließen (`POST /finalize`).
-  * Keine Master/Slave-Rollen oder `device_id`-Tokens erforderlich.
+### 2.1 Synchronisation, Live-Status & Upsert
+* **Referenz App-Spezifikation:** [01-FunctionalRequirements.md §1.4](./specs/01-FunctionalRequirements.md#14-synchronisation-und-live-status-version-1), [02-TechnicalRequirements.md §2.5](./specs/02-TechnicalRequirements.md#25-datenfluss-dirty-flags--live-synchronisation)
+* **Status für Release 1:** **Vollständig umgesetzt**.
+  * **Hintergrund-Synchronisation:** Die App synchronisiert nach jeder Ergebniseingabe im Hintergrund ohne Blockierung der UI (`TournamentSyncManager`).
+  * **Batching & Retry:** Zuvor aufgelaufene ungesyncte Partien (`dirty = 1`) werden bei erneuter Verbindung automatisch mitgesendet.
+  * **Serverseitiges Upsert (`POST /game`):** Das WordPress-Plugin (`CreateGameHandler.php`) prüft vor Insert, ob eine Partie bereits existiert, und wechselt transparent auf `updateSingle`. Dies erlaubt problemlose Korrekturen bei Falscheingaben.
+  * **Live-Status & Manueller Sync:** Das Status-Icon in der TopBar visualisiert den Zustand (`SYNCED`, `SYNCING`, `FAILED`, `FINALIZED`). Bei `FAILED` löst ein Klick gezielt einen manuellen Neuversuch aus.
+  * **Zell-Indikatoren:** Ungesyncte Partien werden durch einen dezenten Punkt markiert (in den App-Einstellungen konfigurierbar).
+* **Multi-Device & P2P-Merge:** Geplant für ein zukünftiges Release (V2+).
 
 ---
 

@@ -72,15 +72,25 @@ Anforderungen an die REST-API zur Unterstützung der Multi-Device-Synchronisatio
     *   `POST /player`: Erstellt neue Spieler. Lehnt Duplikate (gleicher Vor- und Nachname) mit HTTP 400/409 ab.
     *   `POST /finalize`: Setzt den Turnierstatus serverseitig auf `finalized`. Weitere Schreibzugriffe für dieses Turnier werden danach mit HTTP 403 / 409 abgewiesen.
 
-## 2.5 Datenfluss & Dirty-Flags
-Änderungen werden lokal in Room mit einem `dirty`-Flag markiert.
+## 2.5 Datenfluss, Dirty-Flags & Live-Synchronisation
+Änderungen an Partien werden in Room sofort mit einem `dirty`-Flag (`dirty = 1`) versehen. Der Abgleich mit dem WordPress-Backend folgt einem nicht-blockierenden Hintergrund-Konzept:
+
 1.  **Sync-Trigger:**
-    *   Manuell durch Benutzerinteraktion (Sync-Button in TopBar oder Pull-to-Refresh).
-    *   Optional automatisch (z. B. beim Start/Fortsetzen des Turniers bei bestehender Internetverbindung).
-2.  **Read (Pre-Sync):** Abruf des Remote-Stands vom Server (`GET`).
-3.  **Merge & Diff:**
-    *   Fehlende/neuere Remote-Daten werden ohne Konflikt lokal übernommen.
-    *   Lokale Änderungen (`dirty = 1`) werden ermittelt.
-4.  **Conflict-Check:** Bei Widersprüchen zwischen lokalem und remote Ergebnis -> Benutzerentscheidung (Force Read, Force Write, Keine Aktion).
-5.  **Write (Upload):** Senden der bestätigten Daten an den Server (`POST`).
-6.  **Success:** Nach erfolgreicher Server-Bestätigung (HTTP 200) wird `dirty = 0` gesetzt.
+    *   **Automatisch (Auto-Sync):** Wird nach jeder lokalen Ergebniseingabe im Hintergrund angestoßen (`TournamentSyncManager.triggerSync`).
+    *   **Manuell (On-Demand):** Tappen auf das Sync-Icon in der TopAppBar löst die Synchronisation aus, sofern ungesyncte Partien vorliegen oder der Status `FAILED` ist.
+2.  **Abhängigkeiten-Auflösung & Serialisierung:**
+    *   Alle Synchronisationsaufrufe werden über eine `Mutex` im `TournamentSyncManager` serialisiert.
+    *   Vor dem Senden von Partien wird sichergestellt, dass beteiligte neue Spieler (`SyncPlayersUseCase`) und das Turnier (`SyncTournamentUseCase`) remote existieren, um gültige Remote-IDs bereitzustellen.
+3.  **Batch-Upload & Upsert:**
+    *   Alle noch offenen Partien (`dirty = 1`) werden ermittelt und gebündelt an `POST /game` gesendet (`SyncGameResultsUseCase`).
+    *   Das WordPress-Plugin führt bei existierender Paarung `(tournament_id, player1_id, player2_id, leg_type)` ein nahtloses Update aus (`updateSingle`).
+4.  **Erfolg & Bestätigung:**
+    *   Nach erfolgreicher Rückmeldung vom Server wird `dirty = 0` gesetzt und die vom Server vergebene `remoteId` gespeichert.
+    *   Der Gesamtstatus wechselt auf `SYNCED`.
+5.  **Fehlerbehandlung & Offline-Betrieb:**
+    *   Bei Netzwerkproblemen oder Serverausfall verbleiben die Spiele auf `dirty = 1` und der Status wechselt auf `FAILED`.
+    *   Bei der nächsten Ergebniseingabe (oder manuellem Sync) werden die zuvor aufgelaufenen Änderungen automatisch mitübertragen.
+    *   Erhält die App einen `HTTP 403 Forbidden` (z. B. Turnier serverseitig bereits finalisiert), wird das Turnier lokal finalisiert und die Bearbeitung gesperrt.
+6.  **Zellen-Indikatoren & Präferenzen:**
+    *   Ungesyncte Zellen können durch einen dezenten Punkt visualisiert werden.
+    *   Diese Anzeige ist über `AppSettingsStorage` (DataStore) in den App-Einstellungen konfigurierbar (Standard: aktiviert).

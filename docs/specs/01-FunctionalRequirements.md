@@ -44,22 +44,16 @@ Die App dient als mobiles Werkzeug für Turnierleiter, um monatliche Blitzschach
     *   Ist kein Turnier vorhanden oder wurde das Turnier bereits (lokal oder remote) finalisiert, startet die App in **Phase 1 (Setup)**.
 *   **Initialer Datenabgleich:** Bei aktiver Internetverbindung wird beim App-Start geprüft, ob auf dem Server neuere Daten vorliegen, und gemäß dem Read-before-Write-Prinzip synchronisiert.
 
-## 1.4 Multi-Device-Support und Synchronisation
-*   **Gleichberechtigte Geräte:**
-    *   Jedes Gerät darf mit dem Backend synchronisieren. Es gibt keine Master/Slave-Rollen und keine Zuweisung einer exklusiven Schreibhoheit an ein bestimmtes Gerät.
-*   **Manuelle Synchronisation:**
-    *   Der Benutzer kann jederzeit über eine geeignete Bedienung (z. B. Sync-Button oder Pull-to-Refresh) eine Synchronisation anstoßen.
-*   **Read-before-Write & Merge:**
-    *   Grundsätzlich wird vor jedem Schreibvorgang (Write / Upload lokaler Änderungen ins Backend) zuerst ein Lesezugriff (Read / Download des aktuellen Remote-Stands) durchgeführt.
-    *   **Automatischer Merge:** Auf dem Server vorhandene Änderungen oder neue Ergebnisse, die lokal noch nicht erfasst wurden und zu keinen lokalen Änderungen im Widerspruch stehen, werden automatisch in die lokale Datenbank übernommen (Merge fehlender Daten).
-    *   Lokale Änderungen für Spiele, die auf dem Server unverändert geblieben sind, werden anschließend an das Backend übertragen.
-*   **Konflikterkennung & Benutzerentscheidung:**
-    *   Ein Konflikt entsteht, wenn für dasselbe Spiel sowohl lokal als auch auf dem Server ein Ergebnis geändert wurde und diese Werte voneinander abweichen.
-    *   Bei einem solchen Konflikt wird der Synchronisationsvorgang unterbrochen und der Benutzer über einen Dialog zur Entscheidung aufgefordert:
-        1.  **Force Read (Remote überschreibt Lokal):** Die Daten aus dem Backend überschreiben die lokalen Daten. Lokale Änderungen werden verworfen und der Stand des Servers übernommen.
-        2.  **Force Write (Lokal überschreibt Backend):** Die lokalen Daten überschreiben die Daten im Backend. Der Stand auf dem Server wird mit den lokalen Änderungen aktualisiert.
-        3.  **Keine Aktion:** Es findet keine Synchronisation statt. Die Daten bleiben unverändert (lokale Daten und Backend-Daten bleiben so wie sie sind), und der Konflikt bleibt bestehen (wird beim nächsten Sync erneut erkannt).
+## 1.4 Synchronisation und Live-Status (Version 1)
+*   **Hintergrund-Synchronisation:** Nach jeder Ergebniseingabe werden geänderte Partien automatisch im Hintergrund übertragen. Die Benutzeroberfläche bleibt jederzeit bedienbar.
+*   **Status-Visualisierung:**
+    *   Ein Symbol in der Kopfzeile (`TopAppBar`) visualisiert jederzeit den aktuellen Zustand: `SYNCED` (Wolke mit Haken), `SYNCING` (Ladekreis), `FAILED` (Warnung) und `FINALIZED` (Schloss).
+    *   Tippen auf das Symbol löst bei Bedarf (z. B. nach Verbindungsabbruch oder bei Fehlern) einen manuellen Synchronisationsversuch aus.
+    *   Optionale Statuspunkte an einzelnen Zellen markieren ungesyncte Partien (in den Einstellungen deaktivierbar).
+*   **Korrekturfreundlichkeit:** Vor der Finalisierung können Ergebnisse jederzeit korrigiert oder zurückgesetzt werden. Das Backend führt nahtlose Aktualisierungen ohne Fehler durch.
+*   **Multi-Device & Peer-to-Peer Merge (Geplant für V2+):**
+    *   Für Version 1 führt ein einzelnes Gerät das Turnier. Erweiterte Konfliktlösungsdialoge und P2P-Merge mehrerer gleichzeitig schreibender Geräte sind für ein späteres Release vorgesehen.
 
 ## 1.5 Datenintegrität und Offline-Betrieb
 *   **Offline-First:** Alle Aktionen während Phase 1 und Phase 2 müssen vollständig ohne aktive Internetverbindung möglich sein. Alle Eingaben werden lokal persistiert.
-*   **Synchronisation bei Verbindungsverfügbarkeit:** Eine Internetverbindung ist lediglich für den initialen Spieler-Sync (vor dem Turnier), für zwischenzeitliche Synchronisationen und die Finalisierung (nach dem Turnier) erforderlich. War ein Gerät längere Zeit offline, kann der Datenabgleich jederzeit nachgeholt werden, sobald wieder eine Verbindung besteht.
+*   **Synchronisation bei Verbindungsverfügbarkeit:** Eine Internetverbindung ist lediglich für den initialen Spieler-Sync (vor dem Turnier), für zwischenzeitliche Synchronisationen und die Finalisierung (nach dem Turnier) erforderlich. War ein Gerät längere Zeit offline, holt der automatische Sync alle ungespeicherten Ergebnisse gebündelt nach, sobald wieder eine Verbindung besteht oder ein neues Ergebnis eingegeben wird.

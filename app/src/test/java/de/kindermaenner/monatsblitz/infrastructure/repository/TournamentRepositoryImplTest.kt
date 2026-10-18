@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.room.withTransaction
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.GameResult
+import de.kindermaenner.monatsblitz.domain.model.NewGame
 import de.kindermaenner.monatsblitz.domain.model.NewTournament
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
@@ -81,16 +82,18 @@ class TournamentRepositoryImplTest {
             date = date,
             rounds = 1,
             players = players,
-            games = listOf()
+            games = listOf(NewGame(1, 2, 1, GameResult.Open))
         )
 
         coEvery { tournamentDao.insert(any()) } returns 10L
-        coEvery { gameDao.insertAll(any()) } returns listOf()
+        coEvery { gameDao.insertAll(any()) } returns listOf(100L)
         coEvery { tournamentPlayerDao.insertAll(any()) } returns Unit
 
         val result = repository.createTournament(request)
 
         assertEquals(10L, result.id)
+        assertEquals(1, result.games.size)
+        assertEquals(100L, result.games[100L]?.id)
         coVerify { tournamentDao.insert(match { it.mode == GameMode.BLITZ_3_2 }) }
         coVerify { tournamentPlayerDao.insertAll(match { it.size == 1 && it[0].tournamentId == 10L }) }
         coVerify { tournamentStorage.saveTournamentState(10L, false) }

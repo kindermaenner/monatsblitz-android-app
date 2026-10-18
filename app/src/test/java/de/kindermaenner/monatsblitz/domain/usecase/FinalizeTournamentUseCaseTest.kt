@@ -50,6 +50,21 @@ class FinalizeTournamentUseCaseTest {
     )
 
     @Test
+    fun `constructor with default createTournamentRankingsUseCase initializes properly`() {
+        val defaultUseCase = FinalizeTournamentUseCase(
+            monatsblitzApi = monatsblitzApi,
+            tournamentDao = tournamentDao,
+            tournamentPlayerDao = tournamentPlayerDao,
+            playerDao = playerDao,
+            tournamentStorage = tournamentStorage,
+            syncTournamentUseCase = syncTournamentUseCase,
+            syncGameResultsUseCase = syncGameResultsUseCase,
+            syncPlayersUseCase = syncPlayersUseCase
+        )
+        org.junit.Assert.assertNotNull(defaultUseCase)
+    }
+
+    @Test
     fun `invoke should finalize tournament successfully`() = runTest {
         val tournamentId = 1L
         val remoteTournamentId = 50L

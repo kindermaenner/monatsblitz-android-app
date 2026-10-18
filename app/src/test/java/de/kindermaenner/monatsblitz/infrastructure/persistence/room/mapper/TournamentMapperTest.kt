@@ -36,15 +36,21 @@ class TournamentMapperTest {
     fun `toDomain from TournamentWithDetails maps correctly`() {
         val date = LocalDate.now()
         val tournamentEntity = TournamentEntity(id = 1, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = 100L)
+        val gameEntity = GameEntity(id = 10, tournamentId = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Win)
+        val playerEntity = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1, name = "Doe", vorname = "John")
         val details = TournamentWithDetails(
             tournament = tournamentEntity,
-            players = listOf(),
-            games = listOf()
+            players = listOf(playerEntity),
+            games = listOf(gameEntity)
         )
         
         val domain = details.toDomain()
         assertEquals(1L, domain.id)
         assertEquals(date, domain.date)
+        assertEquals(1, domain.players.size)
+        assertEquals("Doe", domain.players[0].name)
+        assertEquals(1, domain.games.size)
+        assertEquals(GameResult.Win, domain.games[10L]?.result)
     }
 
     @Test

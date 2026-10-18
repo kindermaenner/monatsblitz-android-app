@@ -38,5 +38,6 @@ class TournamentTest {
         assertEquals(game, tournament.findGame(1, 2, 1))
         assertNull(tournament.findGame(1, 2, 2))
         assertNull(tournament.findGame(1, 3, 1))
+        assertNull(tournament.findGame(2, 1, 1))
     }
 }

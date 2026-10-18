@@ -58,7 +58,9 @@ sonar {
         property("sonar.sourceEncoding", "UTF-8")
         property("sonar.android.lint.reportPaths", "app/build/reports/lint-results-debug.xml")
         property("sonar.coverage.jacoco.xmlReportPaths", listOf(
+            "$appBuildDir/reports/kover/reportDebug.xml",
             "$appBuildDir/reports/kover/report.xml",
+            "${layout.buildDirectory.get().asFile}/reports/kover/report.xml",
             "$appBuildDir/reports/jacoco/connectedDebugAndroidTestCoverageReport/connectedDebugAndroidTestCoverageReport.xml"
         ).joinToString(","))
     }

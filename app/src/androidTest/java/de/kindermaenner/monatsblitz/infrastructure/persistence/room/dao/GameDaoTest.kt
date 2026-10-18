@@ -14,8 +14,8 @@ class GameDaoTest : DaoTest() {
 
     @Test
     fun getGamesForSync_returnsJoinedData() = runTest {
-        val p1 = playerDao.insert(de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(name = "P1", vorname = "V1"))
-        val p2 = playerDao.insert(de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(name = "P2", vorname = "V2"))
+        val p1 = playerDao.insert(de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(name = "P1", vorname = "V1", remoteId = 10L))
+        val p2 = playerDao.insert(de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(name = "P2", vorname = "V2", remoteId = 20L))
         
         val t1 = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 100L))
         val t2 = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_5_0, date = LocalDate.now(), rounds = 1, remoteId = null)) // No remote ID
@@ -31,6 +31,8 @@ class GameDaoTest : DaoTest() {
         
         assertEquals(1, syncData.size)
         assertEquals(100, syncData[0].tournamentRemoteId)
+        assertEquals(10L, syncData[0].player1Id)
+        assertEquals(20L, syncData[0].player2Id)
         assertEquals(GameResult.Win, syncData[0].result)
     }
 

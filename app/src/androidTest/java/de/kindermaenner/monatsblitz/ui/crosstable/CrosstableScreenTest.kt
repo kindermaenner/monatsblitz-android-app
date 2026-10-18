@@ -31,9 +31,9 @@ class CrosstableScreenTest {
     fun crosstableScreen_displaysTournamentInfoAndTable() {
         val date = LocalDate.of(2026, 8, 14)
         val tournament = Tournament(
-            Id = 1,
-            Mode = GameMode.BLITZ_3_2,
-            Date = date,
+            id = 1,
+            mode = GameMode.BLITZ_3_2,
+            date = date,
             rounds = 1,
             players = listOf(Player(1, "Meier", "Alice")),
         )

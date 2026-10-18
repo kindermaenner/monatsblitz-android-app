@@ -18,7 +18,8 @@ fun GameEntity.toDomain(): Game =
         player1Id = player1Id,
         player2Id = player2Id,
         leg = leg,
-        result = result
+        result = result,
+        dirty = dirty
     )
 
 fun Tournament.toEntities() : Pair<TournamentEntity, List<GameEntity>> {

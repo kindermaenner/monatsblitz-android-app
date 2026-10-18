@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 
+import androidx.compose.foundation.shape.CircleShape
+
 @Composable
 fun ResultCell(
     value: String,
@@ -47,6 +49,9 @@ fun ResultCell(
     player1Name: String = "",
     player2Name: String = "",
     round: Int = 1,
+    isDirty: Boolean = false,
+    showDetailedSyncIndicator: Boolean = false,
+    readOnly: Boolean = false,
     onResultSelected: (GameResult) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -61,7 +66,7 @@ fun ResultCell(
             .clip(RoundedCornerShape(4.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
     } else {
-        Modifier
+        val base = Modifier
             .size(44.dp)
             .padding(1.dp)
             .clip(RoundedCornerShape(4.dp))
@@ -76,7 +81,11 @@ fun ResultCell(
                 else
                     MaterialTheme.colorScheme.surface
             )
-            .clickable { showDialog = true }
+        if (!readOnly) {
+            base.clickable { showDialog = true }
+        } else {
+            base
+        }
     }
 
     Box(
@@ -108,6 +117,17 @@ fun ResultCell(
                 color = textColor,
                 textAlign = TextAlign.Center
             )
+
+            if (isDirty && showDetailedSyncIndicator && value.isNotBlank() && value != " ") {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(3.dp)
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.tertiary)
+                )
+            }
         }
     }
 

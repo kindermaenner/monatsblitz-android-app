@@ -13,6 +13,7 @@ class SyncGameResultsUseCase(val monatsblitzApi: MonatsblitzApi, val gameDao: Ga
         gamesByTournament.forEach { (tournamentRemoteId, games) ->
             val data = games.map { syncData ->
                 GameDtoData(
+                    gameId = syncData.remoteGameId?.toInt(),
                     player1Id = syncData.player1Id.toInt(),
                     player2Id = syncData.player2Id.toInt(),
                     leg = syncData.leg,

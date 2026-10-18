@@ -6,13 +6,17 @@ import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
+import de.kindermaenner.monatsblitz.infrastructure.settings.AppSettingsStorage
+import de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager
 
 class CrosstableViewModelFactory(
     private val tournamentRepository: TournamentRepository,
     private val setGameResultUseCase: SetGameResultUseCase,
     private val createTournamentRankingsUseCase: CreateTournamentRankingsUseCase,
     private val calculatePlayerPointsUseCase: CalculatePlayerPointsUseCase,
-    private val tournamentId: Long
+    private val tournamentId: Long,
+    private val tournamentSyncManager: TournamentSyncManager? = null,
+    private val appSettingsStorage: AppSettingsStorage? = null
 ) : ViewModelProvider.Factory {
 
     constructor(
@@ -25,7 +29,9 @@ class CrosstableViewModelFactory(
         setGameResultUseCase,
         createTournamentRankingsUseCase,
         CalculatePlayerPointsUseCase(),
-        tournamentId
+        tournamentId,
+        null,
+        null
     )
 
     override fun <T : ViewModel> create(
@@ -38,7 +44,9 @@ class CrosstableViewModelFactory(
                 setGameResultUseCase,
                 createTournamentRankingsUseCase,
                 calculatePlayerPointsUseCase,
-                tournamentId
+                tournamentId,
+                tournamentSyncManager,
+                appSettingsStorage
             ) as T
         }
 

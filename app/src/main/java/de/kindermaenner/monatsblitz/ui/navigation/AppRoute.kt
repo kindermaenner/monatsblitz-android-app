@@ -11,4 +11,7 @@ sealed interface AppRoute {
 
     @Serializable
     data class Ranking(val id: Long) : AppRoute
+
+    @Serializable
+    data object Settings : AppRoute
 }

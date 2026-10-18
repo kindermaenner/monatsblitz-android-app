@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
@@ -80,7 +81,8 @@ private fun String.simplifyUmlauts(): String = this
 @Composable
 fun TournamentSetupScreen(
     viewModel: TournamentSetupViewModel,
-    onNavigateToCrosstable: (Long) -> Unit
+    onNavigateToCrosstable: (Long) -> Unit,
+    onNavigateToSettings: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsState()
     val canStartTournament = state.selectedPlayerIds.size >= 2
@@ -160,7 +162,17 @@ fun TournamentSetupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Neues Turnier") }
+                title = { Text("Neues Turnier") },
+                actions = {
+                    if (onNavigateToSettings != null) {
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Einstellungen"
+                            )
+                        }
+                    }
+                }
             )
         },
         bottomBar = {

@@ -8,10 +8,14 @@ import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
+import de.kindermaenner.monatsblitz.infrastructure.settings.AppSettingsStorage
+import de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus
+import de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -20,7 +24,9 @@ class CrosstableViewModel(
     private val setGameResultUseCase: SetGameResultUseCase,
     private val createTournamentRankingsUseCase: CreateTournamentRankingsUseCase,
     private val calculatePlayerPointsUseCase: CalculatePlayerPointsUseCase,
-    tournamentId: Long
+    tournamentId: Long,
+    private val tournamentSyncManager: TournamentSyncManager? = null,
+    private val appSettingsStorage: AppSettingsStorage? = null
 ) : ViewModel() {
 
     constructor(
@@ -33,8 +39,16 @@ class CrosstableViewModel(
         setGameResultUseCase,
         createTournamentRankingsUseCase,
         CalculatePlayerPointsUseCase(),
-        tournamentId
+        tournamentId,
+        null,
+        null
     )
+
+    init {
+        viewModelScope.launch {
+            tournamentSyncManager?.checkInitialStatus(tournamentId)
+        }
+    }
     
     private val _selectedLeg = MutableStateFlow(1)
     val selectedLeg = _selectedLeg.asStateFlow()
@@ -42,8 +56,10 @@ class CrosstableViewModel(
     val uiState =
         combine(
             repository.observeTournament(tournamentId),
-            _selectedLeg
-        ) { tournament, leg ->
+            _selectedLeg,
+            tournamentSyncManager?.syncStatus ?: flowOf(SyncStatus.SYNCED),
+            appSettingsStorage?.showDetailedSyncIndicators ?: flowOf(true)
+        ) { tournament, leg, syncStatus, showDetailedSyncIndicators ->
             val pointsMap = tournament?.players?.associate { player ->
                 player.id to calculatePlayerPointsUseCase(tournament, player.id)
             } ?: emptyMap()
@@ -52,7 +68,9 @@ class CrosstableViewModel(
                 tournament = tournament,
                 leg = leg,
                 playerPoints = pointsMap,
-                isLoading = false
+                isLoading = false,
+                syncStatus = syncStatus,
+                showDetailedSyncIndicators = showDetailedSyncIndicators
             )
         }
         .stateIn(
@@ -63,9 +81,22 @@ class CrosstableViewModel(
 
     fun setResult(rowIndex: Int, columnIndex: Int, round: Int, result: GameResult) {
         val tournament = uiState.value.tournament ?: return
+        if (uiState.value.syncStatus == SyncStatus.FINALIZED) return
         viewModelScope.launch {
             Log.i("CrosstableViewModel", "setGameResultUseCase: tournament=${tournament.Id}, rowIndex=$rowIndex, columnIndex=$columnIndex, round=$round, result=$result")
             setGameResultUseCase(tournament.Id, tournament.playerIds[rowIndex], tournament.playerIds[columnIndex], round, result)
+            tournamentSyncManager?.triggerSync(tournament.Id)
+        }
+    }
+
+    fun triggerManualSync() {
+        val tournament = uiState.value.tournament ?: return
+        val currentStatus = uiState.value.syncStatus
+        if (currentStatus == SyncStatus.SYNCING || currentStatus == SyncStatus.FINALIZED) {
+            return
+        }
+        viewModelScope.launch {
+            tournamentSyncManager?.triggerSync(tournament.Id)
         }
     }
 

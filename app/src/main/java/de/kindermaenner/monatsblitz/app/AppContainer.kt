@@ -90,6 +90,17 @@ class AppContainer(context: Context) {
         createTournamentRankingsUseCase = createTournamentRankingUseCase
     )
 
+    val appSettingsStorage = de.kindermaenner.monatsblitz.infrastructure.settings.AppSettingsStorage(context.dataStore)
+
+    val tournamentSyncManager = de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager(
+        tournamentStorage = tournamentStorage,
+        tournamentDao = database.tournamentDao(),
+        gameDao = database.gameDao(),
+        syncTournamentUseCase = syncTournamentUseCase,
+        syncGameResultsUseCase = syncGameResultsUseCase,
+        syncPlayersUseCase = syncPlayersUseCase
+    )
+
     val tournamentSetupViewModelFactory =
         TournamentSetupViewModelFactory(
             playerRepository,
@@ -103,7 +114,9 @@ class AppContainer(context: Context) {
             setGameResultUseCase,
             createTournamentRankingUseCase,
             calculatePlayerPointsUseCase,
-            tournamentId
+            tournamentId,
+            tournamentSyncManager,
+            appSettingsStorage
         )
 
     val rootViewModelFactory =

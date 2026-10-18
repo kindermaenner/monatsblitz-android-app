@@ -56,7 +56,7 @@ class CrosstableViewModelTest {
             setGameResultUseCase,
             createTournamentRankingsUseCase,
             calculatePlayerPointsUseCase,
-            1
+            1L
         )
         
         // Wait for the state to be populated
@@ -81,7 +81,7 @@ class CrosstableViewModelTest {
             setGameResultUseCase,
             createTournamentRankingsUseCase,
             calculatePlayerPointsUseCase,
-            1
+            1L
         )
 
         val state = viewModel.uiState.first { it.tournament != null }
@@ -98,7 +98,7 @@ class CrosstableViewModelTest {
             setGameResultUseCase,
             createTournamentRankingsUseCase,
             calculatePlayerPointsUseCase,
-            1
+            1L
         )
         
         // Ensure VM is active and has loaded the tournament
@@ -113,24 +113,53 @@ class CrosstableViewModelTest {
     }
 
     @Test
-    fun `setResult calls usecase`() = runTest {
+    fun `setResult calls usecase and triggers auto sync`() = runTest {
         val p1 = Player(10, "A", "A")
         val p2 = Player(20, "B", "B")
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1, p2))
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        val syncManager = mockk<de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager>(relaxed = true)
+        every { syncManager.syncStatus } returns kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus.SYNCED)
         
         val viewModel = CrosstableViewModel(
             repository,
             setGameResultUseCase,
             createTournamentRankingsUseCase,
             calculatePlayerPointsUseCase,
-            1
+            1L,
+            syncManager
         )
         backgroundScope.launch { viewModel.uiState.collect() }
         advanceUntilIdle()
         
         viewModel.setResult(0, 1, 1, GameResult.Win)
+        advanceUntilIdle()
 
         coVerify { setGameResultUseCase(1, 10, 20, 1, GameResult.Win) }
+        coVerify { syncManager.triggerSync(1L) }
+    }
+
+    @Test
+    fun `triggerManualSync triggers syncManager`() = runTest {
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        val syncManager = mockk<de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager>(relaxed = true)
+        every { syncManager.syncStatus } returns kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus.FAILED)
+
+        val viewModel = CrosstableViewModel(
+            repository,
+            setGameResultUseCase,
+            createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase,
+            1L,
+            syncManager
+        )
+        backgroundScope.launch { viewModel.uiState.collect() }
+        advanceUntilIdle()
+
+        viewModel.triggerManualSync()
+        advanceUntilIdle()
+
+        coVerify { syncManager.triggerSync(1L) }
     }
 }

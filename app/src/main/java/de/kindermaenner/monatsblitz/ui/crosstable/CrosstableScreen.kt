@@ -12,7 +12,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Leaderboard
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SyncProblem
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -26,6 +31,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -34,12 +41,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableHeader
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableRow
+import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,9 +57,12 @@ import java.time.format.DateTimeFormatter
 fun CrosstableScreen(
     viewModel: CrosstableViewModel,
     onNavigateToRanking: (Long) -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     onBackToSetup: () -> Unit
 ) {
     val horizontalScrollState = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
     var showBackDialog by remember { mutableStateOf(false) }
     val state by viewModel.uiState.collectAsState()
 
@@ -86,6 +99,7 @@ fun CrosstableScreen(
     val tournament = state.tournament
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -109,6 +123,67 @@ fun CrosstableScreen(
                     }
                 },
                 actions = {
+                    when (state.syncStatus) {
+                        SyncStatus.SYNCING -> {
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 8.dp)
+                                    .size(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        }
+                        SyncStatus.FAILED -> {
+                            IconButton(onClick = { viewModel.triggerManualSync() }) {
+                                Icon(
+                                    imageVector = Icons.Default.SyncProblem,
+                                    contentDescription = "Sync fehlgeschlagen. Tippen zum Synchronisieren.",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                        SyncStatus.SYNCED -> {
+                            IconButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Bereits synchronisiert")
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDone,
+                                    contentDescription = "Alles synchronisiert",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        SyncStatus.FINALIZED -> {
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 8.dp)
+                                    .size(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Turnier abgeschlossen",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Einstellungen"
+                        )
+                    }
+
                     if (tournament != null) {
                         FilledTonalButton(
                             onClick = {
@@ -184,15 +259,20 @@ fun CrosstableScreen(
                     val points = state.playerPoints[playerId] ?: 0.0
 
                     val results = mutableListOf<String>()
+                    val dirtyFlags = mutableListOf<Boolean>()
                     for (columnIndex in tournament.playerIds.indices) {
-                        results.add(
-                            if (columnIndex == rowIndex) "x"
-                            else tournament.findGame(
+                        if (columnIndex == rowIndex) {
+                            results.add("x")
+                            dirtyFlags.add(false)
+                        } else {
+                            val game = tournament.findGame(
                                 tournament.playerIds[rowIndex],
                                 tournament.playerIds[columnIndex],
                                 state.leg
-                            )?.result?.displayName ?: ""
-                        )
+                            )
+                            results.add(game?.result?.displayName ?: "")
+                            dirtyFlags.add(game?.dirty ?: false)
+                        }
                     }
 
                     CrosstableRow(
@@ -203,6 +283,9 @@ fun CrosstableScreen(
                         totalPoints = points,
                         horizontalScrollState = horizontalScrollState,
                         results = results,
+                        dirtyFlags = dirtyFlags,
+                        showDetailedSyncIndicators = state.showDetailedSyncIndicators,
+                        enabled = state.syncStatus != SyncStatus.FINALIZED,
                         setResult = viewModel::setResult
                     )
                     HorizontalDivider(

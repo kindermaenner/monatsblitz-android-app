@@ -58,4 +58,34 @@ class SyncGameResultsUseCaseTest {
         coVerify { api.createGames(any()) }
         coVerify(exactly = 0) { dao.markGameAsSynced(any(), any()) }
     }
+
+    @Test
+    fun `invoke syncs dirty games to remote with existing remoteGameId`() = runTest {
+        val syncData = GameSyncData(
+            localGameId = 1,
+            tournamentRemoteId = 100,
+            player1Id = 10,
+            player2Id = 20,
+            leg = 1,
+            result = GameResult.Win,
+            remoteGameId = 555L
+        )
+
+        coEvery { dao.getGamesForSync() } returns listOf(syncData)
+        coEvery { api.createGames(any()) } returns CreateGamesResponseDto(
+            success = true,
+            count = 1,
+            items = listOf(GameSyncResponseItemDto(success = true, gameId = 555))
+        )
+
+        useCase()
+
+        coVerify {
+            api.createGames(match { request ->
+                request.tournamentId == 100 &&
+                    request.games.first().gameId == 555
+            })
+        }
+        coVerify { dao.markGameAsSynced(1, 555) }
+    }
 }

@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class GameDtoData(
+    @SerialName("game_id") val gameId: Int? = null,
     @SerialName("leg_type") val leg: Int,
     @SerialName("player1_id") val player1Id: Int,
     @SerialName("player2_id") val player2Id: Int,

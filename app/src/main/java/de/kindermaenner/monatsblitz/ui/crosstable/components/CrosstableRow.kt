@@ -30,6 +30,9 @@ fun CrosstableRow(
     totalPoints: Double,
     horizontalScrollState: ScrollState,
     results: List<String>,
+    dirtyFlags: List<Boolean> = emptyList(),
+    showDetailedSyncIndicators: Boolean = true,
+    enabled: Boolean = true,
     setResult: (rowIndex: Int, columnIndex: Int, round: Int, result: GameResult) -> Unit
 ) {
     Row(
@@ -83,6 +86,9 @@ fun CrosstableRow(
                         player1Name = playerName,
                         player2Name = tournament.players.getOrNull(columnIndex)?.fullName ?: "",
                         round = round,
+                        isDirty = dirtyFlags.getOrElse(columnIndex) { false },
+                        showDetailedSyncIndicator = showDetailedSyncIndicators,
+                        readOnly = !enabled,
                         onResultSelected = { result ->
                             Log.i("ResultCell", "Result selected: rowIndex=$rowIndex, columnIndex=$columnIndex, round=$round, result=$result")
                             setResult(rowIndex, columnIndex, round, result)

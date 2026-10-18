@@ -33,6 +33,9 @@ fun AppNavHost(
                 viewModel = vm,
                 onNavigateToCrosstable = { id ->
                     navController.navigate(AppRoute.Crosstable(id))
+                },
+                onNavigateToSettings = {
+                    navController.navigate(AppRoute.Settings)
                 }
             )
         }
@@ -48,6 +51,9 @@ fun AppNavHost(
                 viewModel = vm,
                 onNavigateToRanking = { id ->
                     navController.navigate(AppRoute.Ranking(id))
+                },
+                onNavigateToSettings = {
+                    navController.navigate(AppRoute.Settings)
                 },
                 onBackToSetup = {
                     vm.resetTournament()
@@ -74,6 +80,14 @@ fun AppNavHost(
                         popUpTo<AppRoute.TournamentSetup> { inclusive = true }
                     }
                 }
+            )
+        }
+
+        // Settings
+        composable<AppRoute.Settings> {
+            de.kindermaenner.monatsblitz.ui.screens.SettingsScreen(
+                appSettingsStorage = appContainer.appSettingsStorage,
+                onBack = { navController.popBackStack() }
             )
         }
     }

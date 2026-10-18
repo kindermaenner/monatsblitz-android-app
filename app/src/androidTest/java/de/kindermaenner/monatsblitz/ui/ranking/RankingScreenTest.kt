@@ -48,7 +48,7 @@ class RankingScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Rangliste").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Ranking").assertIsDisplayed()
         composeTestRule.onNodeWithText("Max Mustermann").assertIsDisplayed()
 
         composeTestRule.onNodeWithContentDescription("Zurück").performClick()
@@ -77,7 +77,7 @@ class RankingScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Abschließen").performClick()
+        composeTestRule.onNodeWithText("Turnier abschließen").performClick()
         composeTestRule.onNodeWithText("Turnier abschließen?").assertIsDisplayed()
         composeTestRule.onNodeWithText("Abbrechen").assertIsDisplayed()
     }

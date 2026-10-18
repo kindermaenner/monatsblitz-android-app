@@ -37,4 +37,13 @@ class AppContainerTest {
         val rankingFactory = container.rankingViewModelFactory(1L)
         assertNotNull(rankingFactory)
     }
+
+    @Test
+    fun appDatabase_getInstance_returnsSingleton() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val db1 = de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase.getInstance(context)
+        val db2 = de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase.getInstance(context)
+        assertNotNull(db1)
+        org.junit.Assert.assertSame(db1, db2)
+    }
 }

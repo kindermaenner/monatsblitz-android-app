@@ -56,4 +56,17 @@ class PlayerRepositoryImplTest {
         assertEquals("Liren Ding", result.fullName)
         coVerify { playerDao.insert(match { it.name == "Ding" && it.vorname == "Liren" }) }
     }
+
+    @Test
+    fun `findPlayersByName returns mapped domain players`() = runTest {
+        val entities = listOf(
+            PlayerEntity(id = 10, name = "Meier", vorname = "Alice", dirty = false)
+        )
+        coEvery { playerDao.findPlayersByName("Alice", "Meier") } returns entities
+
+        val result = repository.findPlayersByName("Alice", "Meier")
+
+        assertEquals(1, result.size)
+        assertEquals("Alice Meier", result[0].fullName)
+    }
 }

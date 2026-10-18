@@ -55,4 +55,34 @@ class SyncPlayersUseCaseTest {
         
         useCase()
     }
+
+    @Test
+    fun `invoke updates local player when remote player exists by remoteId`() = runTest {
+        coEvery { playerDao.getDirtyPlayers() } returns emptyList()
+        val remoteDto = PlayerDto(id = 300, surname = "Mustermann", forename = "Max")
+        coEvery { remoteDataSource.getPlayers() } returns listOf(remoteDto)
+        val existingLocal = PlayerEntity(id = 5, remoteId = 300L, name = "Alt", vorname = "Max", dirty = false)
+        coEvery { playerDao.getPlayerByRemoteId(300L) } returns existingLocal
+
+        useCase()
+
+        coVerify { playerDao.update(match { it.id == 5L && it.remoteId == 300L && it.name == "Mustermann" }) }
+        coVerify(exactly = 0) { playerDao.insert(any()) }
+    }
+
+    @Test
+    fun `invoke links remoteId when local player exists by name but has no remoteId`() = runTest {
+        coEvery { playerDao.getDirtyPlayers() } returns emptyList()
+        val remoteDto = PlayerDto(id = 400, surname = "Schmidt", forename = "Erika")
+        coEvery { remoteDataSource.getPlayers() } returns listOf(remoteDto)
+        coEvery { playerDao.getPlayerByRemoteId(400L) } returns null
+        val existingByName = PlayerEntity(id = 12, remoteId = null, name = "Schmidt", vorname = "Erika", dirty = false)
+        coEvery { playerDao.findPlayersByName("Erika", "Schmidt") } returns listOf(existingByName)
+
+        useCase()
+
+        coVerify { playerDao.setRemoteId(playerId = 12L, remoteId = 400L) }
+        coVerify(exactly = 0) { playerDao.insert(any()) }
+        coVerify(exactly = 0) { playerDao.update(any()) }
+    }
 }

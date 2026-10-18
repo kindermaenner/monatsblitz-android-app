@@ -169,4 +169,163 @@ class FinalizeTournamentUseCaseTest {
         }
         coVerify(exactly = 0) { tournamentStorage.finalizeTournament() }
     }
+
+    @Test
+    fun `invoke should throw exception when tournament details not found on second retrieval`() = runTest {
+        val tournamentId = 1L
+        val initialEntity = TournamentEntity(id = tournamentId, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
+        val initialDetails = TournamentWithDetails(initialEntity, listOf(), listOf())
+
+        coEvery { tournamentDao.getTournament(tournamentId) } returnsMany listOf(initialDetails, null)
+
+        try {
+            useCase(tournamentId)
+            fail("Should throw IllegalStateException")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message?.contains("nicht gefunden") == true)
+        }
+    }
+
+    @Test
+    fun `invoke should throw exception when remoteId is still null after sync`() = runTest {
+        val tournamentId = 1L
+        val initialEntity = TournamentEntity(id = tournamentId, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
+        val initialDetails = TournamentWithDetails(initialEntity, listOf(), listOf())
+
+        coEvery { tournamentDao.getTournament(tournamentId) } returnsMany listOf(initialDetails, initialDetails)
+
+        try {
+            useCase(tournamentId)
+            fail("Should throw IllegalStateException")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message?.contains("Turnier konnte nicht mit dem Server synchronisiert werden") == true)
+        }
+    }
+
+    @Test
+    fun `invoke should throw exception when player entity is not found`() = runTest {
+        val tournamentId = 1L
+        val tournamentEntity = TournamentEntity(id = tournamentId, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 50L)
+        val details = TournamentWithDetails(tournamentEntity, listOf(), listOf())
+
+        coEvery { tournamentDao.getTournament(tournamentId) } returns details
+        coEvery { tournamentPlayerDao.getRankingForTournament(tournamentId) } returns listOf(
+            TournamentPlayerCrossRef(tournamentId = tournamentId, playerId = 99L, points = 1.0, rank = 1)
+        )
+        coEvery { playerDao.getPlayersByIds(listOf(99L)) } returns emptyList()
+
+        try {
+            useCase(tournamentId)
+            fail("Should throw IllegalStateException")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message?.contains("Spieler mit ID 99 nicht gefunden") == true)
+        }
+    }
+
+    @Test
+    fun `invoke should throw exception when player has no remoteId`() = runTest {
+        val tournamentId = 1L
+        val tournamentEntity = TournamentEntity(id = tournamentId, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 50L)
+        val details = TournamentWithDetails(tournamentEntity, listOf(), listOf())
+
+        coEvery { tournamentDao.getTournament(tournamentId) } returns details
+        coEvery { tournamentPlayerDao.getRankingForTournament(tournamentId) } returns listOf(
+            TournamentPlayerCrossRef(tournamentId = tournamentId, playerId = 10L, points = 1.0, rank = 1)
+        )
+        coEvery { playerDao.getPlayersByIds(listOf(10L)) } returns listOf(
+            PlayerEntity(id = 10L, name = "Meier", vorname = "Alice", remoteId = null, dirty = false)
+        )
+
+        try {
+            useCase(tournamentId)
+            fail("Should throw IllegalStateException")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message?.contains("hat keine Remote-ID") == true)
+        }
+    }
+
+    @Test
+    fun `invoke should handle null points and rank with defaults`() = runTest {
+        val tournamentId = 1L
+        val tournamentEntity = TournamentEntity(id = tournamentId, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 50L)
+        val details = TournamentWithDetails(tournamentEntity, listOf(), listOf())
+
+        coEvery { tournamentDao.getTournament(tournamentId) } returns details
+        coEvery { tournamentPlayerDao.getRankingForTournament(tournamentId) } returns listOf(
+            TournamentPlayerCrossRef(tournamentId = tournamentId, playerId = 10L, points = null, rank = null)
+        )
+        coEvery { playerDao.getPlayersByIds(listOf(10L)) } returns listOf(
+            PlayerEntity(id = 10L, name = "Meier", vorname = "Alice", remoteId = 101L, dirty = false)
+        )
+        coEvery { monatsblitzApi.createResults(any()) } returns BatchResponseDto(success = true, count = 1, items = emptyList())
+        coEvery { monatsblitzApi.finalize(any()) } returns FinalizeResponseDto(success = true, tournamentId = 50)
+
+        val response = useCase(tournamentId)
+
+        assertTrue(response.success)
+        coVerify {
+            monatsblitzApi.createResults(
+                CreateResultsDto(
+                    tournamentId = 50,
+                    results = listOf(ResultDto(playerId = 101, points = 0.0, rank = 0))
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `invoke should throw exception when createResults fails with errors list`() = runTest {
+        val tournamentId = 1L
+        val tournamentEntity = TournamentEntity(id = tournamentId, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 50L)
+        val details = TournamentWithDetails(tournamentEntity, listOf(), listOf())
+
+        coEvery { tournamentDao.getTournament(tournamentId) } returns details
+        coEvery { tournamentPlayerDao.getRankingForTournament(tournamentId) } returns listOf(
+            TournamentPlayerCrossRef(tournamentId = tournamentId, playerId = 10L, points = 1.0, rank = 1)
+        )
+        coEvery { playerDao.getPlayersByIds(listOf(10L)) } returns listOf(
+            PlayerEntity(id = 10L, name = "Meier", vorname = "Alice", remoteId = 101L, dirty = false)
+        )
+        coEvery { monatsblitzApi.createResults(any()) } returns BatchResponseDto(
+            success = false,
+            count = 0,
+            items = emptyList(),
+            errors = listOf("DB Error 1", "DB Error 2")
+        )
+
+        try {
+            useCase(tournamentId)
+            fail("Should throw IllegalStateException")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message?.contains("DB Error 1, DB Error 2") == true)
+        }
+    }
+
+    @Test
+    fun `invoke should throw exception when createResults fails with null errors`() = runTest {
+        val tournamentId = 1L
+        val tournamentEntity = TournamentEntity(id = tournamentId, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 50L)
+        val details = TournamentWithDetails(tournamentEntity, listOf(), listOf())
+
+        coEvery { tournamentDao.getTournament(tournamentId) } returns details
+        coEvery { tournamentPlayerDao.getRankingForTournament(tournamentId) } returns listOf(
+            TournamentPlayerCrossRef(tournamentId = tournamentId, playerId = 10L, points = 1.0, rank = 1)
+        )
+        coEvery { playerDao.getPlayersByIds(listOf(10L)) } returns listOf(
+            PlayerEntity(id = 10L, name = "Meier", vorname = "Alice", remoteId = 101L, dirty = false)
+        )
+        coEvery { monatsblitzApi.createResults(any()) } returns BatchResponseDto(
+            success = false,
+            count = 0,
+            items = emptyList(),
+            errors = null
+        )
+
+        try {
+            useCase(tournamentId)
+            fail("Should throw IllegalStateException")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message?.contains("Ergebnisse konnten nicht übertragen werden") == true)
+        }
+    }
 }

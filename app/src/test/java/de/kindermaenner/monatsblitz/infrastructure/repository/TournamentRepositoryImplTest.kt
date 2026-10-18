@@ -146,4 +146,18 @@ class TournamentRepositoryImplTest {
         repository.resetTournament()
         coVerify { tournamentStorage.resetAll() }
     }
+
+    @Test
+    fun `getTournamentById returns null when not found`() = runTest {
+        coEvery { tournamentDao.getTournament(999) } returns null
+        val result = repository.getTournamentById(999)
+        org.junit.Assert.assertNull(result)
+    }
+
+    @Test
+    fun `observeTournament returns null flow when not found`() = runTest {
+        coEvery { tournamentDao.observeTournament(999) } returns flowOf(null)
+        val result = repository.observeTournament(999).first()
+        org.junit.Assert.assertNull(result)
+    }
 }

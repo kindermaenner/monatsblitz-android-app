@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.mutablePreferencesOf
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -49,29 +50,64 @@ class TournamentStorageTest {
     }
 
     @Test
-    fun `saveTournamentState calls updateData`() = runTest {
-        coEvery { dataStore.updateData(any()) } returns mockk()
+    fun `getTournamentState defaults finalized to false when finalizedKey is null`() = runTest {
+        val prefs = mockk<Preferences>()
+        every { prefs[tournamentIdKey] } returns 789L
+        every { prefs[finalizedKey] } returns null
+        every { dataStore.data } returns flowOf(prefs)
+
+        val result = storage.getTournamentState().first()
+
+        assertEquals(789L, result?.tournamentId)
+        assertEquals(false, result?.finalized)
+    }
+
+    @Test
+    fun `saveTournamentState updates preferences`() = runTest {
+        val initialPrefs = mutablePreferencesOf()
+        var updatedPrefs: Preferences? = null
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
 
         storage.saveTournamentState(456L, finalized = true)
 
-        coVerify { dataStore.updateData(any()) }
+        assertEquals(456L, updatedPrefs?.get(tournamentIdKey))
+        assertEquals(true, updatedPrefs?.get(finalizedKey))
     }
 
     @Test
-    fun `resetAll calls updateData`() = runTest {
-        coEvery { dataStore.updateData(any()) } returns mockk()
+    fun `resetAll clears preferences`() = runTest {
+        val initialPrefs = mutablePreferencesOf(tournamentIdKey to 100L)
+        var updatedPrefs: Preferences? = null
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
 
         storage.resetAll()
 
-        coVerify { dataStore.updateData(any()) }
+        assertNull(updatedPrefs?.get(tournamentIdKey))
     }
 
     @Test
-    fun `finalizeTournament calls updateData`() = runTest {
-        coEvery { dataStore.updateData(any()) } returns mockk()
+    fun `finalizeTournament sets finalized to true`() = runTest {
+        val initialPrefs = mutablePreferencesOf(finalizedKey to false)
+        var updatedPrefs: Preferences? = null
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
 
         storage.finalizeTournament()
 
-        coVerify { dataStore.updateData(any()) }
+        assertEquals(true, updatedPrefs?.get(finalizedKey))
     }
 }

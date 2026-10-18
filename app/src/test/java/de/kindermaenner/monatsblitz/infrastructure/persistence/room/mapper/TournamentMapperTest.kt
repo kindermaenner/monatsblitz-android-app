@@ -95,10 +95,62 @@ class TournamentMapperTest {
     fun `TournamentPlayerCrossRef toDomain maps correctly`() {
         val entity = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef(playerId = 20, tournamentId = 200, points = 5.0, rank = 1)
         val domain = entity.toDomain()
-        
+
         assertEquals(20L, domain.playerId)
         assertEquals(200L, domain.tournamentId)
         assertEquals(5.0, domain.points, 0.0)
         assertEquals(1, domain.rank)
+    }
+
+    @Test
+    fun `GameEntity toDomain maps all fields correctly`() {
+        val entity = GameEntity(id = 42L, tournamentId = 1L, player1Id = 10L, player2Id = 20L, leg = 2, result = GameResult.Remis, dirty = true)
+        val domain = entity.toDomain()
+
+        assertEquals(42L, domain.id)
+        assertEquals(10L, domain.player1Id)
+        assertEquals(20L, domain.player2Id)
+        assertEquals(2, domain.leg)
+        assertEquals(GameResult.Remis, domain.result)
+        assertEquals(true, domain.dirty)
+    }
+
+    @Test
+    fun `Tournament toEntities with games maps all games to GameEntities`() {
+        val game = de.kindermaenner.monatsblitz.domain.model.Game(id = 55L, player1Id = 1L, player2Id = 2L, leg = 1, result = GameResult.Loss)
+        val domain = Tournament(
+            id = 7L,
+            mode = GameMode.BLITZ_5_0,
+            date = LocalDate.now(),
+            rounds = 2,
+            players = emptyList(),
+            games = mapOf(55L to game)
+        )
+
+        val (entity, games) = domain.toEntities()
+
+        assertEquals(7L, entity.id)
+        assertEquals(1, games.size)
+        assertEquals(55L, games[0].id)
+        assertEquals(7L, games[0].tournamentId)
+        assertEquals(1L, games[0].player1Id)
+        assertEquals(2L, games[0].player2Id)
+        assertEquals(1, games[0].leg)
+        assertEquals(GameResult.Loss, games[0].result)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `TournamentPlayerCrossRef toDomain throws IllegalArgumentException when rank is null`() {
+        val entity = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef(playerId = 20, tournamentId = 200, points = 5.0, rank = null)
+        entity.toDomain()
+    }
+
+    @Test
+    fun `TournamentPlayerCrossRef toDomain defaults points to 0 when points is null`() {
+        val entity = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef(playerId = 20, tournamentId = 200, points = null, rank = 3)
+        val domain = entity.toDomain()
+
+        assertEquals(0.0, domain.points, 0.0)
+        assertEquals(3, domain.rank)
     }
 }

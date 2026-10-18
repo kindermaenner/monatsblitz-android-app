@@ -10,6 +10,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -43,12 +44,19 @@ class AppSettingsStorageTest {
 
     @Test
     fun `setShowDetailedSyncIndicators edits preferences`() = runTest {
+        val initialPrefs = androidx.datastore.preferences.core.mutablePreferencesOf()
+        var updatedPrefs: Preferences? = null
         every { dataStore.data } returns flowOf(mockk())
-        coEvery { dataStore.updateData(any()) } returns mockk()
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
         val storage = AppSettingsStorage(dataStore)
 
         storage.setShowDetailedSyncIndicators(false)
 
-        coVerify { dataStore.updateData(any()) }
+        assertEquals(false, updatedPrefs?.get(key))
     }
 }

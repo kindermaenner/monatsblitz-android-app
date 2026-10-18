@@ -116,5 +116,101 @@ class SerializationTest {
         org.junit.Assert.assertTrue("Items should be empty", response.items.isEmpty())
         org.junit.Assert.assertEquals(listOf("Fehler beim Speichern"), response.errors)
     }
+
+    @Test
+    fun `GameDto, CreateGameDto, and UpdateGameDto serialize and deserialize correctly`() {
+        val createGame = CreateGameDto(tournamentId = 1, leg = 1, player1Id = 10, player2Id = 20, result = "1:0")
+        val createJson = json.encodeToString(createGame)
+        val decodedCreate = json.decodeFromString<CreateGameDto>(createJson)
+        org.junit.Assert.assertEquals(1, decodedCreate.tournamentId)
+        org.junit.Assert.assertEquals("1:0", decodedCreate.result)
+
+        val updateGame = UpdateGameDto(id = 5, tournamentId = 1, leg = 2, player1Id = 20, player2Id = 10, result = "0:1")
+        val updateJson = json.encodeToString(updateGame)
+        val decodedUpdate = json.decodeFromString<UpdateGameDto>(updateJson)
+        org.junit.Assert.assertEquals(5, decodedUpdate.id)
+        org.junit.Assert.assertEquals("0:1", decodedUpdate.result)
+
+        val game = GameDto(id = 100, tournamentId = 2, leg = 1, player1Id = 3, player2Id = 4, result = "remis")
+        val gameJson = json.encodeToString(game)
+        val decodedGame = json.decodeFromString<GameDto>(gameJson)
+        org.junit.Assert.assertEquals(100, decodedGame.id)
+        org.junit.Assert.assertEquals(3, decodedGame.player1Id)
+    }
+
+    @Test
+    fun `CreateResultDto and CreateResultsDto serialize and deserialize correctly`() {
+        val resultDto = ResultDto(playerId = 15, points = 2.5, rank = 3)
+        val singleResult = CreateResultDto(tournamentId = 8, result = resultDto)
+        val singleJson = json.encodeToString(singleResult)
+        val decodedSingle = json.decodeFromString<CreateResultDto>(singleJson)
+        org.junit.Assert.assertEquals(8, decodedSingle.tournamentId)
+        org.junit.Assert.assertEquals(15, decodedSingle.result.playerId)
+
+        val multiResult = CreateResultsDto(tournamentId = 8, results = listOf(resultDto))
+        val multiJson = json.encodeToString(multiResult)
+        val decodedMulti = json.decodeFromString<CreateResultsDto>(multiJson)
+        org.junit.Assert.assertEquals(8, decodedMulti.tournamentId)
+        org.junit.Assert.assertEquals(1, decodedMulti.results.size)
+    }
+
+    @Test
+    fun `CreateYearPageDto and RecreatePostsDto serialize and deserialize correctly`() {
+        val yearPage = CreateYearPageDto(year = 2026)
+        val yearJson = json.encodeToString(yearPage)
+        val decodedYear = json.decodeFromString<CreateYearPageDto>(yearJson)
+        org.junit.Assert.assertEquals(2026, decodedYear.year)
+
+        val recreate = RecreatePostsDto(processed = 10, succeeded = 8, failed = 2, errors = listOf("Post 3 failed"))
+        val recreateJson = json.encodeToString(recreate)
+        val decodedRecreate = json.decodeFromString<RecreatePostsDto>(recreateJson)
+        org.junit.Assert.assertEquals(10, decodedRecreate.processed)
+        org.junit.Assert.assertEquals(8, decodedRecreate.succeeded)
+        org.junit.Assert.assertEquals(2, decodedRecreate.failed)
+        org.junit.Assert.assertEquals(listOf("Post 3 failed"), decodedRecreate.errors)
+    }
+
+    @Test
+    fun `PlayerDto and NewPlayerDto serialize and deserialize correctly`() {
+        val player = PlayerDto(id = 77, surname = "Kasparov", forename = "Garry")
+        val playerJson = json.encodeToString(player)
+        val decodedPlayer = json.decodeFromString<PlayerDto>(playerJson)
+        org.junit.Assert.assertEquals(77, decodedPlayer.id)
+        org.junit.Assert.assertEquals("Garry", decodedPlayer.forename)
+
+        val newPlayer = NewPlayerDto(surname = "Karpov", forename = "Anatoly")
+        val newPlayerJson = json.encodeToString(newPlayer)
+        val decodedNewPlayer = json.decodeFromString<NewPlayerDto>(newPlayerJson)
+        org.junit.Assert.assertEquals("Karpov", decodedNewPlayer.surname)
+        org.junit.Assert.assertEquals("Anatoly", decodedNewPlayer.forename)
+    }
+
+    @Test
+    fun `PlayerBatchItemDto handles various field states`() {
+        val item1 = PlayerBatchItemDto(success = true, playerId = 99, message = null)
+        val json1 = json.encodeToString(item1)
+        val decoded1 = json.decodeFromString<PlayerBatchItemDto>(json1)
+        org.junit.Assert.assertTrue(decoded1.success)
+        org.junit.Assert.assertEquals(99, decoded1.playerId)
+        org.junit.Assert.assertNull(decoded1.message)
+
+        val item2 = PlayerBatchItemDto(success = false, playerId = null, message = "Duplikat")
+        val json2 = json.encodeToString(item2)
+        val decoded2 = json.decodeFromString<PlayerBatchItemDto>(json2)
+        org.junit.Assert.assertFalse(decoded2.success)
+        org.junit.Assert.assertNull(decoded2.playerId)
+        org.junit.Assert.assertEquals("Duplikat", decoded2.message)
+    }
+
+    @Test
+    fun `FinalizeResponseDto handles null optional fields`() {
+        val jsonString = """{"success": false}"""
+        val response = json.decodeFromString<FinalizeResponseDto>(jsonString)
+        org.junit.Assert.assertFalse(response.success)
+        org.junit.Assert.assertNull(response.tournamentId)
+        org.junit.Assert.assertNull(response.postId)
+        org.junit.Assert.assertNull(response.postUpdated)
+        org.junit.Assert.assertNull(response.published)
+    }
 }
 

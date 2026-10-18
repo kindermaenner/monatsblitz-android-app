@@ -9,6 +9,8 @@ import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateResultsDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateTournamentResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateYearPageDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeRequestDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewPlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewTournamentDto
@@ -105,8 +107,8 @@ interface MonatsblitzApi {
 
     @POST(value = "finalize")
     suspend fun finalize(
-        @Body request: FinalizeDto
-    ): FinalizeDto
+        @Body request: FinalizeRequestDto
+    ): FinalizeResponseDto
 
     @POST(value = "buildYearPage")
     suspend fun createYearPage(

@@ -10,6 +10,7 @@ import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncGameResultsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncTournamentUseCase
@@ -77,6 +78,18 @@ class AppContainer(context: Context) {
         calculatePlayerPointsUseCase = calculatePlayerPointsUseCase
     )
 
+    val finalizeTournamentUseCase = FinalizeTournamentUseCase(
+        monatsblitzApi = api,
+        tournamentDao = database.tournamentDao(),
+        tournamentPlayerDao = database.tournamentPlayerDao(),
+        playerDao = database.playerDao(),
+        tournamentStorage = tournamentStorage,
+        syncTournamentUseCase = syncTournamentUseCase,
+        syncGameResultsUseCase = syncGameResultsUseCase,
+        syncPlayersUseCase = syncPlayersUseCase,
+        createTournamentRankingsUseCase = createTournamentRankingUseCase
+    )
+
     val tournamentSetupViewModelFactory =
         TournamentSetupViewModelFactory(
             playerRepository,
@@ -95,13 +108,16 @@ class AppContainer(context: Context) {
 
     val rootViewModelFactory =
         RootViewModelFactory(
-            tournamentStorage,
-            syncPlayersUseCase
+            tournamentPreferences = tournamentStorage,
+            syncPlayersUseCase = syncPlayersUseCase,
+            tournamentDao = database.tournamentDao(),
+            monatsblitzApi = api
         )
 
     fun rankingViewModelFactory(tournamentId: Long) = RankingViewModelFactory(
         tournamentId = tournamentId,
         tournamentPlayerDao = database.tournamentPlayerDao(),
-        playerDao = database.playerDao()
+        playerDao = database.playerDao(),
+        finalizeTournamentUseCase = finalizeTournamentUseCase
     )
 }

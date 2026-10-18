@@ -68,7 +68,12 @@ fun AppNavHost(
 
             RankingScreen(
                 viewModel = vm,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onFinalized = {
+                    navController.navigate(AppRoute.TournamentSetup) {
+                        popUpTo<AppRoute.TournamentSetup> { inclusive = true }
+                    }
+                }
             )
         }
     }

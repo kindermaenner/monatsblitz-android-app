@@ -31,4 +31,11 @@ interface TournamentPlayerDao {
     ORDER BY rank ASC
 """)
     fun observeRankingForTournament(tournamentId: Long): Flow<List<TournamentPlayerCrossRef>>
+
+    @Query("""
+    SELECT * FROM tournament_player_cross_ref
+    WHERE tournamentId = :tournamentId
+    ORDER BY rank ASC
+""")
+    suspend fun getRankingForTournament(tournamentId: Long): List<TournamentPlayerCrossRef>
 }

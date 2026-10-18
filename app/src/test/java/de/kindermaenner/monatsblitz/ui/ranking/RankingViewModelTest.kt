@@ -29,6 +29,8 @@ class RankingViewModelTest {
     fun setup() {
         mockkStatic(android.util.Log::class)
         every { android.util.Log.i(any(), any()) } returns 0
+        every { android.util.Log.e(any(), any()) } returns 0
+        every { android.util.Log.e(any(), any(), any()) } returns 0
     }
 
     @Test
@@ -78,5 +80,53 @@ class RankingViewModelTest {
         assertTrue(state is RankingUiState.Ready)
         val rows = (state as RankingUiState.Ready).rows
         assertEquals("Unbekannt", rows[0].name)
+    }
+
+    @Test
+    fun `finalizeTournament should update state to isFinalized when successful`() = runTest {
+        val tournamentId = 100L
+        val finalizeTournamentUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase>()
+        val rankingRefs = listOf(TournamentPlayerCrossRef(tournamentId, 1, 2.5, 1))
+
+        coEvery { tournamentPlayerDao.observeRankingForTournament(tournamentId) } returns flowOf(rankingRefs)
+        coEvery { playerDao.getAllPlayers() } returns listOf(PlayerEntity(id = 1, name = "Meier", vorname = "Alice", dirty = false))
+        coEvery { finalizeTournamentUseCase(tournamentId) } returns de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeResponseDto(success = true)
+
+        val viewModel = RankingViewModel(tournamentId, tournamentPlayerDao, playerDao, finalizeTournamentUseCase)
+
+        viewModel.finalizeTournament()
+
+        val state = viewModel.uiState.value
+        assertTrue(state is RankingUiState.Ready)
+        val ready = state as RankingUiState.Ready
+        assertTrue("isFinalized should be true", ready.isFinalized)
+        assertEquals(false, ready.isFinalizing)
+        assertEquals(null, ready.finalizeError)
+    }
+
+    @Test
+    fun `finalizeTournament should update state with error message when failed`() = runTest {
+        val tournamentId = 100L
+        val finalizeTournamentUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase>()
+        val rankingRefs = listOf(TournamentPlayerCrossRef(tournamentId, 1, 2.5, 1))
+
+        coEvery { tournamentPlayerDao.observeRankingForTournament(tournamentId) } returns flowOf(rankingRefs)
+        coEvery { playerDao.getAllPlayers() } returns listOf(PlayerEntity(id = 1, name = "Meier", vorname = "Alice", dirty = false))
+        coEvery { finalizeTournamentUseCase(tournamentId) } throws RuntimeException("Verbindungsfehler")
+
+        val viewModel = RankingViewModel(tournamentId, tournamentPlayerDao, playerDao, finalizeTournamentUseCase)
+
+        viewModel.finalizeTournament()
+
+        val state = viewModel.uiState.value
+        assertTrue(state is RankingUiState.Ready)
+        val ready = state as RankingUiState.Ready
+        assertEquals(false, ready.isFinalized)
+        assertEquals(false, ready.isFinalizing)
+        assertEquals("Verbindungsfehler", ready.finalizeError)
+
+        viewModel.clearFinalizeError()
+        val cleared = viewModel.uiState.value as RankingUiState.Ready
+        assertEquals(null, cleared.finalizeError)
     }
 }

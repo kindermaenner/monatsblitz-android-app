@@ -57,5 +57,45 @@ class SerializationTest {
         assertTrue("Count should be 1", response.count == 1)
         assertTrue("First item should have id 301", response.items[0].playerId == 301)
     }
+
+    @Test
+    fun `FinalizeRequestDto serializes to snake_case for WordPress`() {
+        val dto = FinalizeRequestDto(tournamentId = 42)
+        val result = json.encodeToString(dto)
+
+        assertTrue("Should contain tournament_id", result.contains("\"tournament_id\":42"))
+    }
+
+    @Test
+    fun `FinalizeResponseDto deserializes correctly from snake_case`() {
+        val jsonString = """
+            {
+              "success": true,
+              "tournament_id": 42,
+              "post_id": 105,
+              "post_updated": false,
+              "published": true
+            }
+        """.trimIndent()
+
+        val response = json.decodeFromString<FinalizeResponseDto>(jsonString)
+
+        assertTrue("Success should be true", response.success)
+        assertTrue("tournamentId should be 42", response.tournamentId == 42)
+        assertTrue("postId should be 105", response.postId == 105)
+        assertTrue("postUpdated should be false", response.postUpdated == false)
+        assertTrue("published should be true", response.published == true)
+    }
+
+    @Test
+    fun `TournamentDto deserializes with default open status or given status`() {
+        val jsonDefault = """{"id": 1, "date": "2026-10-18", "mode": "3+2", "round_count": 1}"""
+        val dtoDefault = json.decodeFromString<TournamentDto>(jsonDefault)
+        assertTrue("Default status should be open", dtoDefault.status == "open")
+
+        val jsonFinalized = """{"id": 2, "date": "2026-10-18", "mode": "3+2", "round_count": 1, "status": "finalized"}"""
+        val dtoFinalized = json.decodeFromString<TournamentDto>(jsonFinalized)
+        assertTrue("Status should be finalized", dtoFinalized.status == "finalized")
+    }
 }
 

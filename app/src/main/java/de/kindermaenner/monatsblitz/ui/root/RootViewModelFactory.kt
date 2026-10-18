@@ -5,9 +5,14 @@ import androidx.lifecycle.ViewModelProvider
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 
+import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentDao
+
 class RootViewModelFactory(
     private val tournamentPreferences: TournamentStorage,
-    private val syncPlayersUseCase: SyncPlayersUseCase
+    private val syncPlayersUseCase: SyncPlayersUseCase,
+    private val tournamentDao: TournamentDao? = null,
+    private val monatsblitzApi: MonatsblitzApi? = null
 ) : ViewModelProvider.Factory {
 
     override fun <T : ViewModel> create(
@@ -18,7 +23,9 @@ class RootViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return RootViewModel(
                 tournamentPreferences,
-                syncPlayersUseCase
+                syncPlayersUseCase,
+                tournamentDao,
+                monatsblitzApi
             ) as T
         }
 

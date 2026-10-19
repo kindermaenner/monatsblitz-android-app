@@ -27,81 +27,13 @@ fun RankingTable(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Platz",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(0.8f)
-            )
-            Text(
-                text = "Name",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(2.4f)
-            )
-            Text(
-                text = "Punkte",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.End,
-                modifier = Modifier.weight(0.8f)
-            )
-        }
+        RankingTableHeader()
 
         HorizontalDivider()
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             itemsIndexed(rows, key = { index, row -> "${row.rank}_${row.name}_$index" }) { _, row ->
-                val isTopThree = row.rank in 1..3
-                val formattedPoints = if (row.points % 1.0 == 0.0) {
-                    row.points.toInt().toString()
-                } else {
-                    row.points.toString()
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${row.rank}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (isTopThree) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isTopThree) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(0.8f)
-                    )
-                    Text(
-                        text = row.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = if (isTopThree) FontWeight.SemiBold else FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(2.4f)
-                    )
-                    Text(
-                        text = formattedPoints,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.weight(0.8f)
-                    )
-                }
-
+                RankingTableRow(row = row)
                 HorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
@@ -109,3 +41,86 @@ fun RankingTable(
         }
     }
 }
+
+@Composable
+private fun RankingTableHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Platz",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.8f)
+        )
+        Text(
+            text = "Name",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(2.4f)
+        )
+        Text(
+            text = "Punkte",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(0.8f)
+        )
+    }
+}
+
+@Composable
+private fun RankingTableRow(row: RankingRowData) {
+    val isTopThree = row.rank in 1..3
+    val rankColor = if (isTopThree) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val rankWeight = if (isTopThree) FontWeight.Bold else FontWeight.Normal
+    val nameWeight = if (isTopThree) FontWeight.SemiBold else FontWeight.Normal
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "${row.rank}",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = rankWeight,
+            color = rankColor,
+            modifier = Modifier.weight(0.8f)
+        )
+        Text(
+            text = row.name,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = nameWeight,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(2.4f)
+        )
+        Text(
+            text = formatPoints(row.points),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(0.8f)
+        )
+    }
+}
+
+private fun formatPoints(points: Double): String {
+    return if (points % 1.0 == 0.0) {
+        points.toInt().toString()
+    } else {
+        points.toString()
+    }
+}

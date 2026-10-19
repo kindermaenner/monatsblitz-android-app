@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 
 val NumberColumnWidth = 36.dp
@@ -67,39 +68,11 @@ fun CrosstableHeader(
         }
 
         // Scrollbare Rundenspalten 1..N mit Initialen
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .horizontalScroll(horizontalScrollState)
-        ) {
-            tournament.players.forEachIndexed { index, player ->
-                Column(
-                    modifier = Modifier.width(CellColumnWidth),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = (index + 1).toString(),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                    val initials = buildString {
-                        if (player.vorname.isNotBlank()) append(player.vorname.first().uppercase())
-                        if (player.name.isNotBlank()) append(player.name.first().uppercase())
-                    }
-                    if (initials.isNotBlank()) {
-                        Text(
-                            text = initials,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        }
+        PlayerColumnsHeader(
+            players = tournament.players,
+            horizontalScrollState = horizontalScrollState,
+            modifier = Modifier.weight(1f)
+        )
 
         // Pkt. Spalte (fixiert rechts)
         Box(
@@ -116,3 +89,55 @@ fun CrosstableHeader(
         }
     }
 }
+
+@Composable
+private fun PlayerColumnsHeader(
+    players: List<Player>,
+    horizontalScrollState: ScrollState,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.horizontalScroll(horizontalScrollState)
+    ) {
+        players.forEachIndexed { index, player ->
+            HeaderCell(
+                index = index,
+                initials = player.extractInitials()
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeaderCell(
+    index: Int,
+    initials: String
+) {
+    Column(
+        modifier = Modifier.width(CellColumnWidth),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = (index + 1).toString(),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        if (initials.isNotBlank()) {
+            Text(
+                text = initials,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+private fun Player.extractInitials(): String = buildString {
+    if (vorname.isNotBlank()) append(vorname.first().uppercase())
+    if (name.isNotBlank()) append(name.first().uppercase())
+}
+

@@ -359,128 +359,181 @@ private fun TournamentPlayerList(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // --- SPIELER HEADER MIT AKTION ---
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Teilnehmer",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = "${state.selectedPlayerIds.size} von ${state.players.size} ausgewählt",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            TextButton(onClick = onShowAddPlayerDialog) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.padding(end = 4.dp)
-                )
-                Text("Neuer Spieler")
-            }
-        }
-
-        // --- SUCHLEISTE ---
-        OutlinedTextField(
-            value = state.searchQuery,
-            onValueChange = onSearchQueryChanged,
-            placeholder = { Text("Spieler suchen...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            trailingIcon = {
-                if (state.searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { onSearchQueryChanged("") }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Suche leeren")
-                    }
-                }
-            },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Text,
-                capitalization = KeyboardCapitalization.Words,
-                imeAction = ImeAction.Search
-            ),
-            modifier = Modifier.fillMaxWidth()
+        TournamentPlayerHeader(
+            selectedCount = state.selectedPlayerIds.size,
+            totalCount = state.players.size,
+            onShowAddPlayerDialog = onShowAddPlayerDialog
         )
 
-        // --- FILTER-CHIPS & SCHNELLAKTIONEN ---
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            FilterChip(
-                selected = !state.showOnlySelected,
-                onClick = { onShowOnlySelectedChanged(false) },
-                label = { Text("Alle (${state.players.size})") }
-            )
+        TournamentPlayerSearchBar(
+            query = state.searchQuery,
+            onSearchQueryChanged = onSearchQueryChanged
+        )
 
-            FilterChip(
-                selected = state.showOnlySelected,
-                onClick = { onShowOnlySelectedChanged(true) },
-                label = { Text("Ausgewählt (${state.selectedPlayerIds.size})") }
-            )
-
-            if (state.selectedPlayerIds.isNotEmpty()) {
-                Spacer(modifier = Modifier.weight(1f))
-                TextButton(
-                    onClick = onClearSelectedPlayers,
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    Text(
-                        text = "Alle abwählen",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-        }
+        TournamentPlayerFilterRow(
+            showOnlySelected = state.showOnlySelected,
+            totalCount = state.players.size,
+            selectedCount = state.selectedPlayerIds.size,
+            onShowOnlySelectedChanged = onShowOnlySelectedChanged,
+            onClearSelectedPlayers = onClearSelectedPlayers
+        )
 
         HorizontalDivider()
 
-        // --- SPIELERLISTE ---
-        if (state.isLoading && state.players.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                if (state.showOnlySelected) {
-                    renderSelectedOnlyPlayers(
-                        selectedMatching = selectedMatching,
-                        query = query,
-                        showDetailedSyncIndicators = state.showDetailedSyncIndicators,
-                        onPlayerChecked = onPlayerChecked
-                    )
-                } else {
-                    renderAllPlayers(
-                        selectedMatching = selectedMatching,
-                        unselectedMatching = unselectedMatching,
-                        query = query,
-                        showDetailedSyncIndicators = state.showDetailedSyncIndicators,
-                        onPlayerChecked = onPlayerChecked
-                    )
+        TournamentPlayerListContent(
+            state = state,
+            selectedMatching = selectedMatching,
+            unselectedMatching = unselectedMatching,
+            query = query,
+            onPlayerChecked = onPlayerChecked,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun TournamentPlayerHeader(
+    selectedCount: Int,
+    totalCount: Int,
+    onShowAddPlayerDialog: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = "Teilnehmer",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "$selectedCount von $totalCount ausgewählt",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        TextButton(onClick = onShowAddPlayerDialog) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = null,
+                modifier = Modifier.padding(end = 4.dp)
+            )
+            Text("Neuer Spieler")
+        }
+    }
+}
+
+@Composable
+private fun TournamentPlayerSearchBar(
+    query: String,
+    onSearchQueryChanged: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onSearchQueryChanged,
+        placeholder = { Text("Spieler suchen...") },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onSearchQueryChanged("") }) {
+                    Icon(Icons.Default.Clear, contentDescription = "Suche leeren")
                 }
+            }
+        },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Text,
+            capitalization = KeyboardCapitalization.Words,
+            imeAction = ImeAction.Search
+        ),
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun TournamentPlayerFilterRow(
+    showOnlySelected: Boolean,
+    totalCount: Int,
+    selectedCount: Int,
+    onShowOnlySelectedChanged: (Boolean) -> Unit,
+    onClearSelectedPlayers: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        FilterChip(
+            selected = !showOnlySelected,
+            onClick = { onShowOnlySelectedChanged(false) },
+            label = { Text("Alle ($totalCount)") }
+        )
+
+        FilterChip(
+            selected = showOnlySelected,
+            onClick = { onShowOnlySelectedChanged(true) },
+            label = { Text("Ausgewählt ($selectedCount)") }
+        )
+
+        if (selectedCount > 0) {
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(
+                onClick = onClearSelectedPlayers,
+                contentPadding = PaddingValues(horizontal = 4.dp)
+            ) {
+                Text(
+                    text = "Alle abwählen",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
 }
+
+@Composable
+private fun TournamentPlayerListContent(
+    state: TournamentSetupUiState,
+    selectedMatching: List<Player>,
+    unselectedMatching: List<Player>,
+    query: String,
+    onPlayerChecked: (Long, Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (state.isLoading && state.players.isEmpty()) {
+        Box(
+            modifier = modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+    } else {
+        LazyColumn(
+            modifier = modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            if (state.showOnlySelected) {
+                renderSelectedOnlyPlayers(
+                    selectedMatching = selectedMatching,
+                    query = query,
+                    showDetailedSyncIndicators = state.showDetailedSyncIndicators,
+                    onPlayerChecked = onPlayerChecked
+                )
+            } else {
+                renderAllPlayers(
+                    selectedMatching = selectedMatching,
+                    unselectedMatching = unselectedMatching,
+                    query = query,
+                    showDetailedSyncIndicators = state.showDetailedSyncIndicators,
+                    onPlayerChecked = onPlayerChecked
+                )
+            }
+        }
+    }
+}
+
 
 private fun LazyListScope.renderSelectedOnlyPlayers(
     selectedMatching: List<Player>,

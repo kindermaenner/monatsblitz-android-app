@@ -46,12 +46,10 @@ Zwischen den Anforderungsdokumenten in `docs/` und der Implementierung besteht e
 
 ---
 
-### GAP-F3: Fehlender Sync-Indikator für ungesyncte Spieler im Setup-Screen (🟡 Mittel)
-* In [`SettingsScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/screens/SettingsScreen.kt) lautet die Beschreibung der Einstellung:
-  *„Zeigt kleine Statuspunkte an ungespeicherten Zellen **und neuen Spielern**, bis sie synchronisiert sind.“*
-* **Ist-Zustand:**
-  1. Das Domain-Modell [`Player`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/model/Player.kt) enthält (anders als in [`02-TechnicalRequirements.md` §2.1](./specs/02-TechnicalRequirements.md) spezifiziert) weder `remoteKey`/`remoteId` noch ein `dirty`-Flag.
-  2. Wenn im [`TournamentSetupScreen`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/tournamentsetup/TournamentSetupScreen.kt) ein neuer Spieler angelegt wird, wird weder sofort [`SyncPlayersUseCase`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/usecase/SyncPlayersUseCase.kt) getriggert noch in `PlayerRow` ein Statuspunkt angezeigt.
+### GAP-F3: Fehlender Sync-Indikator für ungesyncte Spieler im Setup-Screen (✅ Erledigt)
+* `Player`-Domainmodell um `dirty: Boolean = false` erweitert und in `PlayerMapper` gemappt.
+* `TournamentSetupViewModel` triggert nach erfolgreichem `addNewPlayer()` direkt im Hintergrund `SyncPlayersUseCase` an.
+* `TournamentSetupScreen` und `PlayerRow` werten `state.showDetailedSyncIndicators` sowie `player.dirty` aus und rendern den dezenten 6.dp Indikatorpunkt (`MaterialTheme.colorScheme.tertiary`), solange der Spieler lokal noch ungesynct ist.
 
 ---
 
@@ -129,28 +127,27 @@ Die nach [`ADR-001`](./architecture/adr/ADR-001-navigation-approach.md) bzw. [`A
 
 ## 4. UX & Material 3 Best Practices (`ADR-004`)
 
-### GAP-UX1: `RankingScreen` und `RankingTable` sind gestalterisch unvollständig (🟠 Hoch)
-Während [`TournamentSetupScreen`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/tournamentsetup/TournamentSetupScreen.kt) und [`CrosstableScreen`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/CrosstableScreen.kt) sauber nach Material 3 gestaltet sind, fällt der Ranking-Bereich stark ab:
-* **Kein `Scaffold`:** [`RankingScreen`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/ranking/RankingScreen.kt) nutzt ein bloßes `Column` statt `Scaffold`. Bei aktiviertem `enableEdgeToEdge()` in [`MainActivity`](../app/src/main/java/de/kindermaenner/monatsblitz/MainActivity.kt) fehlt dadurch die korrekte Berücksichtigung von System-Bar-Insets am unteren Bildschirmrand.
-* **Nicht scrollbar & kein M3-Tabellenlayout:** [`RankingTable`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/ranking/components/RankingTable.kt) rendert alle Spieler in einer einfachen `Column` mit `rows.forEach` ohne `LazyColumn`, ohne `padding`, ohne `HorizontalDivider`, ohne Header-Hervorhebung und ohne M3-Typografie. Bei Turnieren mit vielen Teilnehmern oder im Querformat sind die unteren Plätze **nicht erreichbar (abgeschnitten)**.
-* **Inkonsistente Punkte-Formatierung:** In [`CrosstableRow`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/components/CrosstableRow.kt) werden ganze Punkte sauber ohne `.0` formatiert (`2` statt `2.0`), in [`RankingTable`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/ranking/components/RankingTable.kt) hingegen roh via `"${row.points}"` (`2.0`) ausgegeben.
+### GAP-UX1: `RankingScreen` und `RankingTable` sind gestalterisch unvollständig (✅ Erledigt)
+* `RankingScreen` nutzt ein vollwertiges Material 3 `Scaffold` mit Inset-Unterstützung.
+* `RankingTable` verwendet eine scrollbare `LazyColumn`, ansprechend gestalteten M3-Tabellenkopf (`surfaceContainerHigh`), `HorizontalDivider` und Treppchen-Hervorhebung (Top 3 Medaillenfarben).
+* Saubere Punkteformatierung ohne unschönes `.0` (`2` statt `2.0`).
 
-### GAP-UX2: Fehlendes Sync-Feedback und fehlender manueller Sync im `TournamentSetupScreen` (🟠 Hoch)
-* Wenn der Turnierleiter die App im Turnierraum startet und erst kurz darauf WLAN aktiviert, gibt es im [`TournamentSetupScreen`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/tournamentsetup/TournamentSetupScreen.kt) **keine Möglichkeit**, die Spielerliste manuell mit WordPress zu synchronisieren (weder Pull-to-Refresh noch ein Sync-Icon in der TopAppBar).
-* Zudem wird `state.isLoading` aus [`TournamentSetupUiState`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/tournamentsetup/TournamentSetupUiState.kt) im [`TournamentSetupScreen`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/tournamentsetup/TournamentSetupScreen.kt) überhaupt nicht ausgewertet.
+### GAP-UX2: Fehlendes Sync-Feedback und fehlender manueller Sync im `TournamentSetupScreen` (✅ Erledigt)
+* `TournamentSetupTopBar` bietet eine manuelle Synchronisationsschaltfläche (`Icons.Default.Sync`), die `SyncPlayersUseCase` ausführt und währenddessen einen `CircularProgressIndicator` anzeigt.
+* `TournamentPlayerList` wertet `state.isLoading && state.players.isEmpty()` aus und rendert einen zentrierten Ladeindikator beim initialen Laden der Spieler.
 
-### GAP-UX3: Finalisierungs-Absicherung und Read-Only-Modus im `RankingScreen` (🟡 Mittel)
-* **Keine Warnung bei offenen Partien:** Der Turnierleiter kann im [`RankingScreen`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/ranking/RankingScreen.kt) jederzeit auf „Turnier abschließen“ klicken, selbst wenn noch 0 oder nur ein Teil der Partien gespielt wurden. Der Bestätigungsdialog weist nicht darauf hin, falls noch offene Partien (`GameResult.Open`) existieren.
-* **Kein Read-Only-Schutz im RankingScreen:** Wenn ein Turnier serverseitig bereits finalisiert wurde (`SyncStatus.FINALIZED` in der Kreuztabelle via HTTP 403), der Nutzer dann aber auf „Rangliste“ tippt, weiß [`RankingViewModel`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/ranking/RankingViewModel.kt) nichts vom `FINALIZED`-Status im `TournamentStorage` und bietet den Button „Turnier abschließen“ weiterhin aktiv an.
+### GAP-UX3: Finalisierungs-Absicherung und Read-Only-Modus im `RankingScreen` (✅ Erledigt)
+* `RankingUiState.Ready` hält `openGamesCount` und `isReadOnly`.
+* Bei `openGamesCount > 0` warnt `FinalizeConfirmDialog` explizit: *„Achtung: Es sind noch X Partien offen!“*
+* Ist das Turnier serverseitig abgeschlossen (`SyncStatus.FINALIZED`), wird der Finalisierungsbutton deaktiviert und gesperrt (`isReadOnly = true`).
 
 ### GAP-UX4: Gefährliches Verhalten beim „Turnier abbrechen“ / Zurück-Button in `CrosstableScreen` (✅ Erledigt)
 * `TournamentStorage` (`"tournament_state"`) und `AppSettingsStorage` (`"app_settings"`) nutzen in `AppContainer` getrennte DataStore-Dateien; `TournamentStorage.resetAll()` entfernt gezielt nur `tournamentIdKey` und `finalizedKey`.
 * In `CrosstableScreen` wird bei `SyncStatus.FINALIZED` ohne „Turnier abbrechen?“-Dialog direkt zum Setup zurückgekehrt.
 * Beim Abbruch eines offenen Turniers wird das Turnier lokal aus Room gelöscht (`TournamentRepositoryImpl.resetTournament()`); existiert am selben Datum bereits ein offenes Turnier auf dem Server, wird dieses beim erneuten Start im WordPress-Plugin (`CreateTournamentHandler.php`) und in `SyncTournamentUseCase` (Fallback bei HTTP 409) wiederverwendet bzw. zurückgesetzt.
 
-### GAP-UX5: Kreuztabellen-Orientierung und Ergebnisanzeige (🟢 Niedrig)
-* **Halbpunkt-Darstellung:** In [`ResultPickerDialog`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/components/ResultCell.kt) wird `½` angezeigt, in der Zelle selbst ([`GameResult.Remis.displayName`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/model/GameResult.kt)) jedoch der 3-stellige String `"1/2"`, was in schmalen Zellen (`44.dp`) unruhiger wirkt als `"½"`.
-* **Spaltenüberschriften in der Kreuztabelle:** [`CrosstableHeader`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/components/CrosstableHeader.kt) zeigt in den Spaltenköpfen nur die laufenden Nummern `1..N`. Bei größeren Teilnehmerfeldern (>10 Spieler) verliert man beim horizontalen Scrollen leicht die Zuordnung, welcher Spieler hinter Spalte `14` steckt (Abhilfe: Namenskürzel z. B. `M.M.` unter/über der Spaltennummer oder Hervorhebung von aktiver Zeile/Spalte).
+### GAP-UX5: Kreuztabellen-Orientierung und Ergebnisanzeige (✅ Erledigt)
+* In `CrosstableHeader` werden unter den Spaltennummern `1..N` nun übersichtlich die Namens-Initialen des jeweiligen Spielers (z. B. `M.M.`) angezeigt, um auch bei großen Teilnehmerfeldern jederzeit die Orientierung zu behalten.
 
 ---
 
@@ -187,6 +184,7 @@ Um die identifizierten Gaps im Sinne von [`AGENT.md`](../AGENT.md) kontrolliert 
 3. ~~**Paket 3 – Android Lifecycle & Resilienz (GAP-AND1 bis GAP-AND5, GAP-F4):**~~ ✅ **Erledigt**
    * Eigener Application-Scope für `TournamentSyncManager` + `NetworkSyncObserver` (`NetworkCallback`) für Auto-Sync bei Verbindungsrückkehr.
    * Umstellung auf `collectAsStateWithLifecycle()`, SQL-Join im Ranking-DAO, Vorberechnung der Kreuztabellen-Zeilen im ViewModel sowie Aktivierung von `exportSchema = true` und `MIGRATION_4_5` (`COLLATE NOCASE`) in Room.
-4. **Paket 4 – UX & Material 3 Vervollständigung (GAP-UX1 bis GAP-UX3, GAP-F3):**
-   * M3-Überarbeitung von `RankingScreen` / `RankingTable` (`Scaffold`, `LazyColumn`, Punktformatierung, Warnhinweis bei offenen Partien, Read-Only-Status).
-   * Manueller Spieler-Sync & Sync-Status im `TournamentSetupScreen`.
+4. ~~**Paket 4 – UX & Material 3 Vervollständigung (GAP-UX1 bis GAP-UX3, GAP-UX5, GAP-F3):**~~ ✅ **Erledigt**
+   * M3-Überarbeitung von `RankingScreen` / `RankingTable` (`Scaffold`, `LazyColumn`, saubere Punktformatierung, Warnhinweis bei offenen Partien, Read-Only-Status bei serverseitig finalisiertem Turnier).
+   * Manueller Spieler-Sync (`SyncPlayersUseCase`) & Ladeanzeige im `TournamentSetupScreen` sowie Statuspunkt bei `player.dirty`.
+   * Spieler-Initialen unter Spaltennummern `1..N` im `CrosstableHeader`.

@@ -8,7 +8,8 @@ fun PlayerEntity.toDomain(): Player =
     Player(
         id = id,
         name = name,
-        vorname = vorname
+        vorname = vorname,
+        dirty = dirty
     )
 
 fun Player.toEntity(): PlayerEntity =

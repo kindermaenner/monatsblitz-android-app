@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,19 +12,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -107,7 +112,11 @@ fun TournamentSetupScreen(
 
     Scaffold(
         topBar = {
-            TournamentSetupTopBar(onNavigateToSettings = onNavigateToSettings)
+            TournamentSetupTopBar(
+                isSyncingPlayers = state.isSyncingPlayers,
+                onSyncPlayers = viewModel::syncPlayers,
+                onNavigateToSettings = onNavigateToSettings
+            )
         },
         bottomBar = {
             TournamentSetupBottomBar(
@@ -212,11 +221,28 @@ private fun AddPlayerDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TournamentSetupTopBar(
+    isSyncingPlayers: Boolean,
+    onSyncPlayers: () -> Unit,
     onNavigateToSettings: (() -> Unit)?
 ) {
     TopAppBar(
         title = { Text("Neues Turnier") },
         actions = {
+            if (isSyncingPlayers) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp)
+                        .size(24.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                IconButton(onClick = onSyncPlayers) {
+                    Icon(
+                        imageVector = Icons.Default.Sync,
+                        contentDescription = "Spieler synchronisieren"
+                    )
+                }
+            }
             if (onNavigateToSettings != null) {
                 IconButton(onClick = onNavigateToSettings) {
                     Icon(
@@ -419,16 +445,38 @@ private fun TournamentPlayerList(
         HorizontalDivider()
 
         // --- SPIELERLISTE ---
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            if (state.showOnlySelected) {
-                renderSelectedOnlyPlayers(selectedMatching, query, onPlayerChecked)
-            } else {
-                renderAllPlayers(selectedMatching, unselectedMatching, query, onPlayerChecked)
+        if (state.isLoading && state.players.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                if (state.showOnlySelected) {
+                    renderSelectedOnlyPlayers(
+                        selectedMatching = selectedMatching,
+                        query = query,
+                        showDetailedSyncIndicators = state.showDetailedSyncIndicators,
+                        onPlayerChecked = onPlayerChecked
+                    )
+                } else {
+                    renderAllPlayers(
+                        selectedMatching = selectedMatching,
+                        unselectedMatching = unselectedMatching,
+                        query = query,
+                        showDetailedSyncIndicators = state.showDetailedSyncIndicators,
+                        onPlayerChecked = onPlayerChecked
+                    )
+                }
             }
         }
     }
@@ -437,6 +485,7 @@ private fun TournamentPlayerList(
 private fun LazyListScope.renderSelectedOnlyPlayers(
     selectedMatching: List<Player>,
     query: String,
+    showDetailedSyncIndicators: Boolean,
     onPlayerChecked: (Long, Boolean) -> Unit
 ) {
     if (selectedMatching.isEmpty()) {
@@ -457,8 +506,9 @@ private fun LazyListScope.renderSelectedOnlyPlayers(
     } else {
         items(selectedMatching, key = { it.id }) { player ->
             PlayerRow(
-                name = player.fullName,
+                player = player,
                 selected = true,
+                showDirtyIndicator = showDetailedSyncIndicators,
                 onCheckedChange = { checked -> onPlayerChecked(player.id, checked) }
             )
         }
@@ -469,6 +519,7 @@ private fun LazyListScope.renderAllPlayers(
     selectedMatching: List<Player>,
     unselectedMatching: List<Player>,
     query: String,
+    showDetailedSyncIndicators: Boolean,
     onPlayerChecked: (Long, Boolean) -> Unit
 ) {
     if (selectedMatching.isEmpty() && unselectedMatching.isEmpty()) {
@@ -498,8 +549,9 @@ private fun LazyListScope.renderAllPlayers(
             }
             items(selectedMatching, key = { it.id }) { player ->
                 PlayerRow(
-                    name = player.fullName,
+                    player = player,
                     selected = true,
+                    showDirtyIndicator = showDetailedSyncIndicators,
                     onCheckedChange = { checked -> onPlayerChecked(player.id, checked) }
                 )
             }
@@ -520,8 +572,9 @@ private fun LazyListScope.renderAllPlayers(
             }
             items(unselectedMatching, key = { it.id }) { player ->
                 PlayerRow(
-                    name = player.fullName,
+                    player = player,
                     selected = false,
+                    showDirtyIndicator = showDetailedSyncIndicators,
                     onCheckedChange = { checked -> onPlayerChecked(player.id, checked) }
                 )
             }
@@ -531,8 +584,9 @@ private fun LazyListScope.renderAllPlayers(
 
 @Composable
 private fun PlayerRow(
-    name: String,
+    player: Player,
     selected: Boolean,
+    showDirtyIndicator: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
@@ -547,10 +601,18 @@ private fun PlayerRow(
             onCheckedChange = onCheckedChange
         )
         Text(
-            text = name,
+            text = player.fullName,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.padding(start = 8.dp)
         )
+        if (showDirtyIndicator && player.dirty) {
+            Spacer(modifier = Modifier.size(6.dp))
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(color = MaterialTheme.colorScheme.tertiary, shape = CircleShape)
+            )
+        }
     }
 }

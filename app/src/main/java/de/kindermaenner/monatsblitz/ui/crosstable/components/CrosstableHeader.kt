@@ -3,7 +3,9 @@ package de.kindermaenner.monatsblitz.ui.crosstable.components
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,7 +34,7 @@ fun CrosstableHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(48.dp)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -64,16 +66,17 @@ fun CrosstableHeader(
             )
         }
 
-        // Scrollbare Rundenspalten 1..N
+        // Scrollbare Rundenspalten 1..N mit Initialen
         Row(
             modifier = Modifier
                 .weight(1f)
                 .horizontalScroll(horizontalScrollState)
         ) {
-            tournament.playerIds.forEachIndexed { index, _ ->
-                Box(
+            tournament.players.forEachIndexed { index, player ->
+                Column(
                     modifier = Modifier.width(CellColumnWidth),
-                    contentAlignment = Alignment.Center
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Text(
                         text = (index + 1).toString(),
@@ -82,6 +85,18 @@ fun CrosstableHeader(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
+                    val initials = buildString {
+                        if (player.vorname.isNotBlank()) append(player.vorname.first().uppercase())
+                        if (player.name.isNotBlank()) append(player.name.first().uppercase())
+                    }
+                    if (initials.isNotBlank()) {
+                        Text(
+                            text = initials,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }

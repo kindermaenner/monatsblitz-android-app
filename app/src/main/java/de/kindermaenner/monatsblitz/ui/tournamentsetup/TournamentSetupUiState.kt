@@ -17,5 +17,7 @@ data class TournamentSetupUiState(
     val newPlayerName: String = "",
     val addPlayerError: String? = null,
 
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val isSyncingPlayers: Boolean = false,
+    val showDetailedSyncIndicators: Boolean = true
 )

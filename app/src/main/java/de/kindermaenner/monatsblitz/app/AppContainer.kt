@@ -117,7 +117,9 @@ class AppContainer(context: Context) {
         TournamentSetupViewModelFactory(
             playerRepository,
             createTournamentUseCase,
-            addPlayerUseCase
+            addPlayerUseCase,
+            syncPlayersUseCase,
+            appSettingsStorage
         )
 
     fun crosstableViewModelFactory(tournamentId: Long) =
@@ -140,7 +142,8 @@ class AppContainer(context: Context) {
     fun rankingViewModelFactory(tournamentId: Long) = RankingViewModelFactory(
         tournamentId = tournamentId,
         tournamentRepository = tournamentRepository,
-        finalizeTournamentUseCase = finalizeTournamentUseCase
+        finalizeTournamentUseCase = finalizeTournamentUseCase,
+        tournamentSyncService = tournamentSyncManager
     )
 
     val settingsViewModelFactory =

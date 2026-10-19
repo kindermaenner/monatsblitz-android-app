@@ -1,13 +1,21 @@
 package de.kindermaenner.monatsblitz.ui.ranking
 
+import de.kindermaenner.monatsblitz.domain.model.Game
+import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.GameResult
+import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.SyncStatus
+import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.model.TournamentRankingItem
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
 import de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase
 import de.kindermaenner.monatsblitz.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -15,6 +23,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.time.LocalDate
 
 class RankingViewModelTest {
 
@@ -116,6 +125,51 @@ class RankingViewModelTest {
 
         val state = viewModel.uiState.value as RankingUiState.Ready
         assertEquals("Finalisierung nicht konfiguriert", state.finalizeError)
+    }
+
+    @Test
+    fun `observeTournament calculates openGamesCount correctly`() = runTest {
+        val tournamentId = 100L
+        val rankingItems = listOf(TournamentRankingItem(playerId = 1, name = "Alice Meier", points = 1.0, rank = 1))
+        val p1 = Player(1, "A", "A")
+        val p2 = Player(2, "B", "B")
+        val tournament = Tournament(
+            id = tournamentId,
+            mode = GameMode.BLITZ_5_0,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = listOf(p1, p2),
+            games = mapOf(
+                1L to Game(1L, 1L, 2L, 1, GameResult.Open)
+            )
+        )
+
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        every { tournamentRepository.observeTournament(tournamentId) } returns flowOf(tournament)
+
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository)
+
+        val state = viewModel.uiState.value as RankingUiState.Ready
+        assertEquals(1, state.openGamesCount)
+    }
+
+    @Test
+    fun `isReadOnly is true when syncStatus is FINALIZED`() = runTest {
+        val tournamentId = 100L
+        val rankingItems = listOf(TournamentRankingItem(playerId = 1, name = "Alice Meier", points = 1.0, rank = 1))
+        val syncService = mockk<TournamentSyncService>(relaxed = true)
+
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        every { syncService.syncStatus } returns MutableStateFlow(SyncStatus.FINALIZED)
+
+        val viewModel = RankingViewModel(
+            tournamentId = tournamentId,
+            tournamentRepository = tournamentRepository,
+            tournamentSyncService = syncService
+        )
+
+        val state = viewModel.uiState.value as RankingUiState.Ready
+        assertTrue(state.isReadOnly)
     }
 }
 

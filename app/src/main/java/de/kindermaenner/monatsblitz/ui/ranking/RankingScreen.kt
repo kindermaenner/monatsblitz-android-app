@@ -4,12 +4,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -17,6 +19,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -27,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.kindermaenner.monatsblitz.ui.ranking.components.RankingTable
@@ -41,45 +46,53 @@ fun RankingScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showFinalizeConfirmDialog by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-
-        RankingTopBar(
-            uiState = uiState,
-            onBack = onBack,
-            onFinalizeClick = { showFinalizeConfirmDialog = true }
-        )
-
-        when (val state = uiState) {
-            RankingUiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+    Scaffold(
+        topBar = {
+            RankingTopBar(
+                uiState = uiState,
+                onBack = onBack,
+                onFinalizeClick = { showFinalizeConfirmDialog = true }
+            )
+        }
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            when (val state = uiState) {
+                RankingUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
-            }
 
-            is RankingUiState.Ready -> {
-                RankingTable(state.rows)
+                is RankingUiState.Ready -> {
+                    RankingTable(state.rows)
 
-                FinalizeConfirmDialog(
-                    show = showFinalizeConfirmDialog,
-                    onConfirm = {
-                        showFinalizeConfirmDialog = false
-                        viewModel.finalizeTournament()
-                    },
-                    onDismiss = { showFinalizeConfirmDialog = false }
-                )
+                    FinalizeConfirmDialog(
+                        show = showFinalizeConfirmDialog,
+                        openGamesCount = state.openGamesCount,
+                        onConfirm = {
+                            showFinalizeConfirmDialog = false
+                            viewModel.finalizeTournament()
+                        },
+                        onDismiss = { showFinalizeConfirmDialog = false }
+                    )
 
-                FinalizeErrorDialog(
-                    error = state.finalizeError,
-                    onDismiss = { viewModel.clearFinalizeError() }
-                )
+                    FinalizeErrorDialog(
+                        error = state.finalizeError,
+                        onDismiss = { viewModel.clearFinalizeError() }
+                    )
 
-                FinalizeSuccessDialog(
-                    show = state.isFinalized,
-                    onConfirm = onFinalized
-                )
+                    FinalizeSuccessDialog(
+                        show = state.isFinalized,
+                        onConfirm = onFinalized
+                    )
+                }
             }
         }
     }
@@ -103,23 +116,34 @@ private fun RankingTopBar(
             if (uiState is RankingUiState.Ready) {
                 FilledTonalButton(
                     onClick = onFinalizeClick,
-                    enabled = !uiState.isFinalizing && !uiState.isFinalized,
+                    enabled = !uiState.isFinalizing && !uiState.isFinalized && !uiState.isReadOnly,
                     modifier = Modifier.padding(end = 8.dp)
                 ) {
-                    if (uiState.isFinalizing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Wird abgeschlossen...")
-                    } else {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 4.dp)
-                        )
-                        Text("Turnier abschließen")
+                    when {
+                        uiState.isFinalizing -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Wird abgeschlossen...")
+                        }
+                        uiState.isReadOnly -> {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text("Abgeschlossen")
+                        }
+                        else -> {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text("Turnier abschließen")
+                        }
                     }
                 }
             }
@@ -130,6 +154,7 @@ private fun RankingTopBar(
 @Composable
 private fun FinalizeConfirmDialog(
     show: Boolean,
+    openGamesCount: Int,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -138,7 +163,18 @@ private fun FinalizeConfirmDialog(
         onDismissRequest = onDismiss,
         title = { Text("Turnier abschließen?") },
         text = {
-            Text("Die Ergebnisse werden an das WordPress-Backend gesendet und auf der Website veröffentlicht. Danach sind keine Änderungen mehr möglich.")
+            Column {
+                if (openGamesCount > 0) {
+                    val gamesLabel = if (openGamesCount == 1) "ist noch 1 Partie" else "sind noch $openGamesCount Partien"
+                    Text(
+                        text = "Achtung: Es $gamesLabel offen!",
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                Text("Die Ergebnisse werden an das WordPress-Backend gesendet und auf der Website veröffentlicht. Danach sind keine Änderungen mehr möglich.")
+            }
         },
         confirmButton = {
             Button(onClick = onConfirm) {

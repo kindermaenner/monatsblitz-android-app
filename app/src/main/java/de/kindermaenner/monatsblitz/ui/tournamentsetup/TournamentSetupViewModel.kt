@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
+import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +20,9 @@ import java.time.LocalDate
 class TournamentSetupViewModel(
     private val playerRepository: PlayerRepository,
     private val createTournamentUseCase: CreateTournamentUseCase,
-    private val addPlayerUseCase: AddPlayerUseCase
+    private val addPlayerUseCase: AddPlayerUseCase,
+    private val syncPlayersUseCase: SyncPlayersUseCase? = null,
+    private val settingsRepository: SettingsRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TournamentSetupUiState(isLoading = true))
@@ -35,6 +39,13 @@ class TournamentSetupViewModel(
                         players = players,
                         isLoading = false
                     )
+                }
+            }
+        }
+        if (settingsRepository != null) {
+            viewModelScope.launch {
+                settingsRepository.showDetailedSyncIndicators.collect { showIndicators ->
+                    _uiState.update { it.copy(showDetailedSyncIndicators = showIndicators) }
                 }
             }
         }
@@ -127,10 +138,25 @@ class TournamentSetupViewModel(
                 onPlayerChecked(newPlayer.id, true)
                 onShowAddPlayerDialog(false)
                 onNewPlayerNameChanged("", "")
+                runCatching { syncPlayersUseCase?.invoke() }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(addPlayerError = e.message ?: "Fehler beim Anlegen des Spielers.")
                 }
+            }
+        }
+    }
+
+    fun syncPlayers() {
+        val syncUseCase = syncPlayersUseCase ?: return
+        if (_uiState.value.isSyncingPlayers) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncingPlayers = true) }
+            try {
+                runCatching { syncUseCase() }
+            } finally {
+                _uiState.update { it.copy(isSyncingPlayers = false) }
             }
         }
     }

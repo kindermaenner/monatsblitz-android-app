@@ -11,6 +11,9 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
+import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -25,6 +28,8 @@ class TournamentSetupViewModelTest {
     private val playerRepository = mockk<PlayerRepository>()
     private val createTournamentUseCase = mockk<CreateTournamentUseCase>()
     private val addPlayerUseCase = mockk<AddPlayerUseCase>()
+    private val syncPlayersUseCase = mockk<SyncPlayersUseCase>(relaxed = true)
+    private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
 
     @Test
     fun `initial state loads players from repository`() = runTest {
@@ -220,5 +225,64 @@ class TournamentSetupViewModelTest {
 
         assertTrue(viewModel.uiState.value.selectedPlayerIds.isEmpty())
         coVerify(exactly = 0) { createTournamentUseCase(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `syncPlayers executes syncPlayersUseCase and resets syncing state`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val viewModel = TournamentSetupViewModel(
+            playerRepository,
+            createTournamentUseCase,
+            addPlayerUseCase,
+            syncPlayersUseCase = syncPlayersUseCase,
+            settingsRepository = settingsRepository
+        )
+
+        viewModel.syncPlayers()
+
+        coVerify(exactly = 1) { syncPlayersUseCase.invoke() }
+        assertFalse(viewModel.uiState.value.isSyncingPlayers)
+    }
+
+    @Test
+    fun `addNewPlayer triggers background sync on success`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val newPlayer = Player(42L, "Mustermann", "Erika")
+        coEvery { addPlayerUseCase("Erika", "Mustermann") } returns newPlayer
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository,
+            createTournamentUseCase,
+            addPlayerUseCase,
+            syncPlayersUseCase = syncPlayersUseCase,
+            settingsRepository = settingsRepository
+        )
+        viewModel.onShowAddPlayerDialog(true)
+        viewModel.onNewPlayerNameChanged("Erika", "Mustermann")
+
+        viewModel.addNewPlayer()
+
+        coVerify(exactly = 1) { syncPlayersUseCase.invoke() }
+        assertTrue(viewModel.uiState.value.selectedPlayerIds.contains(42L))
+    }
+
+    @Test
+    fun `settingsRepository observes showDetailedSyncIndicators`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val syncIndicatorsFlow = MutableStateFlow(true)
+        coEvery { settingsRepository.showDetailedSyncIndicators } returns syncIndicatorsFlow
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository,
+            createTournamentUseCase,
+            addPlayerUseCase,
+            syncPlayersUseCase = syncPlayersUseCase,
+            settingsRepository = settingsRepository
+        )
+
+        assertTrue(viewModel.uiState.value.showDetailedSyncIndicators)
+
+        syncIndicatorsFlow.value = false
+        assertFalse(viewModel.uiState.value.showDetailedSyncIndicators)
     }
 }

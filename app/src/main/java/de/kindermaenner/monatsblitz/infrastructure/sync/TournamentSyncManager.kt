@@ -8,10 +8,14 @@ import de.kindermaenner.monatsblitz.domain.usecase.SyncTournamentUseCase
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.GameDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentDao
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import retrofit2.HttpException
@@ -22,7 +26,8 @@ class TournamentSyncManager(
     private val gameDao: GameDao,
     private val syncTournamentUseCase: SyncTournamentUseCase,
     private val syncGameResultsUseCase: SyncGameResultsUseCase,
-    private val syncPlayersUseCase: SyncPlayersUseCase
+    private val syncPlayersUseCase: SyncPlayersUseCase,
+    private val syncScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 ) : TournamentSyncService {
     private val _syncStatus = MutableStateFlow(SyncStatus.SYNCED)
     override val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
@@ -30,8 +35,13 @@ class TournamentSyncManager(
     private val syncMutex = Mutex()
 
     override suspend fun checkInitialStatus(tournamentId: Long) {
-        val state = tournamentStorage.getTournamentState().first()
-        if (state?.finalized == true) {
+        syncScope.launch {
+            checkInitialStatusInternal(tournamentId)
+        }.join()
+    }
+
+    private suspend fun checkInitialStatusInternal(tournamentId: Long) {
+        if (isFinalizedInStorage()) {
             _syncStatus.value = SyncStatus.FINALIZED
             return
         }
@@ -41,13 +51,21 @@ class TournamentSyncManager(
         val dirtyGames = gameDao.getDirtyGamesForTournament(tournamentId)
 
         if (isTournamentUnsynced || dirtyGames.isNotEmpty()) {
-            triggerSync(tournamentId)
+            triggerSyncInternal(tournamentId)
         } else {
             _syncStatus.value = SyncStatus.SYNCED
         }
     }
 
     override suspend fun triggerSync(tournamentId: Long) {
+        if (_syncStatus.value == SyncStatus.FINALIZED) return
+
+        syncScope.launch {
+            triggerSyncInternal(tournamentId)
+        }.join()
+    }
+
+    private suspend fun triggerSyncInternal(tournamentId: Long) {
         if (_syncStatus.value == SyncStatus.FINALIZED) return
 
         syncMutex.withLock {

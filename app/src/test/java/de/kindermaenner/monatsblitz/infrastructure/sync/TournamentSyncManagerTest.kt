@@ -16,6 +16,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -192,5 +193,38 @@ class TournamentSyncManagerTest {
 
         coVerify(exactly = 0) { tournamentStorage.finalizeTournament() }
         assertEquals(SyncStatus.FAILED, syncManager.syncStatus.value)
+    }
+
+    @Test
+    fun `triggerSync completes in syncScope even when caller coroutine is cancelled`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
+        val syncedEntity = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 100L)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(syncedEntity, emptyList(), emptyList())
+        coEvery { gameDao.getDirtyGamesForTournament(1L) } returns emptyList()
+
+        val startedGate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val finishGate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        coEvery { syncPlayersUseCase() } coAnswers {
+            startedGate.complete(Unit)
+            finishGate.await()
+        }
+
+        val callerJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+            syncManager.triggerSync(1L)
+        }
+
+        startedGate.await()
+        callerJob.cancel()
+        finishGate.complete(Unit)
+
+        // Wait briefly for syncScope to finish
+        val deadline = System.currentTimeMillis() + 2000
+        while (syncManager.syncStatus.value == SyncStatus.SYNCING && System.currentTimeMillis() < deadline) {
+            kotlinx.coroutines.delay(10)
+        }
+
+        coVerify { syncTournamentUseCase() }
+        coVerify { syncGameResultsUseCase() }
+        assertEquals(SyncStatus.SYNCED, syncManager.syncStatus.value)
     }
 }

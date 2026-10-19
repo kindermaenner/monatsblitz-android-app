@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -39,7 +40,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.SyncStatus
 import de.kindermaenner.monatsblitz.domain.model.Tournament
@@ -68,7 +69,7 @@ fun CrosstableScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var showBackDialog by remember { mutableStateOf(false) }
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     val handleBackNavigation = {
         if (state.syncStatus == SyncStatus.FINALIZED) {
@@ -328,39 +329,11 @@ private fun CrosstableTableContent(
         LazyColumn(
             modifier = Modifier.fillMaxSize()
         ) {
-            items(tournament.playerIds.size) { rowIndex ->
-                val playerId = tournament.playerIds[rowIndex]
-                val points = state.playerPoints[playerId] ?: 0.0
-
-                val results = mutableListOf<String>()
-                val dirtyFlags = mutableListOf<Boolean>()
-                for (columnIndex in tournament.playerIds.indices) {
-                    if (columnIndex == rowIndex) {
-                        results.add("x")
-                        dirtyFlags.add(false)
-                    } else {
-                        val game = tournament.findGame(
-                            tournament.playerIds[rowIndex],
-                            tournament.playerIds[columnIndex],
-                            state.leg
-                        )
-                        results.add(game?.result?.displayName ?: "")
-                        dirtyFlags.add(game?.dirty ?: false)
-                    }
-                }
-
+            items(state.rows, key = { it.rowIndex }) { rowData ->
                 CrosstableRow(
                     tournament = tournament,
                     round = state.leg,
-                    rowData = de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableRowData(
-                        rowIndex = rowIndex,
-                        playerName = tournament.players[rowIndex].fullName,
-                        totalPoints = points,
-                        results = results,
-                        dirtyFlags = dirtyFlags,
-                        showDetailedSyncIndicators = state.showDetailedSyncIndicators,
-                        enabled = state.syncStatus != SyncStatus.FINALIZED
-                    ),
+                    rowData = rowData,
                     horizontalScrollState = horizontalScrollState,
                     setResult = onSetResult
                 )

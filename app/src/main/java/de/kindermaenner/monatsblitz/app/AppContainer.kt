@@ -1,6 +1,7 @@
 package de.kindermaenner.monatsblitz.app
 
 import android.content.Context
+import android.net.ConnectivityManager
 import androidx.datastore.preferences.preferencesDataStore
 import de.kindermaenner.monatsblitz.BuildConfig.API_KEY
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
@@ -24,6 +25,7 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
 import de.kindermaenner.monatsblitz.infrastructure.repository.PlayerRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.repository.TournamentRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.settings.AppSettingsStorage
+import de.kindermaenner.monatsblitz.infrastructure.sync.NetworkSyncObserver
 import de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager
 import de.kindermaenner.monatsblitz.ui.crosstable.CrosstableViewModelFactory
 import de.kindermaenner.monatsblitz.ui.ranking.RankingViewModelFactory
@@ -103,6 +105,12 @@ class AppContainer(context: Context) {
         syncGameResultsUseCase = syncGameResultsUseCase,
         syncPlayersUseCase = syncPlayersUseCase
     )
+
+    val networkSyncObserver = NetworkSyncObserver(
+        connectivityManager = context.getSystemService(ConnectivityManager::class.java),
+        tournamentStorage = tournamentStorage,
+        tournamentSyncService = tournamentSyncManager
+    ).also { it.start() }
 
     val tournamentSetupViewModelFactory =
         TournamentSetupViewModelFactory(

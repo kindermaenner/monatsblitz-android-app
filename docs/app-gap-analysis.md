@@ -11,7 +11,7 @@ Diese Analyse gleicht den aktuellen Implementierungsstand der **Monatsblitz Andr
 | **GAP-F1** | Fachlogik & Sync | ~~Asymmetrische Paarungs-Erzeugung vs. symmetrische Speicherung führt zu offenen `dirty=true`-Leichen (`"offen"`) und doppelten API-Payloads~~ | ✅ Erledigt |
 | **GAP-F2** | Spezifikation / Sync | Initialer Turnier-/Ergebnisabgleich beim App-Start (§1.3) und Read-before-Write (§2.3.2) fehlen (Dokumentations-Diskrepanz V1 vs. V2) | 🟠 Hoch |
 | **GAP-F3** | Spezifikation / UI | Detaillierte Sync-Indikatoren für **neue Spieler** werden in den Einstellungen versprochen, aber im Setup-Screen nicht angezeigt | 🟡 Mittel |
-| **GAP-F4** | Datenmodell / DB | Namenseindeutigkeit in SQLite (`Index(vorname, name)`) ist ohne `COLLATE NOCASE` auf DB-Ebene case-sensitive | 🟡 Mittel |
+| **GAP-F4** | Datenmodell / DB | ~~Namenseindeutigkeit in SQLite (`Index(vorname, name)`) ist ohne `COLLATE NOCASE` auf DB-Ebene case-sensitive~~ | ✅ Erledigt |
 | **GAP-A1** | Clean Architecture | ~~**Schichtenverletzung im Domain-Layer:** 6 von 10 Use Cases importieren direkt Room-DAOs, Retrofit-APIs, DTOs oder DataStore aus `infrastructure`~~ | ✅ Erledigt |
 | **GAP-A2** | Clean Architecture | ~~**Schichtenverletzung im UI-Layer:** `RootViewModel`, `RankingViewModel`, `CrosstableViewModel` und `SettingsScreen` greifen direkt auf `infrastructure` (DAOs, API, Storage) zu~~ | ✅ Erledigt |
 | **GAP-A3** | Clean Architecture | ~~Doppelte Verantwortlichkeit beim Speichern des Turnierzustands (`CreateTournamentUseCase` UND `TournamentRepositoryImpl`)~~ | ✅ Erledigt |
@@ -20,10 +20,11 @@ Diese Analyse gleicht den aktuellen Implementierungsstand der **Monatsblitz Andr
 | **GAP-UX2** | UX / Workflow | Kein manueller Spieler-Sync (z. B. Pull-to-Refresh / Sync-Button) und kein Lade-/Offline-Feedback im `TournamentSetupScreen` | 🟠 Hoch |
 | **GAP-UX3** | UX / Workflow | Fehlende Warnung bei noch offenen Partien vor „Turnier abschließen“ sowie fehlender Read-Only-Zustand im `RankingScreen` | 🟡 Mittel |
 | **GAP-UX4** | UX / Sicherheit | ~~Zurück-Navigation in `CrosstableScreen` löscht sofort den lokalen Turnierstatus (`resetAll()`), selbst wenn das Turnier bereits auf dem Server existiert oder `FINALIZED` ist~~ | ✅ Erledigt |
-| **GAP-AND1** | Android Best Practice | Hintergrund-Sync läuft im `viewModelScope` von `CrosstableViewModel` und wird bei Screen-Wechsel (z. B. zur Rangliste) abgebrochen | 🟠 Hoch |
-| **GAP-AND2** | Android Best Practice | `fallbackToDestructiveMigration(dropAllTables = true)` in `AppDatabase` birgt Risiko von komplettem Datenverlust bei App-Updates während eines Turniers | 🟠 Hoch |
-| **GAP-AND3** | Android Best Practice | Nutzung von `collectAsState()` statt lifecycle-sensitivem `collectAsStateWithLifecycle()` in allen Screens | 🟡 Mittel |
-| **GAP-AND4** | Android Best Practice | `RankingViewModel` lädt bei jeder Änderung in der Kreuztabelle ungefiltert `playerDao.getAllPlayers()` auf dem Collector-Pfad | 🟡 Mittel |
+| **GAP-AND1** | Android Best Practice | ~~Hintergrund-Sync läuft im `viewModelScope` von `CrosstableViewModel` und wird bei Screen-Wechsel (z. B. zur Rangliste) abgebrochen~~ | ✅ Erledigt |
+| **GAP-AND2** | Android Best Practice | ~~`fallbackToDestructiveMigration(dropAllTables = true)` in `AppDatabase` birgt Risiko von komplettem Datenverlust bei App-Updates während eines Turniers~~ | ✅ Erledigt |
+| **GAP-AND3** | Android Best Practice | ~~Nutzung von `collectAsState()` statt lifecycle-sensitivem `collectAsStateWithLifecycle()` in allen Screens~~ | ✅ Erledigt |
+| **GAP-AND4** | Android Best Practice | ~~`RankingViewModel` lädt bei jeder Änderung in der Kreuztabelle ungefiltert `playerDao.getAllPlayers()` auf dem Collector-Pfad~~ | ✅ Erledigt |
+| **GAP-AND5** | Android Best Practice | ~~Fehlende Netzwerk-Konnektivitätsüberwachung (`ConnectivityManager`) für Auto-Sync bei Verbindungsrückkehr~~ | ✅ Erledigt |
 
 ---
 
@@ -155,26 +156,21 @@ Während [`TournamentSetupScreen`](../app/src/main/java/de/kindermaenner/monatsb
 
 ## 5. Android-Entwicklung Best Practices
 
-### GAP-AND1: Hintergrund-Synchronisation an `viewModelScope` gekoppelt (🟠 Hoch)
-* In [`CrosstableViewModel.setResult()`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/CrosstableViewModel.kt) wird `tournamentSyncService?.triggerSync(tournament.id)` innerhalb von `viewModelScope.launch` ausgeführt.
-* Navigiert der Nutzer nach der letzten Ergebniseingabe oder nach dem Zurückkehren aus dem Screen weg (und wird das ViewModel zerstört) oder schließt die App kurzzeitig, bricht die laufende Coroutine mitten im Netzwerk-Request ab (z. B. nachdem `POST /game` auf dem Server ankam, aber bevor `gameDao.markGameAsSynced()` lokal ausgeführt werden konnte).
-* **Best Practice:** [`TournamentSyncManager`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/sync/TournamentSyncManager.kt) ist ein Singleton im [`AppContainer`](../app/src/main/java/de/kindermaenner/monatsblitz/app/AppContainer.kt) und sollte einen eigenen Application-weiten `CoroutineScope(SupervisorJob() + Dispatchers.IO)` (oder `WorkManager` für garantierte Hintergrund-Ausführung bei Netzwiederkehr gemäß [`01-FunctionalRequirements.md` §1.5](./specs/01-FunctionalRequirements.md)) nutzen.
+### GAP-AND1: Hintergrund-Synchronisation an `viewModelScope` gekoppelt (✅ Erledigt)
+* `TournamentSyncManager` verfügt nun über einen eigenen Application-weiten `CoroutineScope(SupervisorJob() + Dispatchers.IO)` und führt `checkInitialStatus()` sowie `triggerSync()` unabhängig vom aufrufenden `viewModelScope` aus.
 
-### GAP-AND2: `fallbackToDestructiveMigration` und fehlender Schema-Export in Room (🟠 Hoch)
-* [`AppDatabase`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/persistence/room/AppDatabase.kt) setzt `exportSchema = false` und `.fallbackToDestructiveMigration(dropAllTables = true)`.
-* **Risiko:** Bei jedem zukünftigen App-Update mit einer Erhöhung der DB-Version werden sämtliche lokalen Turnier- und Spielerdaten kommentarlos gelöscht. Zudem können ohne `exportSchema = true` keine automatisierten Room-Migrationstests geschrieben werden.
+### GAP-AND2: `fallbackToDestructiveMigration` und fehlender Schema-Export in Room (✅ Erledigt)
+* `AppDatabase` exportiert das Room-Schema (`exportSchema = true`, `room.schemaLocation` nach `app/schemas`), nutzt Version 5 mit expliziter, datenerhaltender `MIGRATION_4_5` (`COLLATE NOCASE` auf `players.vorname` und `players.name`) und verzichtet auf `fallbackToDestructiveMigration(dropAllTables = true)`.
 
-### GAP-AND3: Fehlende Lifecycle-Awareness bei Flow-Collection in Compose (🟡 Mittel)
-* In [`MainActivity.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/MainActivity.kt), [`TournamentSetupScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/tournamentsetup/TournamentSetupScreen.kt), [`CrosstableScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/CrosstableScreen.kt), [`RankingScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/ranking/RankingScreen.kt) und [`SettingsScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/settings/SettingsScreen.kt) wird `collectAsState()` verwendet.
-* **Best Practice:** Verwendung von `collectAsStateWithLifecycle()` (`androidx.lifecycle:lifecycle-runtime-compose`), damit Datenbank-Flows (`SharingStarted.WhileSubscribed(5000)`) tatsächlich pausiert werden, wenn die App im Hintergrund liegt.
+### GAP-AND3: Fehlende Lifecycle-Awareness bei Flow-Collection in Compose (✅ Erledigt)
+* Sämtliche Screens (`MainActivity`, `TournamentSetupScreen`, `CrosstableScreen`, `RankingScreen`, `SettingsScreen`) nutzen `collectAsStateWithLifecycle()` aus `androidx.lifecycle:lifecycle-runtime-compose`.
 
-### GAP-AND4: Ineffiziente Datenbankabfrage in `TournamentRepositoryImpl.observeTournamentRanking` & Re-Allokationen in `CrosstableScreen` (🟡 Mittel)
-* **Ungefiltertes Nachladen aller Spieler:** [`TournamentRepositoryImpl.observeTournamentRanking()`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/repository/TournamentRepositoryImpl.kt) ruft bei jeder Emission `playerDao.getAllPlayers()` auf, anstatt per SQL-Join direkt die Turnierteilnehmer samt Rangliste aus Room zu beziehen.
-* **Berechnung in der Composition:** In [`CrosstableScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/CrosstableScreen.kt) wird innerhalb des `LazyColumn` `items`-Blocks für jede Zeile eine $O(N)$-Schleife mit linearem Lookup `tournament.findGame(...)` ($O(M)$ über `games.values.firstOrNull`) während der UI-Composition ausgeführt (insgesamt $O(N^2 \cdot M)$ pro Recomposition/Scroll). Diese Aufbereitung gehört vorberechnet in das `CrosstableViewModel` bzw. `CrosstableUiState`.
+### GAP-AND4: Ineffiziente Datenbankabfrage in `TournamentRepositoryImpl.observeTournamentRanking` & Re-Allokationen in `CrosstableScreen` (✅ Erledigt)
+* `TournamentPlayerDao.observeRankingWithPlayers()` lädt die Rangliste samt Spielernamen direkt per SQL-`LEFT JOIN`.
+* `CrosstableViewModel` berechnet `rows: List<CrosstableRowData>` einmalig im `combine`-Block vor; `CrosstableScreen` rendert direkt `items(state.rows, key = { it.rowIndex })`.
 
-### GAP-AND5: Fehlende Netzwerk-Konnektivitätsüberwachung (ConnectivityManager) (🟡 Mittel)
-* Laut [`01-FunctionalRequirements.md` §1.5](./specs/01-FunctionalRequirements.md) gilt: *„War ein Gerät längere Zeit offline, holt der automatische Sync alle ungespeicherten Ergebnisse gebündelt nach, **sobald wieder eine Verbindung besteht** oder ein neues Ergebnis eingegeben wird.“*
-* Aktuell wird der Sync **nur** bei einer neuen Ergebniseingabe oder manuell per Klick ausgelöst; es gibt keinen `ConnectivityManager.NetworkCallback`, der bei Rückkehr der Internetverbindung automatisch `tournamentSyncManager.triggerSync()` anstößt.
+### GAP-AND5: Fehlende Netzwerk-Konnektivitätsüberwachung (ConnectivityManager) (✅ Erledigt)
+* `NetworkSyncObserver` registriert einen `ConnectivityManager.NetworkCallback` und stößt bei `onAvailable` automatisch die Synchronisation eines offenen Turniers an.
 
 ---
 
@@ -188,9 +184,9 @@ Um die identifizierten Gaps im Sinne von [`AGENT.md`](../AGENT.md) kontrolliert 
 2. ~~**Paket 2 – Clean Architecture Refactoring (GAP-A1 bis GAP-A4):**~~ ✅ **Erledigt**
    * Rückführung aller Infrastruktur-Abhängigkeiten aus `domain.usecase` und `ui.*` hinter die Domain-Interfaces (`PlayerRepository`, `TournamentRepository`, `SettingsRepository`, `TournamentSyncService`) sowie Verschiebung von `SettingsScreen` inklusive `SettingsViewModel` nach `ui.settings`.
    * Entfernung der doppelten Zustandspersistenz (`GAP-A3`) und der verwaisten Dateien aus ADR-001 (`GAP-A4`).
-3. **Paket 3 – Android Lifecycle & Resilienz (GAP-AND1 bis GAP-AND5):**
-   * Eigener Application-Scope für `TournamentSyncManager` + optionaler `NetworkCallback` für Auto-Sync bei Verbindungsrückkehr.
-   * Umstellung auf `collectAsStateWithLifecycle()` und Aktivierung von `exportSchema = true` in Room.
+3. ~~**Paket 3 – Android Lifecycle & Resilienz (GAP-AND1 bis GAP-AND5, GAP-F4):**~~ ✅ **Erledigt**
+   * Eigener Application-Scope für `TournamentSyncManager` + `NetworkSyncObserver` (`NetworkCallback`) für Auto-Sync bei Verbindungsrückkehr.
+   * Umstellung auf `collectAsStateWithLifecycle()`, SQL-Join im Ranking-DAO, Vorberechnung der Kreuztabellen-Zeilen im ViewModel sowie Aktivierung von `exportSchema = true` und `MIGRATION_4_5` (`COLLATE NOCASE`) in Room.
 4. **Paket 4 – UX & Material 3 Vervollständigung (GAP-UX1 bis GAP-UX3, GAP-F3):**
    * M3-Überarbeitung von `RankingScreen` / `RankingTable` (`Scaffold`, `LazyColumn`, Punktformatierung, Warnhinweis bei offenen Partien, Read-Only-Status).
    * Manueller Spieler-Sync & Sync-Status im `TournamentSetupScreen`.

@@ -4,9 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.kindermaenner.monatsblitz.app.AppContainer
 import de.kindermaenner.monatsblitz.app.MonatsblitzApplication
@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
             val rootViewModel: RootViewModel = viewModel(
                 factory = appContainer.rootViewModelFactory
             )
-            val initialRoute by rootViewModel.initialRoute.collectAsState()
+            val initialRoute by rootViewModel.initialRoute.collectAsStateWithLifecycle()
 
             // Splash-Screen halten, bis initialRoute feststeht
             splashScreen.setKeepOnScreenCondition {

@@ -5,12 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.SyncStatus
+import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
 import de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
+import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableRowData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,10 +66,23 @@ class CrosstableViewModel(
                 player.id to calculatePlayerPointsUseCase(tournament, player.id)
             } ?: emptyMap()
 
+            val rows = if (tournament != null) {
+                buildRows(
+                    tournament = tournament,
+                    leg = leg,
+                    pointsMap = pointsMap,
+                    showDetailedSyncIndicators = showDetailedSyncIndicators,
+                    enabled = syncStatus != SyncStatus.FINALIZED
+                )
+            } else {
+                emptyList()
+            }
+
             CrosstableUiState(
                 tournament = tournament,
                 leg = leg,
                 playerPoints = pointsMap,
+                rows = rows,
                 isLoading = false,
                 syncStatus = syncStatus,
                 showDetailedSyncIndicators = showDetailedSyncIndicators
@@ -78,6 +93,46 @@ class CrosstableViewModel(
             SharingStarted.WhileSubscribed(5000),
             CrosstableUiState()
         )
+
+    private fun buildRows(
+        tournament: Tournament,
+        leg: Int,
+        pointsMap: Map<Long, Double>,
+        showDetailedSyncIndicators: Boolean,
+        enabled: Boolean
+    ): List<CrosstableRowData> {
+        return tournament.playerIds.indices.map { rowIndex ->
+            val playerId = tournament.playerIds[rowIndex]
+            val points = pointsMap[playerId] ?: 0.0
+            val results = mutableListOf<String>()
+            val dirtyFlags = mutableListOf<Boolean>()
+
+            for (columnIndex in tournament.playerIds.indices) {
+                if (columnIndex == rowIndex) {
+                    results.add("x")
+                    dirtyFlags.add(false)
+                } else {
+                    val game = tournament.findGame(
+                        playerId,
+                        tournament.playerIds[columnIndex],
+                        leg
+                    )
+                    results.add(game?.result?.displayName ?: "")
+                    dirtyFlags.add(game?.dirty ?: false)
+                }
+            }
+
+            CrosstableRowData(
+                rowIndex = rowIndex,
+                playerName = tournament.players.getOrNull(rowIndex)?.fullName ?: "",
+                totalPoints = points,
+                results = results,
+                dirtyFlags = dirtyFlags,
+                showDetailedSyncIndicators = showDetailedSyncIndicators,
+                enabled = enabled
+            )
+        }
+    }
 
     fun setResult(rowIndex: Int, columnIndex: Int, round: Int, result: GameResult) {
         val tournament = uiState.value.tournament ?: return

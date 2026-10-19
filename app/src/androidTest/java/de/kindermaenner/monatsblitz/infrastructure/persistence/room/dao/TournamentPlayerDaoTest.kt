@@ -31,6 +31,12 @@ class TournamentPlayerDaoTest : DaoTest() {
         assertEquals(p2, ranking[0].playerId) // Rank 1
         assertEquals(p1, ranking[1].playerId) // Rank 2
         assertEquals(p3, ranking[2].playerId) // Rank 3
+
+        val rankingWithPlayers = tournamentPlayerDao.observeRankingWithPlayers(t1).first()
+        assertEquals(3, rankingWithPlayers.size)
+        assertEquals("V2", rankingWithPlayers[0].vorname)
+        assertEquals("P2", rankingWithPlayers[0].name)
+        assertEquals(1, rankingWithPlayers[0].rank)
     }
 
     @Test

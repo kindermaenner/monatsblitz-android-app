@@ -143,19 +143,19 @@ class TournamentRepositoryImpl(
     }
 
     override fun observeTournamentRanking(tournamentId: Long): Flow<List<TournamentRankingItem>> {
-        val resolvedPlayerDao = requirePlayerDao()
-
-        return tournamentPlayerDao.observeRankingForTournament(tournamentId)
+        return tournamentPlayerDao.observeRankingWithPlayers(tournamentId)
             .map { entries ->
-                val players = resolvedPlayerDao.getAllPlayers().associateBy { it.id }
-                entries.filter { it.rank != null }.map { entry ->
-                    val domainEntry = entry.toDomain()
-                    val player = players[entry.playerId]
+                entries.map { entry ->
+                    val fullName = if (entry.vorname != null && entry.name != null) {
+                        "${entry.vorname} ${entry.name}"
+                    } else {
+                        "Unbekannt"
+                    }
                     TournamentRankingItem(
                         playerId = entry.playerId,
-                        name = if (player != null) "${player.vorname} ${player.name}" else "Unbekannt",
-                        points = domainEntry.points,
-                        rank = domainEntry.rank
+                        name = fullName,
+                        points = entry.points ?: 0.0,
+                        rank = entry.rank
                     )
                 }
             }

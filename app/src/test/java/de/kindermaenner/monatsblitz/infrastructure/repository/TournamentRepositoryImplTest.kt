@@ -215,32 +215,33 @@ class TournamentRepositoryImplTest {
     }
 
     @Test
-    fun `observeTournamentRanking resolves player names and filters out null ranks`() = runTest {
-        val playerDao = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>()
-        val repoWithPlayers = TournamentRepositoryImpl(
-            tournamentDao,
-            tournamentPlayerDao,
-            gameDao,
-            database,
-            tournamentStorage,
-            playerDao = playerDao
+    fun `observeTournamentRanking maps joined rows from tournamentPlayerDao`() = runTest {
+        val rankingRows = listOf(
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentRankingRowEntity(
+                playerId = 1,
+                points = 2.5,
+                rank = 1,
+                vorname = "Alice",
+                name = "Meier"
+            ),
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentRankingRowEntity(
+                playerId = 999,
+                points = null,
+                rank = 2,
+                vorname = null,
+                name = null
+            )
         )
-        val rankingRefs = listOf(
-            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef(100, 1, 2.5, 1),
-            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef(100, 2, 1.0, null),
-            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef(100, 999, 0.5, 2)
-        )
-        coEvery { tournamentPlayerDao.observeRankingForTournament(100) } returns flowOf(rankingRefs)
-        coEvery { playerDao.getAllPlayers() } returns listOf(
-            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1, name = "Meier", vorname = "Alice")
-        )
+        coEvery { tournamentPlayerDao.observeRankingWithPlayers(100) } returns flowOf(rankingRows)
 
-        val result = repoWithPlayers.observeTournamentRanking(100).first()
+        val result = repository.observeTournamentRanking(100).first()
 
         assertEquals(2, result.size)
         assertEquals("Alice Meier", result[0].name)
+        assertEquals(2.5, result[0].points, 0.0)
         assertEquals(1, result[0].rank)
         assertEquals("Unbekannt", result[1].name)
+        assertEquals(0.0, result[1].points, 0.0)
         assertEquals(2, result[1].rank)
     }
 

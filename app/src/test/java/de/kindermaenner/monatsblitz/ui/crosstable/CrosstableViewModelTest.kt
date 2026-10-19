@@ -87,6 +87,9 @@ class CrosstableViewModelTest {
         val state = viewModel.uiState.first { it.tournament != null }
         assertEquals(1.0, state.playerPoints[1L] ?: 0.0, 0.0)
         assertEquals(0.0, state.playerPoints[2L] ?: 0.0, 0.0)
+        assertEquals(2, state.rows.size)
+        assertEquals(listOf("x", "1"), state.rows[0].results)
+        assertEquals(listOf("0", "x"), state.rows[1].results)
     }
 
     @Test

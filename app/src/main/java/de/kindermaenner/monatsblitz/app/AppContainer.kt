@@ -33,9 +33,10 @@ import de.kindermaenner.monatsblitz.ui.root.RootViewModelFactory
 import de.kindermaenner.monatsblitz.ui.settings.SettingsViewModelFactory
 import de.kindermaenner.monatsblitz.ui.tournamentsetup.TournamentSetupViewModelFactory
 
+private val Context.tournamentDataStore by preferencesDataStore(name = "tournament_state")
+private val Context.settingsDataStore by preferencesDataStore(name = "app_settings")
+
 class AppContainer(context: Context) {
-    private val Context.tournamentDataStore by preferencesDataStore(name = "tournament_state")
-    private val Context.settingsDataStore by preferencesDataStore(name = "app_settings")
     val database = AppDatabase.getInstance(context)
 
     private val api = RetrofitClient.createApi(API_KEY)

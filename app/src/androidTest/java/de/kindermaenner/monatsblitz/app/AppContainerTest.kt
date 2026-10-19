@@ -36,6 +36,10 @@ class AppContainerTest {
 
         val rankingFactory = container.rankingViewModelFactory(1L)
         assertNotNull(rankingFactory)
+        assertNotNull(container.settingsViewModelFactory)
+        assertNotNull(container.networkSyncObserver)
+
+        container.networkSyncObserver.stop()
     }
 
     @Test

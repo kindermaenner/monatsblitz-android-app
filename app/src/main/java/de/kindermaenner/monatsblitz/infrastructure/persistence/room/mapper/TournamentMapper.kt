@@ -38,7 +38,8 @@ fun Tournament.toEntities() : Pair<TournamentEntity, List<GameEntity>> {
             player1Id = it.player1Id,
             player2Id = it.player2Id,
             leg = it.leg,
-            result = it.result
+            result = it.result,
+            dirty = it.dirty
         )
     }
     return tournamentEntity to gameEntities
@@ -85,7 +86,7 @@ fun NewGame.toEntity(tournamentId : Long) : GameEntity = GameEntity(
     player2Id = player2Id,
     leg = leg,
     result = result,
-    dirty = true
+    dirty = result != de.kindermaenner.monatsblitz.domain.model.GameResult.Open
 )
 
 fun PlayerRankingEntry.toEntity() : TournamentPlayerCrossRef =

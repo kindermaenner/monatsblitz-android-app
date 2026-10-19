@@ -8,7 +8,7 @@ Diese Analyse gleicht den aktuellen Implementierungsstand der **Monatsblitz Andr
 
 | ID | Bereich | Befund / Gap | Schweregrad |
 | :--- | :--- | :--- | :---: |
-| **GAP-F1** | Fachlogik & Sync | Asymmetrische Paarungs-Erzeugung vs. symmetrische Speicherung führt zu offenen `dirty=true`-Leichen (`"offen"`) und doppelten API-Payloads | 🔴 Kritisch |
+| **GAP-F1** | Fachlogik & Sync | ~~Asymmetrische Paarungs-Erzeugung vs. symmetrische Speicherung führt zu offenen `dirty=true`-Leichen (`"offen"`) und doppelten API-Payloads~~ | ✅ Erledigt |
 | **GAP-F2** | Spezifikation / Sync | Initialer Turnier-/Ergebnisabgleich beim App-Start (§1.3) und Read-before-Write (§2.3.2) fehlen (Dokumentations-Diskrepanz V1 vs. V2) | 🟠 Hoch |
 | **GAP-F3** | Spezifikation / UI | Detaillierte Sync-Indikatoren für **neue Spieler** werden in den Einstellungen versprochen, aber im Setup-Screen nicht angezeigt | 🟡 Mittel |
 | **GAP-F4** | Datenmodell / DB | Namenseindeutigkeit in SQLite (`Index(vorname, name)`) ist ohne `COLLATE NOCASE` auf DB-Ebene case-sensitive | 🟡 Mittel |
@@ -19,7 +19,7 @@ Diese Analyse gleicht den aktuellen Implementierungsstand der **Monatsblitz Andr
 | **GAP-UX1** | UX / Material 3 | `RankingScreen` und `RankingTable` nutzen kein `Scaffold`, kein `LazyColumn` (nicht scrollbar!), keine M3-Typografie/Abstände und formatieren Punkte als `1.0` statt `1` / `½` | 🟠 Hoch |
 | **GAP-UX2** | UX / Workflow | Kein manueller Spieler-Sync (z. B. Pull-to-Refresh / Sync-Button) und kein Lade-/Offline-Feedback im `TournamentSetupScreen` | 🟠 Hoch |
 | **GAP-UX3** | UX / Workflow | Fehlende Warnung bei noch offenen Partien vor „Turnier abschließen“ sowie fehlender Read-Only-Zustand im `RankingScreen` | 🟡 Mittel |
-| **GAP-UX4** | UX / Sicherheit | Zurück-Navigation in `CrosstableScreen` löscht sofort den lokalen Turnierstatus (`resetAll()`), selbst wenn das Turnier bereits auf dem Server existiert oder `FINALIZED` ist | 🟠 Hoch |
+| **GAP-UX4** | UX / Sicherheit | ~~Zurück-Navigation in `CrosstableScreen` löscht sofort den lokalen Turnierstatus (`resetAll()`), selbst wenn das Turnier bereits auf dem Server existiert oder `FINALIZED` ist~~ | ✅ Erledigt |
 | **GAP-AND1** | Android Best Practice | Hintergrund-Sync läuft im `viewModelScope` von `CrosstableViewModel` und wird bei Screen-Wechsel (z. B. zur Rangliste) abgebrochen | 🟠 Hoch |
 | **GAP-AND2** | Android Best Practice | `fallbackToDestructiveMigration(dropAllTables = true)` in `AppDatabase` birgt Risiko von komplettem Datenverlust bei App-Updates während eines Turniers | 🟠 Hoch |
 | **GAP-AND3** | Android Best Practice | Nutzung von `collectAsState()` statt lifecycle-sensitivem `collectAsStateWithLifecycle()` in allen Screens | 🟡 Mittel |
@@ -29,24 +29,11 @@ Diese Analyse gleicht den aktuellen Implementierungsstand der **Monatsblitz Andr
 
 ## 2. Funktionale & Technische Anforderungs-Gaps (`docs/specs/`)
 
-### GAP-F1: Inkonsistenz zwischen Paarungs-Generierung, Ergebnis-Speicherung und Sync (🔴 Kritisch)
-In der Zusammensicht von Paarungserzeugung, Punkteberechnung und API-Synchronisation besteht ein gravierender Widerspruch im Datenmodell:
-
-1. **Asymmetrische Anlage mit `dirty = true`:**
-   * [`CreateNewGamesUseCase`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/usecase/CreateNewGamesUseCase.kt) erzeugt bei Turnierstart nur Paarungen einer Dreiecksmatrix (`minOf(player1.id, player2.id)` gegen `maxOf(player1.id, player2.id)` mit `result = GameResult.Open`).
-   * [`NewGame.toEntity()`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/persistence/room/mapper/TournamentMapper.kt) setzt für alle diese initialen, noch ungespielten Partien sofort **`dirty = true`**.
-2. **Symmetrisches Nachflicken bei Ergebniseingabe:**
-   * [`SetGameResultUseCase`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/usecase/SetGameResultUseCase.kt) ruft `updateGameResult` **zweimal** auf: einmal für `(player1Id, player2Id, result)` und einmal für die Gegenrichtung `(player2Id, player1Id, result.opposite())`.
-   * Da die Gegenrichtung `(maxId, minId)` initial nicht in der Datenbank existiert, legt [`TournamentRepositoryImpl.updateGameResult()`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/repository/TournamentRepositoryImpl.kt) beim ersten Eintragen dynamisch einen **zweiten Datensatz** in der Tabelle `games` an.
-   * [`CalculatePlayerPointsUseCase`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/usecase/CalculatePlayerPointsUseCase.kt) verlässt sich darauf, dass für jeden Spieler ein eigener Datensatz mit `it.player1Id == playerId` existiert.
-3. **Folgen für Synchronisation & UI:**
-   * Sobald das erste Ergebnis eingetragen wird, selektiert [`GameDao.getGamesForSync()`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/persistence/room/dao/GameDao.kt) **alle** Spiele mit `dirty = 1` – darunter sämtliche noch gar nicht gespielten Partien (`GameResult.Open`), und sendet diese mit `result = "offen"` ([`MappingUtils.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/api/dto/MappingUtils.kt)) an `POST /game`.
-   * Gleichzeitig werden für jede gespielte Partie **beide** Richtungen (`(A, B, "1:0")` und `(B, A, "0:1")`) als separate Spiele an das WordPress-Backend übertragen.
-   * Direkt nach Turnierstart meldet [`TournamentSyncManager.checkInitialStatus()`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/sync/TournamentSyncManager.kt) sofort **`SyncStatus.FAILED`**, weil das neu angelegte Turnier und alle offenen Spiele mit `dirty = true` initialisiert wurden, aber beim Turnierstart kein initialer Sync ausgelöst wird.
-
-> [!WARNING]
-> **Empfehlung zu GAP-F1:**
-> Entscheiden, ob eine Partie in Room kanonisch (1 Zeile pro Paarung) oder gerichtet (2 Zeilen pro Paarung) gespeichert wird, und sicherstellen, dass ungespielte Initial-Partien (`GameResult.Open`) beim Turnierstart entweder mit `dirty = false` angelegt oder in `getGamesForSync()` ausgefiltert werden, sofern noch kein Ergebnis vorliegt (außer beim bewussten Zurücksetzen eines bereits synchronisierten Spiels mit `remoteId != null`). Zudem sollte nach `createTournament` direkt ein initialer Hintergrund-Sync angestoßen werden, statt in `SyncStatus.FAILED` zu starten.
+### GAP-F1: Inkonsistenz zwischen Paarungs-Generierung, Ergebnis-Speicherung und Sync (✅ Erledigt)
+Das Datenmodell wurde durchgängig auf das **kanonische Modell** (`player1Id < player2Id`, 1 Datensatz pro Paarung und `leg`) vereinheitlicht:
+* Initiale `GameResult.Open`-Partien werden mit `dirty = false` angelegt (`NewGame.toEntity()`) und in `GameDao.getGamesForSync()` ausgefiltert, solange noch keine `remoteId` existiert.
+* `SetGameResultUseCase` und `TournamentRepositoryImpl.updateGameResult()` speichern Ergebnisse kanonisch normalisiert; `Tournament.findGame()` und `CalculatePlayerPointsUseCase` werten beide Spielrichtungen über `result.opposite()` aus.
+* `TournamentSyncManager.checkInitialStatus()` startet bei neuen Turnieren ohne gespielte Partien in `SyncStatus.SYNCED`.
 
 ---
 
@@ -170,12 +157,10 @@ Während [`TournamentSetupScreen`](../app/src/main/java/de/kindermaenner/monatsb
 * **Keine Warnung bei offenen Partien:** Der Turnierleiter kann im [`RankingScreen`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/ranking/RankingScreen.kt) jederzeit auf „Turnier abschließen“ klicken, selbst wenn noch 0 oder nur ein Teil der Partien gespielt wurden. Der Bestätigungsdialog weist nicht darauf hin, falls noch offene Partien (`GameResult.Open`) existieren.
 * **Kein Read-Only-Schutz im RankingScreen:** Wenn ein Turnier serverseitig bereits finalisiert wurde (`SyncStatus.FINALIZED` in der Kreuztabelle via HTTP 403), der Nutzer dann aber auf „Rangliste“ tippt, weiß [`RankingViewModel`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/ranking/RankingViewModel.kt) nichts vom `FINALIZED`-Status im `TournamentStorage` und bietet den Button „Turnier abschließen“ weiterhin aktiv an.
 
-### GAP-UX4: Gefährliches Verhalten beim „Turnier abbrechen“ / Zurück-Button in `CrosstableScreen` (🟠 Hoch)
-* In [`CrosstableScreen`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/CrosstableScreen.kt) führt sowohl der System-Back-Button als auch der Pfeil oben links zum Dialog *„Turnier abbrechen? Das aktuelle Turnier wird beendet.“*
-* Bestätigt der Nutzer dies, ruft [`AppNavHost`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/navigation/AppNavHost.kt) `vm.resetTournament()` auf, was in [`TournamentStorage.resetAll()`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/TournamentStorage.kt) **den gesamten DataStore leert** (`it.clear()`):
-  1. Da `TournamentStorage` und `AppSettingsStorage` in [`AppContainer`](../app/src/main/java/de/kindermaenner/monatsblitz/app/AppContainer.kt) **dieselbe DataStore-Instanz (`"tournament_state"`)** teilen, löscht `it.clear()` ungewollt auch alle Benutzereinstellungen (`AppSettingsStorage`)!
-  2. Wurde das Turnier bereits per Auto-Sync an den WordPress-Server übertragen (`remoteId != null`), bleibt auf dem Server ein verwaistes Turnier mit Status `"open"` zurück, während die App lokal die Referenz verliert und für denselben Tag kein neues Turnier synchronisieren kann (wegen `UNIQUE KEY unique_tournament_date (year, month, day)` im WordPress-Plugin!).
-  3. Ist das Turnier bereits im Status `FINALIZED` (Schreibschutz), heißt der Zurück-Button trotzdem *„Turnier abbrechen?“* statt schlicht zum Setup für ein neues Turnier zurückzukehren.
+### GAP-UX4: Gefährliches Verhalten beim „Turnier abbrechen“ / Zurück-Button in `CrosstableScreen` (✅ Erledigt)
+* `TournamentStorage` (`"tournament_state"`) und `AppSettingsStorage` (`"app_settings"`) nutzen in `AppContainer` getrennte DataStore-Dateien; `TournamentStorage.resetAll()` entfernt gezielt nur `tournamentIdKey` und `finalizedKey`.
+* In `CrosstableScreen` wird bei `SyncStatus.FINALIZED` ohne „Turnier abbrechen?“-Dialog direkt zum Setup zurückgekehrt.
+* Beim Abbruch eines offenen Turniers wird das Turnier lokal aus Room gelöscht (`TournamentRepositoryImpl.resetTournament()`); existiert am selben Datum bereits ein offenes Turnier auf dem Server, wird dieses beim erneuten Start im WordPress-Plugin (`CreateTournamentHandler.php`) und in `SyncTournamentUseCase` (Fallback bei HTTP 409) wiederverwendet bzw. zurückgesetzt.
 
 ### GAP-UX5: Kreuztabellen-Orientierung und Ergebnisanzeige (🟢 Niedrig)
 * **Halbpunkt-Darstellung:** In [`ResultPickerDialog`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/components/ResultCell.kt) wird `½` angezeigt, in der Zelle selbst ([`GameResult.Remis.displayName`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/model/GameResult.kt)) jedoch der 3-stellige String `"1/2"`, was in schmalen Zellen (`44.dp`) unruhiger wirkt als `"½"`.
@@ -212,9 +197,9 @@ Während [`TournamentSetupScreen`](../app/src/main/java/de/kindermaenner/monatsb
 
 Um die identifizierten Gaps im Sinne von [`AGENT.md`](../AGENT.md) kontrolliert und ohne Regressionsrisiko aufzulösen, empfiehlt sich eine Aufteilung in vier abgeschlossene Arbeitspakete:
 
-1. **Paket 1 – Fachliche Korrektheit & Datenintegrität (GAP-F1, GAP-UX4):**
-   * Bereinigung des `dirty`-Verhaltens für initiale `Open`-Spiele und Klärung des kanonischen vs. gerichteten Speichermodells in `games`.
-   * Trennung der DataStore-Preferences (oder gezieltes Löschen nur der Turnier-Keys in `TournamentStorage.resetAll()`, damit `AppSettingsStorage` erhalten bleibt) und sauberes Handling beim Verlassen eines bereits synchronisierten/finalisierten Turniers.
+1. ~~**Paket 1 – Fachliche Korrektheit & Datenintegrität (GAP-F1, GAP-UX4):**~~ ✅ **Erledigt**
+   * Kanonisches Speichermodell (`player1Id < player2Id`) und `dirty = false` für initiale `Open`-Spiele umgesetzt.
+   * Physische Trennung der DataStore-Instanzen (`tournament_state` und `app_settings`), gezieltes Key-Löschen in `TournamentStorage.resetAll()` und sauberes Abbruch-/Wiederverwendungsverhalten für Turniere am selben Tag implementiert.
 2. **Paket 2 – Clean Architecture Refactoring (GAP-A1 bis GAP-A4):**
    * Rückführung aller Infrastruktur-Abhängigkeiten aus `domain.usecase` und `ui.*` hinter die Repository-Interfaces (`PlayerRepository`, `TournamentRepository`, `SettingsRepository`).
    * Entfernung der verwaisten Dateien aus ADR-001.

@@ -48,6 +48,9 @@ interface TournamentDao {
     @Delete
     suspend fun delete(tournament: TournamentEntity)
 
+    @Query("DELETE FROM tournaments WHERE id = :tournamentId")
+    suspend fun deleteById(tournamentId: Long)
+
     @Query("""
     UPDATE tournaments
     SET dirty = 0

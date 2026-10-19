@@ -26,14 +26,20 @@ class GameDaoTest : DaoTest() {
         gameDao.insert(GameEntity(tournamentId = t2, player1Id = p1, player2Id = p2, leg = 1, result = GameResult.Loss, dirty = true))
         // Already synced game for t1 (should NOT be in sync because dirty = false)
         gameDao.insert(GameEntity(tournamentId = t1, player1Id = p1, player2Id = p2, leg = 2, result = GameResult.Remis, dirty = false))
+        // Open game without remoteId (should NOT be in sync even if dirty = true)
+        gameDao.insert(GameEntity(tournamentId = t1, player1Id = p1, player2Id = p2, leg = 3, result = GameResult.Open, dirty = true, remoteId = null))
+        // Open game WITH remoteId (reset back to Open -> SHOULD be in sync when dirty = true)
+        gameDao.insert(GameEntity(tournamentId = t1, player1Id = p1, player2Id = p2, leg = 4, result = GameResult.Open, dirty = true, remoteId = 999L))
 
         val syncData = gameDao.getGamesForSync()
         
-        assertEquals(1, syncData.size)
+        assertEquals(2, syncData.size)
         assertEquals(100, syncData[0].tournamentRemoteId)
         assertEquals(10L, syncData[0].player1Id)
         assertEquals(20L, syncData[0].player2Id)
         assertEquals(GameResult.Win, syncData[0].result)
+        assertEquals(GameResult.Open, syncData[1].result)
+        assertEquals(999L, syncData[1].remoteGameId)
     }
 
     @Test

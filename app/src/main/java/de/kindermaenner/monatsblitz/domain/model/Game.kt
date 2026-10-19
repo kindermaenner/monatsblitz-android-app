@@ -6,5 +6,5 @@ data class Game(
     val player2Id: Long,
     val leg: Int,
     val result: GameResult,
-    val dirty: Boolean = true
+    val dirty: Boolean = false
 )

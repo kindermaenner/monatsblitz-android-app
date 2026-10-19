@@ -32,10 +32,12 @@ Der Turnier-Lifecycle wird über Zustände gesteuert, die im `TournamentStorage`
 
 ## 2.3 Algorithmen
 
-### 2.3.1 Paarungs-Generierung (Round Robin)
+### 2.3.1 Paarungs-Generierung & Kanonische Speicherung (Round Robin)
 Bei Turnierstart werden alle Paarungen nach dem Prinzip "Jeder-gegen-Jeden" erzeugt.
-*   **Einrundig:** `n * (n - 1) / 2` Spiele.
-*   **Doppelrundig:** `n * (n - 1)` Spiele (Hin- und Rückspiel mit vertauschten Farben/Legs).
+*   **Einrundig:** `n * (n - 1) / 2` Spiele (`leg = 1`).
+*   **Doppelrundig:** `n * (n - 1)` Spiele (`leg = 1` und `leg = 2`).
+*   **Kanonisches Datenmodell:** Jede Paarung wird pro Runde (`leg`) als genau **ein** kanonischer Datensatz mit `player1Id < player2Id` in Room persistiert und mit dem WordPress-Backend synchronisiert. Für die Gegenrichtung (`player1Id > player2Id`) wird das Ergebnis in der Domäne (`Tournament.findGame`, `CalculatePlayerPointsUseCase`) automatisch gespiegelt (`result.opposite()`).
+*   **Initialer Sync-Status:** Neu generierte, noch ungespielte Partien (`GameResult.Open`) werden mit `dirty = false` angelegt und erst bei der ersten Ergebniseingabe (`result != GameResult.Open`) oder beim Zurücksetzen einer bereits synchronisierten Partie (`remoteId != null`) auf `dirty = true` gesetzt.
 *   Die Generierung erfolgt initial im `CreateNewGamesUseCase`.
 
 ### 2.3.2 Synchronisations- und Merge-Algorithmus (Read-before-Write)
@@ -65,9 +67,11 @@ Anforderungen an die REST-API zur Unterstützung der Multi-Device-Synchronisatio
 ### 2.4.1 Geräteunabhängige Synchronisation
 *   Alle Geräte sind gleichberechtigt; es gibt keine Bindung an eine `device_id` oder Master-Rolle.
 *   **Lese-Endpunkte:**
+    *   `GET /tournament/{id}`: Liefert Turnier-Kopfdaten sowie die zugeordneten `player_ids` aus `monatsblitz_tournament_players`.
     *   `GET /games/{tournament_id}`: Liefert alle Spiele und aktuellen Ergebnisse eines Turniers für den Read-before-Write-Schritt.
     *   `GET /players`: Liefert alle registrierten Spieler.
 *   **Schreib-Endpunkte:**
+    *   `POST /tournament`: Erstellt ein Turnier (oder setzt ein am selben Tag bestehendes `open`-Turnier zurück) und speichert die übergebenen `player_ids` in `monatsblitz_tournament_players`.
     *   `POST /game`: Erstellt oder aktualisiert Spiele/Ergebnisse. Unterstützt das Überschreiben bestehender Ergebnisse (für reguläre Updates sowie Force-Write).
     *   `POST /player`: Erstellt neue Spieler. Lehnt Duplikate (gleicher Vor- und Nachname) mit HTTP 400/409 ab.
     *   `POST /finalize`: Setzt den Turnierstatus serverseitig auf `finalized`. Weitere Schreibzugriffe für dieses Turnier werden danach mit HTTP 403 / 409 abgewiesen.
@@ -76,17 +80,17 @@ Anforderungen an die REST-API zur Unterstützung der Multi-Device-Synchronisatio
 Änderungen an Partien werden in Room sofort mit einem `dirty`-Flag (`dirty = 1`) versehen. Der Abgleich mit dem WordPress-Backend folgt einem nicht-blockierenden Hintergrund-Konzept:
 
 1.  **Sync-Trigger:**
-    *   **Automatisch (Auto-Sync):** Wird nach jeder lokalen Ergebniseingabe im Hintergrund angestoßen (`TournamentSyncManager.triggerSync`).
+    *   **Automatisch (Auto-Sync):** Wird direkt beim Start eines neuen Turniers (`checkInitialStatus` bei `remoteId == null`) sowie nach jeder lokalen Ergebniseingabe im Hintergrund angestoßen (`TournamentSyncManager.triggerSync`).
     *   **Manuell (On-Demand):** Tappen auf das Sync-Icon in der TopAppBar löst die Synchronisation aus, sofern ungesyncte Partien vorliegen oder der Status `FAILED` ist.
 2.  **Abhängigkeiten-Auflösung & Serialisierung:**
     *   Alle Synchronisationsaufrufe werden über eine `Mutex` im `TournamentSyncManager` serialisiert.
-    *   Vor dem Senden von Partien wird sichergestellt, dass beteiligte neue Spieler (`SyncPlayersUseCase`) und das Turnier (`SyncTournamentUseCase`) remote existieren, um gültige Remote-IDs bereitzustellen.
+    *   Vor dem Senden von Partien wird sichergestellt, dass beteiligte neue Spieler (`SyncPlayersUseCase`) und das Turnier samt zugeordneten Teilnehmern (`SyncTournamentUseCase`) remote existieren, um gültige Remote-IDs bereitzustellen.
 3.  **Batch-Upload & Upsert:**
-    *   Alle noch offenen Partien (`dirty = 1`) werden ermittelt und gebündelt an `POST /game` gesendet (`SyncGameResultsUseCase`).
+    *   Alle noch offenen Partien (`dirty = 1` mit Ergebnis oder bestehender `remoteId`) werden ermittelt und gebündelt an `POST /game` gesendet (`SyncGameResultsUseCase`).
     *   Das WordPress-Plugin führt bei existierender Paarung `(tournament_id, player1_id, player2_id, leg_type)` ein nahtloses Update aus (`updateSingle`).
 4.  **Erfolg & Bestätigung:**
     *   Nach erfolgreicher Rückmeldung vom Server wird `dirty = 0` gesetzt und die vom Server vergebene `remoteId` gespeichert.
-    *   Der Gesamtstatus wechselt auf `SYNCED`.
+    *   Der Gesamtstatus wechselt auf `SYNCED`, sobald das Turnier eine `remoteId` besitzt und keine `dirty`-Spiele mehr ausstehen.
 5.  **Fehlerbehandlung & Offline-Betrieb:**
     *   Bei Netzwerkproblemen oder Serverausfall verbleiben die Spiele auf `dirty = 1` und der Status wechselt auf `FAILED`.
     *   Bei der nächsten Ergebniseingabe (oder manuellem Sync) werden die zuvor aufgelaufenen Änderungen automatisch mitübertragen.

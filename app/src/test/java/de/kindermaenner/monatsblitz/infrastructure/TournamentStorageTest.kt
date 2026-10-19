@@ -80,8 +80,13 @@ class TournamentStorageTest {
     }
 
     @Test
-    fun `resetAll clears preferences`() = runTest {
-        val initialPrefs = mutablePreferencesOf(tournamentIdKey to 100L)
+    fun `resetAll removes only tournament keys and preserves other preferences`() = runTest {
+        val otherKey = booleanPreferencesKey("show_detailed_sync_indicators")
+        val initialPrefs = mutablePreferencesOf(
+            tournamentIdKey to 100L,
+            finalizedKey to true,
+            otherKey to false
+        )
         var updatedPrefs: Preferences? = null
         coEvery { dataStore.updateData(any()) } coAnswers {
             val transform = firstArg<suspend (Preferences) -> Preferences>()
@@ -93,6 +98,8 @@ class TournamentStorageTest {
         storage.resetAll()
 
         assertNull(updatedPrefs?.get(tournamentIdKey))
+        assertNull(updatedPrefs?.get(finalizedKey))
+        assertEquals(false, updatedPrefs?.get(otherKey))
     }
 
     @Test

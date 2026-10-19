@@ -41,10 +41,12 @@ class TournamentSyncManager(
             return
         }
 
+        val tournament = tournamentDao.getTournament(tournamentId)
+        val isTournamentUnsynced = tournament != null && tournament.tournament.remoteId == null
         val dirtyGames = gameDao.getDirtyGamesForTournament(tournamentId)
-        val dirtyTournaments = tournamentDao.getDirtyTournaments()
-        if (dirtyGames.isNotEmpty() || dirtyTournaments.any { it.tournament.id == tournamentId }) {
-            _syncStatus.value = SyncStatus.FAILED
+
+        if (isTournamentUnsynced || dirtyGames.isNotEmpty()) {
+            triggerSync(tournamentId)
         } else {
             _syncStatus.value = SyncStatus.SYNCED
         }
@@ -72,9 +74,11 @@ class TournamentSyncManager(
                 // 3. Spiele / Ergebnisse synchronisieren
                 syncGameResultsUseCase()
 
-                // 4. Prüfen, ob alle Spiele dieses Turniers synchronisiert wurden
+                // 4. Prüfen, ob Turnier und alle Spiele dieses Turniers synchronisiert wurden
+                val updatedTournament = tournamentDao.getTournament(tournamentId)
+                val isTournamentSynced = updatedTournament == null || updatedTournament.tournament.remoteId != null
                 val remainingDirtyGames = gameDao.getDirtyGamesForTournament(tournamentId)
-                if (remainingDirtyGames.isEmpty()) {
+                if (isTournamentSynced && remainingDirtyGames.isEmpty()) {
                     _syncStatus.value = SyncStatus.SYNCED
                 } else {
                     _syncStatus.value = SyncStatus.FAILED

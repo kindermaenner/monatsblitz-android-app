@@ -202,4 +202,23 @@ class TournamentSetupViewModelTest {
         viewModel.onPlayerChecked(1L, false)
         assertFalse(viewModel.uiState.value.selectedPlayerIds.contains(1L))
     }
+
+    @Test
+    fun `aborting setup before starting tournament does not create any entries in DB`() = runTest {
+        val p1 = Player(1, "A", "A")
+        val p2 = Player(2, "B", "B")
+        coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1, p2))
+
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+
+        // User selects players, changes mode and rounds, then aborts/clears before pressing Start
+        viewModel.onPlayerChecked(1L, true)
+        viewModel.onPlayerChecked(2L, true)
+        viewModel.onModeChanged(GameMode.BLITZ_5_0)
+        viewModel.onDoubleRoundChanged(true)
+        viewModel.clearSelectedPlayers()
+
+        assertTrue(viewModel.uiState.value.selectedPlayerIds.isEmpty())
+        coVerify(exactly = 0) { createTournamentUseCase(any(), any(), any(), any()) }
+    }
 }

@@ -16,6 +16,7 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.Tourn
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.toDomain
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.toEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 class TournamentRepositoryImpl(
@@ -86,20 +87,25 @@ class TournamentRepositoryImpl(
         leg: Int,
         result: GameResult
     ) {
-        Log.i(TAG, "updateGameResult called with tournamentId=$tournamentId, playerId1=$playerId1, playerId2=$playerId2, leg=$leg, result=$result")
-        val game = gameDao.getGameByPlayers(tournamentId, playerId1, playerId2, leg)
-        
+        val minPlayerId = minOf(playerId1, playerId2)
+        val maxPlayerId = maxOf(playerId1, playerId2)
+        val canonicalResult = if (playerId1 <= playerId2) result else result.opposite()
+
+        Log.i(TAG, "updateGameResult called with tournamentId=$tournamentId, playerId1=$minPlayerId, playerId2=$maxPlayerId, leg=$leg, result=$canonicalResult")
+        val game = gameDao.getGameByPlayers(tournamentId, minPlayerId, maxPlayerId, leg)
+
         if (game != null) {
+            val shouldBeDirty = canonicalResult != GameResult.Open || game.remoteId != null
             Log.i(TAG, "updateGameResult: Updating existing game: $game")
-            gameDao.update(game.copy(result = result, dirty = true))
+            gameDao.update(game.copy(result = canonicalResult, dirty = shouldBeDirty))
         } else {
             val newGame = GameEntity(
                 tournamentId = tournamentId,
-                player1Id = playerId1,
-                player2Id = playerId2,
+                player1Id = minPlayerId,
+                player2Id = maxPlayerId,
                 leg = leg,
-                result = result,
-                dirty = true
+                result = canonicalResult,
+                dirty = canonicalResult != GameResult.Open
             )
             Log.i(TAG, "updateGameResult: Inserting new game: $newGame")
             gameDao.insert(newGame)
@@ -107,6 +113,13 @@ class TournamentRepositoryImpl(
     }
 
     override suspend fun resetTournament() {
+        val currentState = tournamentStorage.getTournamentState().first()
+        if (currentState != null && !currentState.finalized) {
+            database.withTransaction {
+                tournamentPlayerDao.deleteForTournament(currentState.tournamentId)
+                tournamentDao.deleteById(currentState.tournamentId)
+            }
+        }
         tournamentStorage.resetAll()
     }
 

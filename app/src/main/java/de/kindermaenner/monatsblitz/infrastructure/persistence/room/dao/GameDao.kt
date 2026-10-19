@@ -92,6 +92,7 @@ interface GameDao {
     INNER JOIN players p2
         ON g.player2Id = p2.id
     WHERE g.dirty = 1
+      AND (g.result != 'Open' OR g.remoteId IS NOT NULL)
       AND t.remoteId IS NOT NULL
       AND p1.remoteId IS NOT NULL
       AND p2.remoteId IS NOT NULL

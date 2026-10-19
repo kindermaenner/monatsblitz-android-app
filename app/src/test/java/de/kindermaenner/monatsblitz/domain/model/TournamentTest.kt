@@ -24,8 +24,8 @@ class TournamentTest {
     }
 
     @Test
-    fun `findGame returns correct game by player ids and leg`() {
-        val game = Game(id = 10, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Open)
+    fun `findGame returns correct game by player ids and leg including inverted perspective`() {
+        val game = Game(id = 10, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Win, dirty = true)
         val tournament = Tournament(
             id = 1,
             mode = GameMode.BLITZ_3_2,
@@ -36,8 +36,11 @@ class TournamentTest {
         )
 
         assertEquals(game, tournament.findGame(1, 2, 1))
+        assertEquals(
+            Game(id = 10, player1Id = 2, player2Id = 1, leg = 1, result = GameResult.Loss, dirty = true),
+            tournament.findGame(2, 1, 1)
+        )
         assertNull(tournament.findGame(1, 2, 2))
         assertNull(tournament.findGame(1, 3, 1))
-        assertNull(tournament.findGame(2, 1, 1))
     }
 }

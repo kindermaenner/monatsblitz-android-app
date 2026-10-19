@@ -127,7 +127,7 @@ class TournamentRepositoryImplTest {
 
     @Test
     fun `updateGameResult updates existing game if found`() = runTest {
-        val gameEntity = GameEntity(id = 100, tournamentId = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Open)
+        val gameEntity = GameEntity(id = 100, tournamentId = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Open, dirty = false)
         coEvery { gameDao.getGameByPlayers(1, 1, 2, 1) } returns gameEntity
 
         repository.updateGameResult(1, 1, 2, 1, GameResult.Win)
@@ -136,17 +136,52 @@ class TournamentRepositoryImplTest {
     }
 
     @Test
+    fun `updateGameResult resets dirty to false when unsynced game is set back to Open`() = runTest {
+        val gameEntity = GameEntity(id = 100, remoteId = null, tournamentId = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Win, dirty = true)
+        coEvery { gameDao.getGameByPlayers(1, 1, 2, 1) } returns gameEntity
+
+        repository.updateGameResult(1, 1, 2, 1, GameResult.Open)
+
+        coVerify { gameDao.update(match { it.id == 100L && it.result == GameResult.Open && !it.dirty }) }
+    }
+
+    @Test
+    fun `updateGameResult keeps dirty true when synced game with remoteId is set back to Open`() = runTest {
+        val gameEntity = GameEntity(id = 100, remoteId = 55L, tournamentId = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Win, dirty = false)
+        coEvery { gameDao.getGameByPlayers(1, 1, 2, 1) } returns gameEntity
+
+        repository.updateGameResult(1, 1, 2, 1, GameResult.Open)
+
+        coVerify { gameDao.update(match { it.id == 100L && it.result == GameResult.Open && it.dirty }) }
+    }
+
+    @Test
     fun `updateGameResult inserts new game if not found`() = runTest {
         coEvery { gameDao.getGameByPlayers(1, 1, 2, 1) } returns null
 
         repository.updateGameResult(1, 1, 2, 1, GameResult.Win)
 
-        coVerify { gameDao.insert(match { it.tournamentId == 1L && it.player1Id == 1L && it.result == GameResult.Win }) }
+        coVerify { gameDao.insert(match { it.tournamentId == 1L && it.player1Id == 1L && it.result == GameResult.Win && it.dirty }) }
     }
 
     @Test
-    fun `resetTournament should call resetAll on tournamentStorage`() = runTest {
+    fun `resetTournament deletes open tournament from db and resets tournamentStorage`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(de.kindermaenner.monatsblitz.infrastructure.TournamentState(10L, finalized = false))
+
         repository.resetTournament()
+
+        coVerify { tournamentPlayerDao.deleteForTournament(10L) }
+        coVerify { tournamentDao.deleteById(10L) }
+        coVerify { tournamentStorage.resetAll() }
+    }
+
+    @Test
+    fun `resetTournament does not delete finalized tournament from db`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(de.kindermaenner.monatsblitz.infrastructure.TournamentState(10L, finalized = true))
+
+        repository.resetTournament()
+
+        coVerify(exactly = 0) { tournamentDao.deleteById(any()) }
         coVerify { tournamentStorage.resetAll() }
     }
 

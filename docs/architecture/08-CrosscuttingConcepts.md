@@ -12,8 +12,10 @@ Das Projekt nutzt kein DI-Framework wie Hilt oder Dagger. Stattdessen wird ein m
 
 ### 8.3 Persistenz-Konzept
 Die App nutzt zwei unterschiedliche Persistenz-Technologien je nach Anwendungsfall:
-*   **Room (SQLite):** Wird für strukturierte, relationale Daten verwendet (Spieler, Turniere, Games, Rankings). Dies bildet die fachliche SSoT.
-*   **Jetpack DataStore (Preferences):** Wird für einfache Schlüssel-Wert-Paare zur Steuerung des App-Zustands verwendet (z. B. `tournament_id` des aktiven Turniers). Dies ermöglicht die nahtlose Fortführung einer Sitzung nach App-Neustarts.
+*   **Room (SQLite):** Wird für strukturierte, relationale Daten verwendet (Spieler, Turniere, Games, Rankings). Dies bildet die fachliche SSoT. Partien (`games`) werden kanonisch gespeichert (1 Datensatz pro Paarung und `leg` mit `player1Id < player2Id`).
+*   **Jetpack DataStore (Preferences):** Wird für einfache Schlüssel-Wert-Paare verwendet und ist physisch nach Lebenszyklus in zwei getrennte DataStore-Dateien unterteilt:
+    *   `tournament_state` (`TournamentStorage`): Speichert den kurzlebigen Zustand der aktuellen Turniersitzung (`tournament_id`, `finalized`) für die nahtlose Fortführung nach App-Neustarts. Beim Zurücksetzen (`resetAll()`) werden gezielt nur diese beiden Schlüssel entfernt.
+    *   `app_settings` (`AppSettingsStorage`): Speichert dauerhafte Benutzereinstellungen (z. B. `show_detailed_sync_status`) unabhängig vom Turnier-Lebenszyklus.
 
 ### 8.4 Eindeutigkeit von Spielernamen
 Es darf keine zwei Spieler mit gleichem Namen (Vor- und Nachname) geben:
@@ -33,16 +35,17 @@ Die visuelle Gestaltung folgt dem **Material 3 (M3)** Standard.
 Um eine optimale User Experience ohne störende Wartezeiten und gleichzeitig eine konsistente Datenhaltung im WordPress-Backend zu garantieren, setzt die App auf einen asynchronen, blockierungsfreien Hintergrund-Sync mit transparentem Live-Status:
 
 1. **Automatischer Hintergrund-Sync (Auto-Sync):**
-   * **Sofortige lokale Persistenz:** Jede Ergebniseingabe in der Kreuztabelle wird unmittelbar in SQLite (Room) gespeichert (`GameEntity.dirty = 1`). Die UI reagiert sofort und verzögerungsfrei (Optimistic UI / Offline-First).
+   * **Initialer Turnier-Sync beim Start:** Direkt beim Öffnen der Kreuztabelle (`checkInitialStatus`) prüft der `TournamentSyncManager`, ob das Turnier bereits auf dem Server existiert (`remoteId != null`). Ist es noch ungesynct (`remoteId == null`), wird sofort `triggerSync(tournamentId)` ausgeführt, sodass Turnier und zugeordnete Teilnehmer (`player_ids`) unmittelbar nach dem Start in der WordPress-Datenbank (`monatsblitz_tournaments` + `monatsblitz_tournament_players`) angelegt werden. Offene Initial-Partien (`GameResult.Open`) starten mit `dirty = false` und werden dabei noch nicht übertragen.
+   * **Sofortige lokale Persistenz:** Jede Ergebniseingabe in der Kreuztabelle wird kanonisch (`player1Id < player2Id`) unmittelbar in SQLite (Room) gespeichert (`GameEntity.dirty = 1`, außer wenn eine noch nie synchronisierte Partie wieder auf `Open` gestellt wird). Die UI reagiert sofort und verzögerungsfrei (Optimistic UI / Offline-First).
    * **Asynchroner Trigger:** Direkt nach dem lokalen Schreibzugriff stößt das `CrosstableViewModel` im Hintergrund (`viewModelScope`) den `TournamentSyncManager.triggerSync(tournamentId)` an. Die UI wird zu keinem Zeitpunkt blockiert.
 
 2. **Kaskadierendes Batching & Abhängigkeiten:**
    * Der `TournamentSyncManager` serialisiert parallele Sync-Anfragen über eine `Mutex`.
    * Bei jedem Durchlauf werden Abhängigkeiten in definierter Reihenfolge aufgelöst:
      1. `syncPlayersUseCase()`: Neu lokal angelegte Spieler werden übertragen, um deren WordPress-`remoteId` zu erhalten.
-     2. `syncTournamentUseCase()`: Das Turnier wird remote angelegt (falls noch nicht geschehen), um die `tournamentRemoteId` zu sichern.
-     3. `syncGameResultsUseCase()`: Alle ausstehenden Partien (`dirty = 1`) werden ermittelt und gebatcht per `POST /game` übertragen. Hierbei werden die WordPress-Player-IDs (gemappt via Join in `GameDao.getGamesForSync`) und eventuell bereits vorhandene `remoteGameId`s übermittelt.
-     4. Nach erfolgreicher Bestätigung werden die Partien in Room auf `dirty = 0` und mit ihrer `remoteId` aktualisiert.
+     2. `syncTournamentUseCase()`: Das Turnier wird samt den `player_ids` seiner Teilnehmer remote angelegt (falls noch nicht geschehen), um die `tournamentRemoteId` zu sichern. Existiert am selben Tag bereits ein offenes Turnier auf dem Server, wird dieses zurückgesetzt bzw. wiederverwendet.
+     3. `syncGameResultsUseCase()`: Alle ausstehenden Partien (`dirty = 1` mit gesetztem Ergebnis oder bestehender `remoteId`) werden ermittelt und gebatcht per `POST /game` übertragen. Hierbei werden die WordPress-Player-IDs (gemappt via Join in `GameDao.getGamesForSync`) und eventuell bereits vorhandene `remoteGameId`s übermittelt.
+     4. Nach erfolgreicher Bestätigung werden die Partien in Room auf `dirty = 0` und mit ihrer `remoteId` aktualisiert. Der Gesamtstatus wechselt nur dann auf `SyncStatus.SYNCED`, wenn sowohl `tournament.remoteId != null` als auch `remainingDirtyGames.isEmpty()` erfüllt sind.
    * **Offline-Resilienz:** War das Gerät offline oder schlug ein Sync fehl, verbleiben die Änderungen auf `dirty = 1`. Bei der nächsten Ergebniseingabe (oder manuellem Sync) werden automatisch alle noch ungesynchronisierten Partien gebündelt nachgesendet.
 
 3. **Serverseitiges Upsert (Korrekturfreundlichkeit):**

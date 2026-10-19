@@ -20,17 +20,21 @@ class SyncTournamentUseCaseTest {
     private val useCase = SyncTournamentUseCase(api, dao)
 
     @Test
-    fun `invoke syncs dirty tournaments to remote`() = runTest {
+    fun `invoke syncs dirty tournaments with assigned player remoteIds to remote`() = runTest {
         val date = LocalDate.now()
         val tournamentEntity = TournamentEntity(id = 1, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = null)
-        val dirtyTournament = TournamentWithDetails(tournamentEntity, listOf(), listOf())
+        val players = listOf(
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1, name = "A", vorname = "A", remoteId = 101L),
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 2, name = "B", vorname = "B", remoteId = 202L)
+        )
+        val dirtyTournament = TournamentWithDetails(tournamentEntity, listOf(), players)
         
         coEvery { dao.getDirtyTournaments() } returns listOf(dirtyTournament)
         coEvery { api.createTournament(any()) } returns CreateTournamentResponseDto(success = true, tournamentId = 500)
 
         useCase()
 
-        coVerify { api.createTournament(match { it.mode == "3+2" }) }
+        coVerify { api.createTournament(match { it.mode == "3+2" && it.playerIds == listOf(101L, 202L) }) }
         coVerify { dao.updateTournamentRemoteId(1, 500) }
     }
 
@@ -46,5 +50,31 @@ class SyncTournamentUseCaseTest {
 
         coVerify { api.createTournament(any()) }
         coVerify(exactly = 0) { dao.updateTournamentRemoteId(any(), any()) }
+    }
+
+    @Test
+    fun `invoke reuses existing open remote tournament on same date when HTTP 409 occurs`() = runTest {
+        val date = LocalDate.of(2026, 10, 19)
+        val tournamentEntity = TournamentEntity(id = 1, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = null)
+        val dirtyTournament = TournamentWithDetails(tournamentEntity, listOf(), listOf())
+
+        coEvery { dao.getDirtyTournaments() } returns listOf(dirtyTournament)
+        val errorResponse = mockk<retrofit2.Response<*>>(relaxed = true) {
+            io.mockk.every { code() } returns 409
+        }
+        coEvery { api.createTournament(any()) } throws retrofit2.HttpException(errorResponse)
+        coEvery { api.getTournaments() } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(
+                id = 777,
+                date = "2026-10-19",
+                mode = "3+2",
+                roundCount = 1,
+                status = "open"
+            )
+        )
+
+        useCase()
+
+        coVerify { dao.updateTournamentRemoteId(1, 777) }
     }
 }

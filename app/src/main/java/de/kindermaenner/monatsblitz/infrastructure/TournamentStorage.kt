@@ -19,7 +19,10 @@ class TournamentStorage(private val dataStore: DataStore<Preferences>) {
     private val finalizedKey = booleanPreferencesKey("tournament_finalized")
 
     suspend fun resetAll() {
-        dataStore.edit { it.clear() }
+        dataStore.edit { preferences ->
+            preferences.remove(tournamentIdKey)
+            preferences.remove(finalizedKey)
+        }
     }
 
     suspend fun saveTournamentState(tournamentId : Long, finalized: Boolean) {

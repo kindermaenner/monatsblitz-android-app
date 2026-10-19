@@ -30,8 +30,7 @@ class CreateTournamentRankingsUseCaseTest {
             Player(2, "Schmidt", "Bob")
         )
         val games = mapOf(
-            1L to Game(1, 1, 2, 1, GameResult.Win),      // Player 1: 1.0
-            2L to Game(2, 2, 1, 1, GameResult.Loss)      // Player 2: 0.0
+            1L to Game(1, 1, 2, 1, GameResult.Win)       // Player 1: 1.0, Player 2: 0.0
         )
         val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 1, players, games)
 
@@ -53,9 +52,9 @@ class CreateTournamentRankingsUseCaseTest {
             Player(3, "C", "C")
         )
         val games = mapOf(
-            1L to Game(1, 1, 2, 1, GameResult.Win),      // Player 1: 1.0
-            2L to Game(2, 2, 3, 1, GameResult.Remis),    // Player 2: 0.5
-            3L to Game(3, 3, 1, 1, GameResult.Loss)      // Player 3: 0.0
+            1L to Game(1, 1, 2, 1, GameResult.Win),      // P1: 1.0, P2: 0.0
+            2L to Game(2, 1, 3, 1, GameResult.Win),      // P1: +1.0 (2.0), P3: 0.0
+            3L to Game(3, 2, 3, 1, GameResult.Win)       // P2: +1.0 (1.0), P3: 0.0
         )
         val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 1, players, games)
 
@@ -65,8 +64,8 @@ class CreateTournamentRankingsUseCaseTest {
         coVerify { tournamentPlayerDao.upsertAll(capture(capturedRefs)) }
 
         assertEquals(3, capturedRefs.captured.size)
-        assertEquals(1.0, capturedRefs.captured[0].points ?: 0.0, 0.0)
-        assertEquals(0.5, capturedRefs.captured[1].points ?: 0.0, 0.0)
+        assertEquals(2.0, capturedRefs.captured[0].points ?: 0.0, 0.0)
+        assertEquals(1.0, capturedRefs.captured[1].points ?: 0.0, 0.0)
         assertEquals(0.0, capturedRefs.captured[2].points ?: 0.0, 0.0)
     }
 
@@ -79,10 +78,8 @@ class CreateTournamentRankingsUseCaseTest {
             Player(4, "D", "D")
         )
         val games = mapOf(
-            1L to Game(1, 1, 2, 1, GameResult.Win),      // Player 1: 1.0
-            2L to Game(2, 2, 3, 1, GameResult.Win),      // Player 2: 1.0 (tied)
-            3L to Game(3, 3, 4, 1, GameResult.Loss),     // Player 3: 0.0
-            4L to Game(4, 4, 1, 1, GameResult.Loss)      // Player 4: 0.0 (tied)
+            1L to Game(1, 1, 3, 1, GameResult.Win),      // Player 1: 1.0, Player 3: 0.0
+            2L to Game(2, 2, 4, 1, GameResult.Win)       // Player 2: 1.0, Player 4: 0.0
         )
         val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 1, players, games)
 
@@ -146,13 +143,12 @@ class CreateTournamentRankingsUseCaseTest {
             Player(4, "Weber", "Diana")
         )
         val games = mapOf(
-            1L to Game(1, 1, 2, 1, GameResult.Win),      // Alice: 1.0
-            2L to Game(2, 1, 3, 1, GameResult.Win),      // Alice: 1.0
-            3L to Game(3, 1, 4, 1, GameResult.Remis),    // Alice: 0.5 (total: 2.5)
-            4L to Game(4, 2, 3, 1, GameResult.Remis),    // Bob: 0.5
-            5L to Game(5, 2, 4, 1, GameResult.Loss),     // Bob: 0.0 (total: 0.5)
-            6L to Game(6, 3, 4, 1, GameResult.Win),      // Charlie: 1.0 (total: 1.0)
-            7L to Game(7, 4, 1, 1, GameResult.Loss)      // Diana: 0.0 (total: 0.0)
+            1L to Game(1, 1, 2, 1, GameResult.Win),      // Alice: 1.0, Bob: 0.0
+            2L to Game(2, 1, 3, 1, GameResult.Win),      // Alice: +1.0 (2.0), Charlie: 0.0
+            3L to Game(3, 1, 4, 1, GameResult.Remis),    // Alice: +0.5 (2.5), Diana: 0.5
+            4L to Game(4, 2, 3, 1, GameResult.Loss),     // Bob: +0.0, Charlie: +1.0 (1.0)
+            5L to Game(5, 2, 4, 1, GameResult.Win),      // Bob: +1.0 (1.0), Diana: +0.0
+            6L to Game(6, 3, 4, 1, GameResult.Win)       // Charlie: +1.0 (2.0), Diana: +0.0 (0.5)
         )
         val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 1, players, games)
 
@@ -163,8 +159,8 @@ class CreateTournamentRankingsUseCaseTest {
 
         val results = capturedRefs.captured
         assertEquals(1, results[0].rank) // Alice (2.5)
-        assertEquals(2, results[1].rank) // Charlie (1.0)
-        assertEquals(3, results[2].rank) // Bob (0.5)
-        assertEquals(4, results[3].rank) // Diana (0.0)
+        assertEquals(2, results[1].rank) // Charlie (2.0)
+        assertEquals(3, results[2].rank) // Bob (1.0)
+        assertEquals(4, results[3].rank) // Diana (0.5)
     }
 }

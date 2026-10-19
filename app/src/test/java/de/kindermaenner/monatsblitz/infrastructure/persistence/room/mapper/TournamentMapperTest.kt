@@ -77,13 +77,18 @@ class TournamentMapperTest {
     }
 
     @Test
-    fun `NewGame toEntity maps correctly`() {
-        val domain = NewGame(player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Open)
-        val entity = domain.toEntity(tournamentId = 5)
-        
-        assertEquals(5L, entity.tournamentId)
-        assertEquals(1L, entity.player1Id)
-        assertEquals(GameResult.Open, entity.result)
+    fun `NewGame toEntity maps correctly and sets dirty false for Open games`() {
+        val openGame = NewGame(player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Open)
+        val openEntity = openGame.toEntity(tournamentId = 5)
+
+        assertEquals(5L, openEntity.tournamentId)
+        assertEquals(1L, openEntity.player1Id)
+        assertEquals(GameResult.Open, openEntity.result)
+        assertEquals(false, openEntity.dirty)
+
+        val playedGame = NewGame(player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Win)
+        val playedEntity = playedGame.toEntity(tournamentId = 5)
+        assertEquals(true, playedEntity.dirty)
     }
 
     @Test

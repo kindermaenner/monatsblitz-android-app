@@ -26,7 +26,8 @@ import de.kindermaenner.monatsblitz.ui.root.RootViewModelFactory
 import de.kindermaenner.monatsblitz.ui.tournamentsetup.TournamentSetupViewModelFactory
 
 class AppContainer(context: Context) {
-    private val Context.dataStore by preferencesDataStore(name = "tournament_state")
+    private val Context.tournamentDataStore by preferencesDataStore(name = "tournament_state")
+    private val Context.settingsDataStore by preferencesDataStore(name = "app_settings")
     val database = AppDatabase.getInstance(context)
 
     private val api = RetrofitClient.createApi(API_KEY)
@@ -36,7 +37,7 @@ class AppContainer(context: Context) {
             playerDao = database.playerDao()
         )
 
-    val tournamentStorage = TournamentStorage(context.dataStore)
+    val tournamentStorage = TournamentStorage(context.tournamentDataStore)
     val tournamentRepository = TournamentRepositoryImpl(
         tournamentDao = database.tournamentDao(),
         tournamentStorage = tournamentStorage,
@@ -90,7 +91,7 @@ class AppContainer(context: Context) {
         createTournamentRankingsUseCase = createTournamentRankingUseCase
     )
 
-    val appSettingsStorage = de.kindermaenner.monatsblitz.infrastructure.settings.AppSettingsStorage(context.dataStore)
+    val appSettingsStorage = de.kindermaenner.monatsblitz.infrastructure.settings.AppSettingsStorage(context.settingsDataStore)
 
     val tournamentSyncManager = de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager(
         tournamentStorage = tournamentStorage,

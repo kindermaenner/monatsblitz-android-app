@@ -52,48 +52,59 @@ class TournamentSyncManagerTest {
     }
 
     @Test
-    fun `checkInitialStatus sets FAILED when dirty games exist`() = runTest {
+    fun `checkInitialStatus triggers sync and sets FAILED when dirty games remain unsynced`() = runTest {
         coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
+        val syncedTournament = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 100L)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(syncedTournament, emptyList(), emptyList())
         coEvery { gameDao.getDirtyGamesForTournament(1L) } returns listOf(mockk<GameEntity>())
-        coEvery { tournamentDao.getDirtyTournaments() } returns emptyList()
 
         syncManager.checkInitialStatus(1L)
 
+        coVerify { syncGameResultsUseCase() }
         assertEquals(SyncStatus.FAILED, syncManager.syncStatus.value)
     }
 
     @Test
-    fun `checkInitialStatus sets FAILED when dirty tournaments contains current tournament`() = runTest {
+    fun `checkInitialStatus triggers initial sync for new unsynced tournament and sets SYNCED on success`() = runTest {
         coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
         coEvery { gameDao.getDirtyGamesForTournament(1L) } returns emptyList()
-        val tournamentEntity = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
-        coEvery { tournamentDao.getDirtyTournaments() } returns listOf(TournamentWithDetails(tournamentEntity, emptyList(), emptyList()))
+        val unsyncedEntity = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
+        val syncedEntity = unsyncedEntity.copy(remoteId = 500L)
+        coEvery { tournamentDao.getTournament(1L) } returnsMany listOf(
+            TournamentWithDetails(unsyncedEntity, emptyList(), emptyList()),
+            TournamentWithDetails(syncedEntity, emptyList(), emptyList())
+        )
 
         syncManager.checkInitialStatus(1L)
 
-        assertEquals(SyncStatus.FAILED, syncManager.syncStatus.value)
-    }
-
-    @Test
-    fun `checkInitialStatus sets SYNCED when dirty tournaments contains only other tournament`() = runTest {
-        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
-        coEvery { gameDao.getDirtyGamesForTournament(1L) } returns emptyList()
-        val otherTournamentEntity = TournamentEntity(id = 99L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
-        coEvery { tournamentDao.getDirtyTournaments() } returns listOf(TournamentWithDetails(otherTournamentEntity, emptyList(), emptyList()))
-
-        syncManager.checkInitialStatus(1L)
-
+        coVerify { syncPlayersUseCase() }
+        coVerify { syncTournamentUseCase() }
         assertEquals(SyncStatus.SYNCED, syncManager.syncStatus.value)
     }
 
     @Test
-    fun `checkInitialStatus sets SYNCED when no dirty games exist`() = runTest {
+    fun `checkInitialStatus sets FAILED when initial tournament sync fails to obtain remoteId`() = runTest {
         coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
         coEvery { gameDao.getDirtyGamesForTournament(1L) } returns emptyList()
-        coEvery { tournamentDao.getDirtyTournaments() } returns emptyList()
+        val unsyncedEntity = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(unsyncedEntity, emptyList(), emptyList())
 
         syncManager.checkInitialStatus(1L)
 
+        coVerify { syncTournamentUseCase() }
+        assertEquals(SyncStatus.FAILED, syncManager.syncStatus.value)
+    }
+
+    @Test
+    fun `checkInitialStatus sets SYNCED without triggering network sync when tournament is already synced and no dirty games exist`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
+        val syncedEntity = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 100L)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(syncedEntity, emptyList(), emptyList())
+        coEvery { gameDao.getDirtyGamesForTournament(1L) } returns emptyList()
+
+        syncManager.checkInitialStatus(1L)
+
+        coVerify(exactly = 0) { syncTournamentUseCase() }
         assertEquals(SyncStatus.SYNCED, syncManager.syncStatus.value)
     }
 
@@ -120,6 +131,8 @@ class TournamentSyncManagerTest {
     @Test
     fun `triggerSync performs full sync and transitions to SYNCED`() = runTest {
         coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
+        val syncedEntity = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 100L)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(syncedEntity, emptyList(), emptyList())
         coEvery { gameDao.getDirtyGamesForTournament(1L) } returns emptyList()
 
         syncManager.triggerSync(1L)

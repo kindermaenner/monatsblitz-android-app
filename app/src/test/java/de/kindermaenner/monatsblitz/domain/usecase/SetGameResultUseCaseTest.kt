@@ -23,7 +23,7 @@ class SetGameResultUseCaseTest {
     }
 
     @Test
-    fun `invoke updates both directions of a game result`() = runTest {
+    fun `invoke stores canonical game result when player1Id is smaller than player2Id`() = runTest {
         val tournamentId = 1L
         val p1 = 10L
         val p2 = 20L
@@ -32,7 +32,19 @@ class SetGameResultUseCaseTest {
 
         useCase(tournamentId, p1, p2, leg, result)
 
-        coVerify { repository.updateGameResult(tournamentId, p1, p2, leg, GameResult.Win) }
-        coVerify { repository.updateGameResult(tournamentId, p2, p1, leg, GameResult.Loss) }
+        coVerify(exactly = 1) { repository.updateGameResult(tournamentId, 10L, 20L, leg, GameResult.Win) }
+    }
+
+    @Test
+    fun `invoke normalizes to canonical game result when player1Id is greater than player2Id`() = runTest {
+        val tournamentId = 1L
+        val p1 = 20L
+        val p2 = 10L
+        val leg = 1
+        val result = GameResult.Win
+
+        useCase(tournamentId, p1, p2, leg, result)
+
+        coVerify(exactly = 1) { repository.updateGameResult(tournamentId, 10L, 20L, leg, GameResult.Loss) }
     }
 }

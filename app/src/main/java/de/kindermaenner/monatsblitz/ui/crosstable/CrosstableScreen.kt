@@ -70,8 +70,16 @@ fun CrosstableScreen(
     var showBackDialog by remember { mutableStateOf(false) }
     val state by viewModel.uiState.collectAsState()
 
+    val handleBackNavigation = {
+        if (state.syncStatus == SyncStatus.FINALIZED) {
+            onBackToSetup()
+        } else {
+            showBackDialog = true
+        }
+    }
+
     BackHandler {
-        showBackDialog = true
+        handleBackNavigation()
     }
 
     CrosstableCancelDialog(
@@ -91,7 +99,7 @@ fun CrosstableScreen(
             CrosstableTopBar(
                 tournament = tournament,
                 syncStatus = state.syncStatus,
-                onBackClick = { showBackDialog = true },
+                onBackClick = handleBackNavigation,
                 onTriggerSync = { viewModel.triggerManualSync() },
                 onShowSyncedSnackbar = {
                     coroutineScope.launch {

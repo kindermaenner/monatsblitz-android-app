@@ -10,7 +10,9 @@ data class TournamentDto(
     val mode: String,
     @SerialName("round_count")
     val roundCount: Int,
-    val status: String = "open"
+    val status: String = "open",
+    @SerialName("player_ids")
+    val playerIds: List<Long> = emptyList()
 )
 
 @Serializable
@@ -18,5 +20,7 @@ data class NewTournamentDto(
     val date: String,
     val mode: String,
     @SerialName("round_count")
-    val roundCount: Int = 1
+    val roundCount: Int = 1,
+    @SerialName("player_ids")
+    val playerIds: List<Long> = emptyList()
 )

@@ -50,45 +50,51 @@ class TournamentSyncManager(
     override suspend fun triggerSync(tournamentId: Long) {
         if (_syncStatus.value == SyncStatus.FINALIZED) return
 
-
         syncMutex.withLock {
-            val state = tournamentStorage.getTournamentState().first()
-            if (state?.finalized == true) {
+            if (isFinalizedInStorage()) {
                 _syncStatus.value = SyncStatus.FINALIZED
                 return
             }
 
             _syncStatus.value = SyncStatus.SYNCING
+            _syncStatus.value = executeSyncSteps(tournamentId)
+        }
+    }
 
-            try {
-                // 1. Spieler synchronisieren (damit remoteIds existieren)
-                syncPlayersUseCase()
+    private suspend fun isFinalizedInStorage(): Boolean {
+        return tournamentStorage.getTournamentState().first()?.finalized == true
+    }
 
-                // 2. Turnier remote anlegen, falls noch nicht geschehen
-                syncTournamentUseCase()
+    private suspend fun executeSyncSteps(tournamentId: Long): SyncStatus {
+        return try {
+            syncPlayersUseCase()
+            syncTournamentUseCase()
+            syncGameResultsUseCase()
+            resolvePostSyncStatus(tournamentId)
+        } catch (e: HttpException) {
+            handleHttpException(e)
+        } catch (_: Exception) {
+            SyncStatus.FAILED
+        }
+    }
 
-                // 3. Spiele / Ergebnisse synchronisieren
-                syncGameResultsUseCase()
+    private suspend fun resolvePostSyncStatus(tournamentId: Long): SyncStatus {
+        val updatedTournament = tournamentDao.getTournament(tournamentId)
+        val isTournamentSynced = updatedTournament == null || updatedTournament.tournament.remoteId != null
+        val remainingDirtyGames = gameDao.getDirtyGamesForTournament(tournamentId)
+        return if (isTournamentSynced && remainingDirtyGames.isEmpty()) {
+            SyncStatus.SYNCED
+        } else {
+            SyncStatus.FAILED
+        }
+    }
 
-                // 4. Prüfen, ob Turnier und alle Spiele dieses Turniers synchronisiert wurden
-                val updatedTournament = tournamentDao.getTournament(tournamentId)
-                val isTournamentSynced = updatedTournament == null || updatedTournament.tournament.remoteId != null
-                val remainingDirtyGames = gameDao.getDirtyGamesForTournament(tournamentId)
-                if (isTournamentSynced && remainingDirtyGames.isEmpty()) {
-                    _syncStatus.value = SyncStatus.SYNCED
-                } else {
-                    _syncStatus.value = SyncStatus.FAILED
-                }
-            } catch (e: HttpException) {
-                if (e.code() == 403) {
-                    tournamentStorage.finalizeTournament()
-                    _syncStatus.value = SyncStatus.FINALIZED
-                } else {
-                    _syncStatus.value = SyncStatus.FAILED
-                }
-            } catch (e: Exception) {
-                _syncStatus.value = SyncStatus.FAILED
-            }
+    private suspend fun handleHttpException(e: HttpException): SyncStatus {
+        return if (e.code() == 403) {
+            tournamentStorage.finalizeTournament()
+            SyncStatus.FINALIZED
+        } else {
+            SyncStatus.FAILED
         }
     }
 }

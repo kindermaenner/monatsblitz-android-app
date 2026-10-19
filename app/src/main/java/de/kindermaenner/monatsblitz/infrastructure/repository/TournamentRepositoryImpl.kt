@@ -143,8 +143,7 @@ class TournamentRepositoryImpl(
     }
 
     override fun observeTournamentRanking(tournamentId: Long): Flow<List<TournamentRankingItem>> {
-        val resolvedPlayerDao = playerDao
-            ?: throw IllegalStateException("PlayerDao ist nicht konfiguriert")
+        val resolvedPlayerDao = requirePlayerDao()
 
         return tournamentPlayerDao.observeRankingForTournament(tournamentId)
             .map { entries ->
@@ -163,8 +162,7 @@ class TournamentRepositoryImpl(
     }
 
     override suspend fun syncDirtyTournaments() {
-        val api = monatsblitzApi
-            ?: throw IllegalStateException("MonatsblitzApi ist nicht konfiguriert")
+        val api = requireApi()
 
         tournamentDao.getDirtyTournaments().forEach {
             val dto = NewTournamentDto(
@@ -179,26 +177,29 @@ class TournamentRepositoryImpl(
                     tournamentDao.updateTournamentRemoteId(it.tournament.id, response.tournamentId)
                 }
             } catch (e: HttpException) {
-                if (e.code() == 409) {
-                    val existingOpenTournament = api.getTournaments().firstOrNull { remote ->
-                        remote.date == it.tournament.date.toString() &&
-                            remote.status.equals("open", ignoreCase = true)
-                    }
-                    if (existingOpenTournament != null) {
-                        tournamentDao.updateTournamentRemoteId(it.tournament.id, existingOpenTournament.id)
-                    } else {
-                        throw e
-                    }
-                } else {
-                    throw e
-                }
+                handleCreateTournamentConflict(api, it.tournament.id, it.tournament.date.toString(), e)
             }
         }
     }
 
+    private suspend fun handleCreateTournamentConflict(
+        api: MonatsblitzApi,
+        localTournamentId: Long,
+        tournamentDate: String,
+        exception: HttpException
+    ) {
+        if (exception.code() != 409) {
+            throw exception
+        }
+        val existingOpenTournament = api.getTournaments().firstOrNull { remote ->
+            remote.date == tournamentDate && remote.status.equals("open", ignoreCase = true)
+        } ?: throw exception
+
+        tournamentDao.updateTournamentRemoteId(localTournamentId, existingOpenTournament.id)
+    }
+
     override suspend fun syncDirtyGames() {
-        val api = monatsblitzApi
-            ?: throw IllegalStateException("MonatsblitzApi ist nicht konfiguriert")
+        val api = requireApi()
 
         val gamesByTournament = gameDao.getGamesForSync()
             .groupBy { it.tournamentRemoteId }
@@ -228,10 +229,8 @@ class TournamentRepositoryImpl(
     }
 
     override suspend fun submitResultsAndFinalize(tournamentId: Long) {
-        val api = monatsblitzApi
-            ?: throw IllegalStateException("MonatsblitzApi ist nicht konfiguriert")
-        val resolvedPlayerDao = playerDao
-            ?: throw IllegalStateException("PlayerDao ist nicht konfiguriert")
+        val api = requireApi()
+        val resolvedPlayerDao = requirePlayerDao()
 
         val tournamentWithDetails = tournamentDao.getTournament(tournamentId)
             ?: throw IllegalStateException("Turnier mit ID $tournamentId nicht gefunden")
@@ -299,8 +298,16 @@ class TournamentRepositoryImpl(
         return if (isRemoteFinalized) null else state.tournamentId
     }
 
+    private fun requireApi(): MonatsblitzApi =
+        monatsblitzApi ?: throw IllegalStateException(ERROR_API_NOT_CONFIGURED)
+
+    private fun requirePlayerDao(): PlayerDao =
+        playerDao ?: throw IllegalStateException(ERROR_PLAYER_DAO_NOT_CONFIGURED)
+
     companion object {
         const val TAG = "TournamentRepository"
+        private const val ERROR_API_NOT_CONFIGURED = "MonatsblitzApi ist nicht konfiguriert"
+        private const val ERROR_PLAYER_DAO_NOT_CONFIGURED = "PlayerDao ist nicht konfiguriert"
     }
 
 }

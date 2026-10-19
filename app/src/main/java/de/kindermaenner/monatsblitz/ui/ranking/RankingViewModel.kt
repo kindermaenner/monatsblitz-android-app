@@ -28,18 +28,12 @@ class RankingViewModel(
         observeRanking()
     }
 
-    private fun observeRanking() {
-        val tournamentFlow = runCatching {
-            tournamentRepository.observeTournament(tournamentId)
-        }.getOrNull() ?: flowOf(null)
-        val syncStatusFlow = tournamentSyncService?.syncStatus ?: flowOf(SyncStatus.SYNCED)
+    private var openGamesCount = 0
+    private var isReadOnly = false
 
+    private fun observeRanking() {
         viewModelScope.launch {
-            combine(
-                tournamentRepository.observeTournamentRanking(tournamentId),
-                tournamentFlow,
-                syncStatusFlow
-            ) { items, tournament, syncStatus ->
+            tournamentRepository.observeTournamentRanking(tournamentId).collect { items ->
                 val rows = items.map { item ->
                     RankingRowData(
                         name = item.name,
@@ -47,22 +41,43 @@ class RankingViewModel(
                         rank = item.rank
                     )
                 }
-                val openGamesCount = tournament?.games?.values?.count {
-                    it.result == GameResult.Open
-                } ?: 0
-                val isReadOnly = syncStatus == SyncStatus.FINALIZED
-
-                Triple(rows, openGamesCount, isReadOnly)
-            }.collect { (rows, openGamesCount, isReadOnly) ->
                 val currentReady = _uiState.value as? RankingUiState.Ready
                 _uiState.value = RankingUiState.Ready(
                     rows = rows,
-                    openGamesCount = openGamesCount,
-                    isReadOnly = isReadOnly,
+                    openGamesCount = currentReady?.openGamesCount ?: openGamesCount,
+                    isReadOnly = currentReady?.isReadOnly ?: isReadOnly,
                     isFinalizing = currentReady?.isFinalizing ?: false,
                     isFinalized = currentReady?.isFinalized ?: false,
                     finalizeError = currentReady?.finalizeError
                 )
+            }
+        }
+
+        viewModelScope.launch {
+            runCatching { tournamentRepository.observeTournament(tournamentId) }
+                .getOrNull()
+                ?.collect { tournament ->
+                    val count = tournament?.games?.values?.count {
+                        it.result == GameResult.Open
+                    } ?: 0
+                    openGamesCount = count
+                    val currentReady = _uiState.value as? RankingUiState.Ready
+                    if (currentReady != null) {
+                        _uiState.value = currentReady.copy(openGamesCount = count)
+                    }
+                }
+        }
+
+        if (tournamentSyncService != null) {
+            viewModelScope.launch {
+                tournamentSyncService.syncStatus.collect { syncStatus ->
+                    val readOnly = syncStatus == SyncStatus.FINALIZED
+                    isReadOnly = readOnly
+                    val currentReady = _uiState.value as? RankingUiState.Ready
+                    if (currentReady != null) {
+                        _uiState.value = currentReady.copy(isReadOnly = readOnly)
+                    }
+                }
             }
         }
     }

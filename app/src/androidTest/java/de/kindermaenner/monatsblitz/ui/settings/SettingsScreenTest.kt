@@ -1,11 +1,11 @@
-package de.kindermaenner.monatsblitz.ui.screens
+package de.kindermaenner.monatsblitz.ui.settings
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import de.kindermaenner.monatsblitz.infrastructure.settings.AppSettingsStorage
+import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -20,18 +20,19 @@ class SettingsScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private val appSettingsStorage = mockk<AppSettingsStorage>(relaxed = true)
+    private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
 
     @Test
     fun settingsScreen_displaysTitleAndSetting() {
         val flow = MutableStateFlow(true)
-        every { appSettingsStorage.showDetailedSyncIndicators } returns flow
+        every { settingsRepository.showDetailedSyncIndicators } returns flow
 
+        val viewModel = SettingsViewModel(settingsRepository)
         var backClicked = false
 
         composeTestRule.setContent {
             SettingsScreen(
-                appSettingsStorage = appSettingsStorage,
+                viewModel = viewModel,
                 onBack = { backClicked = true }
             )
         }
@@ -47,12 +48,14 @@ class SettingsScreenTest {
     @Test
     fun settingsScreen_clickRow_togglesSetting() {
         val flow = MutableStateFlow(true)
-        every { appSettingsStorage.showDetailedSyncIndicators } returns flow
-        coEvery { appSettingsStorage.setShowDetailedSyncIndicators(false) } returns Unit
+        every { settingsRepository.showDetailedSyncIndicators } returns flow
+        coEvery { settingsRepository.setShowDetailedSyncIndicators(false) } returns Unit
+
+        val viewModel = SettingsViewModel(settingsRepository)
 
         composeTestRule.setContent {
             SettingsScreen(
-                appSettingsStorage = appSettingsStorage,
+                viewModel = viewModel,
                 onBack = {}
             )
         }
@@ -60,6 +63,6 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithText("Detaillierte Sync-Indikatoren").performClick()
         composeTestRule.waitForIdle()
 
-        coVerify { appSettingsStorage.setShowDetailedSyncIndicators(false) }
+        coVerify { settingsRepository.setShowDetailedSyncIndicators(false) }
     }
 }

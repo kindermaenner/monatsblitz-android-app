@@ -5,11 +5,9 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
-import io.mockk.coEvery
+import de.kindermaenner.monatsblitz.domain.model.TournamentRankingItem
+import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertTrue
@@ -21,23 +19,23 @@ class RankingScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private val tournamentPlayerDao = mockk<TournamentPlayerDao>(relaxed = true)
-    private val playerDao = mockk<PlayerDao>(relaxed = true)
+    private val tournamentRepository = mockk<TournamentRepository>(relaxed = true)
 
     @Test
     fun rankingScreen_displaysRowsAndHandlesBack() {
         val tournamentId = 1L
-        val rankingRefs = listOf(
-            TournamentPlayerCrossRef(tournamentId, 1, 3.0, 1)
-        )
-        val players = listOf(
-            PlayerEntity(id = 1, name = "Mustermann", vorname = "Max", dirty = false)
+        val rankingItems = listOf(
+            TournamentRankingItem(
+                playerId = 1L,
+                rank = 1,
+                name = "Max Mustermann",
+                points = 3.0
+            )
         )
 
-        coEvery { tournamentPlayerDao.observeRankingForTournament(tournamentId) } returns flowOf(rankingRefs)
-        coEvery { playerDao.getAllPlayers() } returns players
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
 
-        val viewModel = RankingViewModel(tournamentId, tournamentPlayerDao, playerDao)
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository)
 
         var backClicked = false
 
@@ -58,17 +56,18 @@ class RankingScreenTest {
     @Test
     fun rankingScreen_finalizeButtonClick_opensConfirmDialog() {
         val tournamentId = 1L
-        val rankingRefs = listOf(
-            TournamentPlayerCrossRef(tournamentId, 1, 3.0, 1)
-        )
-        val players = listOf(
-            PlayerEntity(id = 1, name = "Mustermann", vorname = "Max", dirty = false)
+        val rankingItems = listOf(
+            TournamentRankingItem(
+                playerId = 1L,
+                rank = 1,
+                name = "Max Mustermann",
+                points = 3.0
+            )
         )
 
-        coEvery { tournamentPlayerDao.observeRankingForTournament(tournamentId) } returns flowOf(rankingRefs)
-        coEvery { playerDao.getAllPlayers() } returns players
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
 
-        val viewModel = RankingViewModel(tournamentId, tournamentPlayerDao, playerDao)
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository)
 
         composeTestRule.setContent {
             RankingScreen(

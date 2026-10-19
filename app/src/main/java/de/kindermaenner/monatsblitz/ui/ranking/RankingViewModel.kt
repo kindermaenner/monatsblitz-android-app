@@ -3,18 +3,15 @@ package de.kindermaenner.monatsblitz.ui.ranking
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.toDomain
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class RankingViewModel(
     private val tournamentId: Long,
-    private val tournamentPlayerDao: TournamentPlayerDao,
-    private val playerDao: PlayerDao,
+    private val tournamentRepository: TournamentRepository,
     private val finalizeTournamentUseCase: FinalizeTournamentUseCase? = null
 ) : ViewModel() {
 
@@ -27,18 +24,13 @@ class RankingViewModel(
 
     private fun observeRanking() {
         viewModelScope.launch {
-            tournamentPlayerDao.observeRankingForTournament(tournamentId)
-                .collect { entries ->
-
-                    entries.forEach { x -> Log.i("RakingViewModel", "$x") }
-                    val players = playerDao.getAllPlayers().associateBy { it.id }
-                    val rows = entries.filter {e -> e.rank != null}.map { entry ->
-                        val playerRankingEntry = entry.toDomain()
-                        val player = players[entry.playerId]
+            tournamentRepository.observeTournamentRanking(tournamentId)
+                .collect { items ->
+                    val rows = items.map { item ->
                         RankingRowData(
-                            name = if (player != null) "${player.vorname} ${player.name}" else "Unbekannt",
-                            points = playerRankingEntry.points,
-                            rank = playerRankingEntry.rank
+                            name = item.name,
+                            points = item.points,
+                            rank = item.rank
                         )
                     }
 
@@ -52,6 +44,7 @@ class RankingViewModel(
                 }
         }
     }
+
 
     fun finalizeTournament() {
         val currentState = _uiState.value

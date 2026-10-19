@@ -1,11 +1,6 @@
 package de.kindermaenner.monatsblitz.domain.usecase
 
-import de.kindermaenner.monatsblitz.domain.model.GameResult
-import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
-import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGamesResponseDto
-import de.kindermaenner.monatsblitz.infrastructure.api.dto.GameSyncResponseItemDto
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.GameDao
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.projection.GameSyncData
+import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -14,78 +9,21 @@ import org.junit.Test
 
 class SyncGameResultsUseCaseTest {
 
-    private val api = mockk<MonatsblitzApi>()
-    private val dao = mockk<GameDao>(relaxed = true)
-    private val useCase = SyncGameResultsUseCase(api, dao)
+    private val tournamentRepository = mockk<TournamentRepository>(relaxed = true)
+    private val useCase = SyncGameResultsUseCase(tournamentRepository)
 
     @Test
-    fun `invoke syncs dirty games to remote`() = runTest {
-        val syncData = GameSyncData(
-            localGameId = 1,
-            tournamentRemoteId = 100,
-            player1Id = 10,
-            player2Id = 20,
-            leg = 1,
-            result = GameResult.Win
-        )
-        
-        coEvery { dao.getGamesForSync() } returns listOf(syncData)
-        coEvery { api.createGames(any()) } returns CreateGamesResponseDto(
-            success = true, 
-            count = 1,
-            items = listOf(GameSyncResponseItemDto(success = true, gameId = 1000))
-        )
-
+    fun `invoke delegates to tournamentRepository syncDirtyGames`() = runTest {
         useCase()
 
-        coVerify { api.createGames(match { it.tournamentId == 100 && it.games.size == 1 }) }
-        coVerify { dao.markGameAsSynced(1, 1000) }
+        coVerify(exactly = 1) { tournamentRepository.syncDirtyGames() }
     }
 
-    @Test
-    fun `invoke should not mark games as synced if api returns success false`() = runTest {
-        val syncData = GameSyncData(1, 100, 10, 20, 1, GameResult.Win)
-        
-        coEvery { dao.getGamesForSync() } returns listOf(syncData)
-        coEvery { api.createGames(any()) } returns CreateGamesResponseDto(
-            success = false, 
-            count = 0,
-            items = emptyList()
-        )
+    @Test(expected = Exception::class)
+    fun `invoke rethrows exception if repository sync fails`() = runTest {
+        coEvery { tournamentRepository.syncDirtyGames() } throws Exception("Network error")
 
         useCase()
-
-        coVerify { api.createGames(any()) }
-        coVerify(exactly = 0) { dao.markGameAsSynced(any(), any()) }
-    }
-
-    @Test
-    fun `invoke syncs dirty games to remote with existing remoteGameId`() = runTest {
-        val syncData = GameSyncData(
-            localGameId = 1,
-            tournamentRemoteId = 100,
-            player1Id = 10,
-            player2Id = 20,
-            leg = 1,
-            result = GameResult.Win,
-            remoteGameId = 555L
-        )
-
-        coEvery { dao.getGamesForSync() } returns listOf(syncData)
-        coEvery { api.createGames(any()) } returns CreateGamesResponseDto(
-            success = true,
-            count = 1,
-            items = listOf(GameSyncResponseItemDto(success = true, gameId = 555))
-        )
-
-        useCase()
-
-        coVerify {
-            api.createGames(match { request ->
-                request.tournamentId == 100 &&
-                    request.games.first().gameId == 555
-            })
-        }
-        coVerify { dao.markGameAsSynced(1, 555) }
     }
 }
+

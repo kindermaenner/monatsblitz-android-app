@@ -49,8 +49,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import de.kindermaenner.monatsblitz.domain.model.GameResult
+import de.kindermaenner.monatsblitz.domain.model.SyncStatus
 import de.kindermaenner.monatsblitz.domain.model.Tournament
-import de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableHeader
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableRow
 import kotlinx.coroutines.launch

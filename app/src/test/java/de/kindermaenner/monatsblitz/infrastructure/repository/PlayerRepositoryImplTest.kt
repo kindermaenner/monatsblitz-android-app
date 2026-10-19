@@ -1,6 +1,8 @@
 package de.kindermaenner.monatsblitz.infrastructure.repository
 
 import de.kindermaenner.monatsblitz.domain.model.NewPlayer
+import de.kindermaenner.monatsblitz.infrastructure.api.PlayerRemoteDataSource
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity
 import io.mockk.coEvery
@@ -14,8 +16,9 @@ import org.junit.Test
 
 class PlayerRepositoryImplTest {
 
-    private val playerDao = mockk<PlayerDao>()
-    private val repository = PlayerRepositoryImpl(playerDao)
+    private val playerDao = mockk<PlayerDao>(relaxed = true)
+    private val remoteDataSource = mockk<PlayerRemoteDataSource>()
+    private val repository = PlayerRepositoryImpl(playerDao, remoteDataSource)
 
     @Test
     fun `observePlayers returns mapped domain players`() = runTest {
@@ -69,4 +72,53 @@ class PlayerRepositoryImplTest {
         assertEquals(1, result.size)
         assertEquals("Alice Meier", result[0].fullName)
     }
+
+    @Test
+    fun `syncPlayers syncs dirty players to remote and remote players to local`() = runTest {
+        val dirtyPlayer = PlayerEntity(id = 1, remoteId = null, name = "N1", vorname = "V1", dirty = true)
+        coEvery { playerDao.getDirtyPlayers() } returns listOf(dirtyPlayer)
+        coEvery { remoteDataSource.createPlayer(any()) } returns PlayerDto(id = 100, surname = "N1", forename = "V1")
+
+        val remotePlayerDto = PlayerDto(id = 200, surname = "N2", forename = "V2")
+        coEvery { remoteDataSource.getPlayers() } returns listOf(remotePlayerDto)
+        coEvery { playerDao.getPlayerByRemoteId(200L) } returns null
+        coEvery { playerDao.findPlayersByName("V2", "N2") } returns emptyList()
+
+        repository.syncPlayers()
+
+        coVerify { remoteDataSource.createPlayer(match { it.forename == "V1" && it.surname == "N1" }) }
+        coVerify { playerDao.setRemoteId(1, 100L) }
+        coVerify { playerDao.insert(match { it.remoteId == 200L && it.vorname == "V2" }) }
+    }
+
+    @Test
+    fun `syncPlayers updates local player when remote player exists by remoteId`() = runTest {
+        coEvery { playerDao.getDirtyPlayers() } returns emptyList()
+        val remoteDto = PlayerDto(id = 300, surname = "Mustermann", forename = "Max")
+        coEvery { remoteDataSource.getPlayers() } returns listOf(remoteDto)
+        val existingLocal = PlayerEntity(id = 5, remoteId = 300L, name = "Alt", vorname = "Max", dirty = false)
+        coEvery { playerDao.getPlayerByRemoteId(300L) } returns existingLocal
+
+        repository.syncPlayers()
+
+        coVerify { playerDao.update(match { it.id == 5L && it.remoteId == 300L && it.name == "Mustermann" }) }
+        coVerify(exactly = 0) { playerDao.insert(any()) }
+    }
+
+    @Test
+    fun `syncPlayers links remoteId when local player exists by name but has no remoteId`() = runTest {
+        coEvery { playerDao.getDirtyPlayers() } returns emptyList()
+        val remoteDto = PlayerDto(id = 400, surname = "Schmidt", forename = "Erika")
+        coEvery { remoteDataSource.getPlayers() } returns listOf(remoteDto)
+        coEvery { playerDao.getPlayerByRemoteId(400L) } returns null
+        val existingByName = PlayerEntity(id = 12, remoteId = null, name = "Schmidt", vorname = "Erika", dirty = false)
+        coEvery { playerDao.findPlayersByName("Erika", "Schmidt") } returns listOf(existingByName)
+
+        repository.syncPlayers()
+
+        coVerify { playerDao.setRemoteId(playerId = 12L, remoteId = 400L) }
+        coVerify(exactly = 0) { playerDao.insert(any()) }
+        coVerify(exactly = 0) { playerDao.update(any()) }
+    }
 }
+

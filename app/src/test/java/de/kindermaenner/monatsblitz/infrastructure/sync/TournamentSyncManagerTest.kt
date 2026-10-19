@@ -1,6 +1,7 @@
 package de.kindermaenner.monatsblitz.infrastructure.sync
 
 import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.SyncStatus
 import de.kindermaenner.monatsblitz.domain.usecase.SyncGameResultsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncTournamentUseCase

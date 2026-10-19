@@ -1,7 +1,8 @@
 package de.kindermaenner.monatsblitz.ui.crosstable
 
+import de.kindermaenner.monatsblitz.domain.model.SyncStatus
 import de.kindermaenner.monatsblitz.domain.model.Tournament
-import de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus
+
 
 data class CrosstableUiState(
     val tournament: Tournament? = null,

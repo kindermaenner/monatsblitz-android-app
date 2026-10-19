@@ -1,26 +1,36 @@
 package de.kindermaenner.monatsblitz.ui.ranking
 
 import androidx.lifecycle.ViewModel
+import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
+import de.kindermaenner.monatsblitz.util.MainDispatcherRule
+import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 class RankingViewModelFactoryTest {
 
-    private val tournamentPlayerDao = mockk<TournamentPlayerDao>(relaxed = true)
-    private val playerDao = mockk<PlayerDao>(relaxed = true)
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
+    private val tournamentRepository = mockk<TournamentRepository>(relaxed = true)
     private val finalizeTournamentUseCase = mockk<FinalizeTournamentUseCase>(relaxed = true)
+
+    @Before
+    fun setUp() {
+        every { tournamentRepository.observeTournamentRanking(any()) } returns flowOf(emptyList())
+    }
 
     @Test
     fun `create should return RankingViewModel when modelClass matches`() {
         val factory = RankingViewModelFactory(
             tournamentId = 42L,
-            tournamentPlayerDao = tournamentPlayerDao,
-            playerDao = playerDao,
+            tournamentRepository = tournamentRepository,
             finalizeTournamentUseCase = finalizeTournamentUseCase
         )
 
@@ -32,8 +42,7 @@ class RankingViewModelFactoryTest {
     fun `create should throw IllegalArgumentException for unknown ViewModel class`() {
         val factory = RankingViewModelFactory(
             tournamentId = 42L,
-            tournamentPlayerDao = tournamentPlayerDao,
-            playerDao = playerDao
+            tournamentRepository = tournamentRepository
         )
 
         class UnknownViewModel : ViewModel()
@@ -43,3 +52,4 @@ class RankingViewModelFactoryTest {
         }
     }
 }
+

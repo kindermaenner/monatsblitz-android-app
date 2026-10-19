@@ -2,12 +2,12 @@ package de.kindermaenner.monatsblitz.ui.crosstable
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
 import de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
-import de.kindermaenner.monatsblitz.infrastructure.settings.AppSettingsStorage
-import de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager
 
 class CrosstableViewModelFactory(
     private val tournamentRepository: TournamentRepository,
@@ -15,8 +15,8 @@ class CrosstableViewModelFactory(
     private val createTournamentRankingsUseCase: CreateTournamentRankingsUseCase,
     private val calculatePlayerPointsUseCase: CalculatePlayerPointsUseCase,
     private val tournamentId: Long,
-    private val tournamentSyncManager: TournamentSyncManager? = null,
-    private val appSettingsStorage: AppSettingsStorage? = null
+    private val tournamentSyncService: TournamentSyncService? = null,
+    private val settingsRepository: SettingsRepository? = null
 ) : ViewModelProvider.Factory {
 
     constructor(
@@ -45,11 +45,12 @@ class CrosstableViewModelFactory(
                 createTournamentRankingsUseCase,
                 calculatePlayerPointsUseCase,
                 tournamentId,
-                tournamentSyncManager,
-                appSettingsStorage
+                tournamentSyncService,
+                settingsRepository
             ) as T
         }
 
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }
+

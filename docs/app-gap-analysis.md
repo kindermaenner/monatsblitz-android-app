@@ -12,9 +12,9 @@ Diese Analyse gleicht den aktuellen Implementierungsstand der **Monatsblitz Andr
 | **GAP-F2** | Spezifikation / Sync | Initialer Turnier-/Ergebnisabgleich beim App-Start (§1.3) und Read-before-Write (§2.3.2) fehlen (Dokumentations-Diskrepanz V1 vs. V2) | 🟠 Hoch |
 | **GAP-F3** | Spezifikation / UI | Detaillierte Sync-Indikatoren für **neue Spieler** werden in den Einstellungen versprochen, aber im Setup-Screen nicht angezeigt | 🟡 Mittel |
 | **GAP-F4** | Datenmodell / DB | Namenseindeutigkeit in SQLite (`Index(vorname, name)`) ist ohne `COLLATE NOCASE` auf DB-Ebene case-sensitive | 🟡 Mittel |
-| **GAP-A1** | Clean Architecture | **Schichtenverletzung im Domain-Layer:** 6 von 10 Use Cases importieren direkt Room-DAOs, Retrofit-APIs, DTOs oder DataStore aus `infrastructure` | 🔴 Kritisch |
-| **GAP-A2** | Clean Architecture | **Schichtenverletzung im UI-Layer:** `RootViewModel`, `RankingViewModel`, `CrosstableViewModel` und `SettingsScreen` greifen direkt auf `infrastructure` (DAOs, API, Storage) zu | 🟠 Hoch |
-| **GAP-A3** | Clean Architecture | Doppelte Verantwortlichkeit beim Speichern des Turnierzustands (`CreateTournamentUseCase` UND `TournamentRepositoryImpl`) | 🟡 Mittel |
+| **GAP-A1** | Clean Architecture | ~~**Schichtenverletzung im Domain-Layer:** 6 von 10 Use Cases importieren direkt Room-DAOs, Retrofit-APIs, DTOs oder DataStore aus `infrastructure`~~ | ✅ Erledigt |
+| **GAP-A2** | Clean Architecture | ~~**Schichtenverletzung im UI-Layer:** `RootViewModel`, `RankingViewModel`, `CrosstableViewModel` und `SettingsScreen` greifen direkt auf `infrastructure` (DAOs, API, Storage) zu~~ | ✅ Erledigt |
+| **GAP-A3** | Clean Architecture | ~~Doppelte Verantwortlichkeit beim Speichern des Turnierzustands (`CreateTournamentUseCase` UND `TournamentRepositoryImpl`)~~ | ✅ Erledigt |
 | **GAP-A4** | Code-Hygiene | ~~Verwaiste Altlasten aus ADR-001 (`RootUiState`, `RootEffect`, `ErrorComponent`, `LoadingComponent`) noch im Codebestand~~ | ✅ Erledigt |
 | **GAP-UX1** | UX / Material 3 | `RankingScreen` und `RankingTable` nutzen kein `Scaffold`, kein `LazyColumn` (nicht scrollbar!), keine M3-Typografie/Abstände und formatieren Punkte als `1.0` statt `1` / `½` | 🟠 Hoch |
 | **GAP-UX2** | UX / Workflow | Kein manueller Spieler-Sync (z. B. Pull-to-Refresh / Sync-Button) und kein Lade-/Offline-Feedback im `TournamentSetupScreen` | 🟠 Hoch |
@@ -111,30 +111,15 @@ flowchart TD
     linkStyle 8,9,10,11,12,13,14,15 stroke:#d32f2f,stroke-width:2px;
 ```
 
-### GAP-A1: Massive Schichtenverletzung im Domain-Layer (🔴 Kritisch)
-Fast alle Use Cases im Package `de.kindermaenner.monatsblitz.domain.usecase` umgehen die Repository-Abstraktion und hängen direkt von `infrastructure` (Room-DAOs, Retrofit-Interfaces, Netzwerk-DTOs, DataStore) oder dem Android-SDK ab:
+### GAP-A1: Massive Schichtenverletzung im Domain-Layer (✅ Erledigt)
+Sämtliche Use Cases in `de.kindermaenner.monatsblitz.domain.usecase` (`CreateTournamentUseCase`, `CreateTournamentRankingsUseCase`, `FinalizeTournamentUseCase`, `SyncGameResultsUseCase`, `SyncPlayersUseCase`, `SyncTournamentUseCase`, `SetGameResultUseCase`) wurden vollständig von `infrastructure.*`- und `android.*`-Abhängigkeiten entkoppelt und arbeiten ausschließlich gegen Domain-Modelle und Domain-Repository-Interfaces (`PlayerRepository`, `TournamentRepository`).
 
-| Use Case (`domain.usecase`) | Unerlaubte Abhängigkeiten (`infrastructure` / `android`) |
-| :--- | :--- |
-| [`CreateTournamentUseCase`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/usecase/CreateTournamentUseCase.kt) | `infrastructure.TournamentStorage` |
-| [`CreateTournamentRankingsUseCase`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/usecase/CreateTournamentRankingsUseCase.kt) | `infrastructure.persistence.room.dao.TournamentPlayerDao`, `toEntity()` |
-| [`FinalizeTournamentUseCase`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/usecase/FinalizeTournamentUseCase.kt) | `MonatsblitzApi`, `CreateResultsDto`, `FinalizeRequestDto`, `FinalizeResponseDto` (als Rückgabetyp!), `ResultDto`, `PlayerDao`, `TournamentDao`, `TournamentPlayerDao`, `TournamentStorage` |
-| [`SyncGameResultsUseCase`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/usecase/SyncGameResultsUseCase.kt) | `MonatsblitzApi`, `CreateGamesDto`, `GameDtoData`, `GameDao` |
-| [`SyncPlayersUseCase`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/usecase/SyncPlayersUseCase.kt) | `PlayerRemoteDataSource`, `PlayerDao`, DTO-Mapper |
-| [`SyncTournamentUseCase`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/usecase/SyncTournamentUseCase.kt) | `MonatsblitzApi`, `TournamentDao`, `toDto()` |
-| [`SetGameResultUseCase`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/usecase/SetGameResultUseCase.kt) | `android.util.Log` (verhindert reine JVM-Unabhängigkeit ohne Mocking/Default-Values) |
+### GAP-A2: Schichtenverletzung im UI-Layer (✅ Erledigt)
+* `RootViewModel`, `RankingViewModel` und `CrosstableViewModel` nutzen ausschließlich Domain-Interfaces (`TournamentRepository`, `SettingsRepository`, `TournamentSyncService`) und Domain-Modelle (`SyncStatus`, `TournamentRankingItem`).
+* `SettingsScreen` wurde gemäß [`ADR-003`](./architecture/adr/ADR-003-jetpack-navigation.md) in das Package `ui.settings` verschoben und um ein eigenes `SettingsViewModel` (`SettingsViewModelFactory`) ergänzt.
 
-### GAP-A2: Schichtenverletzung im UI-Layer (🟠 Hoch)
-Auch der UI-Layer greift an mehreren Stellen direkt auf die Infrastruktur-Schicht zu, anstatt über Use Cases oder Domain-Interfaces zu gehen:
-* [`RootViewModel`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/root/RootViewModel.kt) injiziert sich direkt `TournamentStorage`, `TournamentDao` und `MonatsblitzApi`, um den initialen App-Zustand zu bestimmen. Diese Logik gehört in einen dedizierten Domain-Use-Case (z. B. `GetInitialAppStateUseCase` / `SessionRepository`).
-* [`RankingViewModel`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/ranking/RankingViewModel.kt) nutzt direkt `TournamentPlayerDao`, `PlayerDao` und den Room-Mapper `toDomain()`, anstatt das Ranking über `TournamentRepository` (oder einen `ObserveTournamentRankingUseCase`) zu beziehen.
-* [`CrosstableViewModel`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/CrosstableViewModel.kt) und [`CrosstableUiState`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/CrosstableUiState.kt) importieren `AppSettingsStorage`, `TournamentSyncManager` und `SyncStatus` direkt aus `infrastructure`.
-* [`SettingsScreen`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/screens/SettingsScreen.kt) besitzt kein ViewModel und erhält direkt die `infrastructure`-Klasse [`AppSettingsStorage`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/settings/AppSettingsStorage.kt) als Parameter, auf der im Composable via `rememberCoroutineScope()` Schreiboperationen ausgeführt werden. Zudem liegt `SettingsScreen.kt` im inkonsistenten Package `ui.screens` statt feature-basiert unter `ui.settings` (vgl. [`ADR-003`](./architecture/adr/ADR-003-jetpack-navigation.md)).
-
-### GAP-A3: Doppelte Zustands-Persistenz bei Turnieranlage (🟡 Mittel)
-Beim Erstellen eines Turniers wird `tournamentStorage.saveTournamentState(tournamentId, false)` doppelt aufgerufen:
-1. Innerhalb der Room-Transaktion in [`TournamentRepositoryImpl.createTournament()`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/repository/TournamentRepositoryImpl.kt).
-2. Unmittelbar danach erneut in [`CreateTournamentUseCase.invoke()`](../app/src/main/java/de/kindermaenner/monatsblitz/domain/usecase/CreateTournamentUseCase.kt).
+### GAP-A3: Doppelte Zustands-Persistenz bei Turnieranlage (✅ Erledigt)
+Das Speichern des initialen Turnierzustands (`tournamentStorage.saveTournamentState(tournamentId, false)`) erfolgt nur noch zentral in `TournamentRepositoryImpl.createTournament()` und wurde aus `CreateTournamentUseCase` entfernt.
 
 ### GAP-A4: Tote Altlasten aus ADR-001 (✅ Erledigt)
 Die nach [`ADR-001`](./architecture/adr/ADR-001-navigation-approach.md) bzw. [`ADR-003`](./architecture/adr/ADR-003-jetpack-navigation.md) verwaisten Dateien (`RootEffect.kt`, `RootUiState.kt`, `ErrorComponent.kt`, `LoadingComponent.kt`) wurden vollständig aus dem Codebestand entfernt.
@@ -171,7 +156,7 @@ Während [`TournamentSetupScreen`](../app/src/main/java/de/kindermaenner/monatsb
 ## 5. Android-Entwicklung Best Practices
 
 ### GAP-AND1: Hintergrund-Synchronisation an `viewModelScope` gekoppelt (🟠 Hoch)
-* In [`CrosstableViewModel.setResult()`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/CrosstableViewModel.kt) wird `tournamentSyncManager?.triggerSync(tournament.id)` innerhalb von `viewModelScope.launch` ausgeführt.
+* In [`CrosstableViewModel.setResult()`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/CrosstableViewModel.kt) wird `tournamentSyncService?.triggerSync(tournament.id)` innerhalb von `viewModelScope.launch` ausgeführt.
 * Navigiert der Nutzer nach der letzten Ergebniseingabe oder nach dem Zurückkehren aus dem Screen weg (und wird das ViewModel zerstört) oder schließt die App kurzzeitig, bricht die laufende Coroutine mitten im Netzwerk-Request ab (z. B. nachdem `POST /game` auf dem Server ankam, aber bevor `gameDao.markGameAsSynced()` lokal ausgeführt werden konnte).
 * **Best Practice:** [`TournamentSyncManager`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/sync/TournamentSyncManager.kt) ist ein Singleton im [`AppContainer`](../app/src/main/java/de/kindermaenner/monatsblitz/app/AppContainer.kt) und sollte einen eigenen Application-weiten `CoroutineScope(SupervisorJob() + Dispatchers.IO)` (oder `WorkManager` für garantierte Hintergrund-Ausführung bei Netzwiederkehr gemäß [`01-FunctionalRequirements.md` §1.5](./specs/01-FunctionalRequirements.md)) nutzen.
 
@@ -180,11 +165,11 @@ Während [`TournamentSetupScreen`](../app/src/main/java/de/kindermaenner/monatsb
 * **Risiko:** Bei jedem zukünftigen App-Update mit einer Erhöhung der DB-Version werden sämtliche lokalen Turnier- und Spielerdaten kommentarlos gelöscht. Zudem können ohne `exportSchema = true` keine automatisierten Room-Migrationstests geschrieben werden.
 
 ### GAP-AND3: Fehlende Lifecycle-Awareness bei Flow-Collection in Compose (🟡 Mittel)
-* In [`MainActivity.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/MainActivity.kt), [`TournamentSetupScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/tournamentsetup/TournamentSetupScreen.kt), [`CrosstableScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/CrosstableScreen.kt), [`RankingScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/ranking/RankingScreen.kt) und [`SettingsScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/screens/SettingsScreen.kt) wird `collectAsState()` verwendet.
+* In [`MainActivity.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/MainActivity.kt), [`TournamentSetupScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/tournamentsetup/TournamentSetupScreen.kt), [`CrosstableScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/CrosstableScreen.kt), [`RankingScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/ranking/RankingScreen.kt) und [`SettingsScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/settings/SettingsScreen.kt) wird `collectAsState()` verwendet.
 * **Best Practice:** Verwendung von `collectAsStateWithLifecycle()` (`androidx.lifecycle:lifecycle-runtime-compose`), damit Datenbank-Flows (`SharingStarted.WhileSubscribed(5000)`) tatsächlich pausiert werden, wenn die App im Hintergrund liegt.
 
-### GAP-AND4: Ineffiziente Datenbankabfrage in `RankingViewModel` & Re-Allokationen in `CrosstableScreen` (🟡 Mittel)
-* **Ungefiltertes Nachladen aller Spieler:** [`RankingViewModel.observeRanking()`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/ranking/RankingViewModel.kt) ruft bei jeder Emission `playerDao.getAllPlayers()` auf, anstatt per SQL-Join direkt die Turnierteilnehmer samt Rangliste aus Room zu beziehen.
+### GAP-AND4: Ineffiziente Datenbankabfrage in `TournamentRepositoryImpl.observeTournamentRanking` & Re-Allokationen in `CrosstableScreen` (🟡 Mittel)
+* **Ungefiltertes Nachladen aller Spieler:** [`TournamentRepositoryImpl.observeTournamentRanking()`](../app/src/main/java/de/kindermaenner/monatsblitz/infrastructure/repository/TournamentRepositoryImpl.kt) ruft bei jeder Emission `playerDao.getAllPlayers()` auf, anstatt per SQL-Join direkt die Turnierteilnehmer samt Rangliste aus Room zu beziehen.
 * **Berechnung in der Composition:** In [`CrosstableScreen.kt`](../app/src/main/java/de/kindermaenner/monatsblitz/ui/crosstable/CrosstableScreen.kt) wird innerhalb des `LazyColumn` `items`-Blocks für jede Zeile eine $O(N)$-Schleife mit linearem Lookup `tournament.findGame(...)` ($O(M)$ über `games.values.firstOrNull`) während der UI-Composition ausgeführt (insgesamt $O(N^2 \cdot M)$ pro Recomposition/Scroll). Diese Aufbereitung gehört vorberechnet in das `CrosstableViewModel` bzw. `CrosstableUiState`.
 
 ### GAP-AND5: Fehlende Netzwerk-Konnektivitätsüberwachung (ConnectivityManager) (🟡 Mittel)
@@ -200,9 +185,9 @@ Um die identifizierten Gaps im Sinne von [`AGENT.md`](../AGENT.md) kontrolliert 
 1. ~~**Paket 1 – Fachliche Korrektheit & Datenintegrität (GAP-F1, GAP-UX4):**~~ ✅ **Erledigt**
    * Kanonisches Speichermodell (`player1Id < player2Id`) und `dirty = false` für initiale `Open`-Spiele umgesetzt.
    * Physische Trennung der DataStore-Instanzen (`tournament_state` und `app_settings`), gezieltes Key-Löschen in `TournamentStorage.resetAll()` und sauberes Abbruch-/Wiederverwendungsverhalten für Turniere am selben Tag implementiert.
-2. **Paket 2 – Clean Architecture Refactoring (GAP-A1 bis GAP-A4):**
-   * Rückführung aller Infrastruktur-Abhängigkeiten aus `domain.usecase` und `ui.*` hinter die Repository-Interfaces (`PlayerRepository`, `TournamentRepository`, `SettingsRepository`).
-   * Entfernung der verwaisten Dateien aus ADR-001.
+2. ~~**Paket 2 – Clean Architecture Refactoring (GAP-A1 bis GAP-A4):**~~ ✅ **Erledigt**
+   * Rückführung aller Infrastruktur-Abhängigkeiten aus `domain.usecase` und `ui.*` hinter die Domain-Interfaces (`PlayerRepository`, `TournamentRepository`, `SettingsRepository`, `TournamentSyncService`) sowie Verschiebung von `SettingsScreen` inklusive `SettingsViewModel` nach `ui.settings`.
+   * Entfernung der doppelten Zustandspersistenz (`GAP-A3`) und der verwaisten Dateien aus ADR-001 (`GAP-A4`).
 3. **Paket 3 – Android Lifecycle & Resilienz (GAP-AND1 bis GAP-AND5):**
    * Eigener Application-Scope für `TournamentSyncManager` + optionaler `NetworkCallback` für Auto-Sync bei Verbindungsrückkehr.
    * Umstellung auf `collectAsStateWithLifecycle()` und Aktivierung von `exportSchema = true` in Room.

@@ -2,7 +2,9 @@ package de.kindermaenner.monatsblitz.domain.repository
 
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.NewTournament
+import de.kindermaenner.monatsblitz.domain.model.PlayerRankingEntry
 import de.kindermaenner.monatsblitz.domain.model.Tournament
+import de.kindermaenner.monatsblitz.domain.model.TournamentRankingItem
 import kotlinx.coroutines.flow.Flow
 
 interface TournamentRepository {
@@ -21,4 +23,16 @@ interface TournamentRepository {
     )
 
     suspend fun resetTournament()
+
+    suspend fun saveRankings(rankings: List<PlayerRankingEntry>)
+
+    fun observeTournamentRanking(tournamentId: Long): Flow<List<TournamentRankingItem>>
+
+    suspend fun syncDirtyTournaments()
+
+    suspend fun syncDirtyGames()
+
+    suspend fun submitResultsAndFinalize(tournamentId: Long)
+
+    suspend fun getActiveOpenTournamentId(): Long?
 }

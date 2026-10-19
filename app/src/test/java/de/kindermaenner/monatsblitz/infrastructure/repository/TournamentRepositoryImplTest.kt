@@ -198,4 +198,184 @@ class TournamentRepositoryImplTest {
         val result = repository.observeTournament(999).first()
         org.junit.Assert.assertNull(result)
     }
+
+    @Test
+    fun `saveRankings maps domain entries and upserts to tournamentPlayerDao`() = runTest {
+        val rankings = listOf(
+            de.kindermaenner.monatsblitz.domain.model.PlayerRankingEntry(playerId = 1, tournamentId = 10, points = 2.5, rank = 1)
+        )
+
+        repository.saveRankings(rankings)
+
+        coVerify {
+            tournamentPlayerDao.upsertAll(match {
+                it.size == 1 && it[0].playerId == 1L && it[0].tournamentId == 10L && it[0].points == 2.5 && it[0].rank == 1
+            })
+        }
+    }
+
+    @Test
+    fun `observeTournamentRanking resolves player names and filters out null ranks`() = runTest {
+        val playerDao = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>()
+        val repoWithPlayers = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDao
+        )
+        val rankingRefs = listOf(
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef(100, 1, 2.5, 1),
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef(100, 2, 1.0, null),
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef(100, 999, 0.5, 2)
+        )
+        coEvery { tournamentPlayerDao.observeRankingForTournament(100) } returns flowOf(rankingRefs)
+        coEvery { playerDao.getAllPlayers() } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1, name = "Meier", vorname = "Alice")
+        )
+
+        val result = repoWithPlayers.observeTournamentRanking(100).first()
+
+        assertEquals(2, result.size)
+        assertEquals("Alice Meier", result[0].name)
+        assertEquals(1, result[0].rank)
+        assertEquals("Unbekannt", result[1].name)
+        assertEquals(2, result[1].rank)
+    }
+
+    @Test
+    fun `syncDirtyTournaments uploads dirty tournaments and reuses open remote tournament on HTTP 409`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repoWithApi = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        val date = LocalDate.of(2026, 10, 19)
+        val t1 = TournamentEntity(id = 1, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = null)
+        val t2 = TournamentEntity(id = 2, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = null)
+        val players = listOf(
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1, name = "A", vorname = "A", remoteId = 101L)
+        )
+        coEvery { tournamentDao.getDirtyTournaments() } returns listOf(
+            TournamentWithDetails(t1, emptyList(), players),
+            TournamentWithDetails(t2, emptyList(), emptyList())
+        )
+        val errorResponse = mockk<retrofit2.Response<*>>(relaxed = true) {
+            every { code() } returns 409
+        }
+        coEvery { api.createTournament(match { it.playerIds == listOf(101L) }) } returns
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateTournamentResponseDto(success = true, tournamentId = 500)
+        coEvery { api.createTournament(match { it.playerIds.isEmpty() }) } throws retrofit2.HttpException(errorResponse)
+        coEvery { api.getTournaments() } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(
+                id = 777,
+                date = "2026-10-19",
+                mode = "3+2",
+                roundCount = 1,
+                status = "open"
+            )
+        )
+
+        repoWithApi.syncDirtyTournaments()
+
+        coVerify { tournamentDao.updateTournamentRemoteId(1, 500) }
+        coVerify { tournamentDao.updateTournamentRemoteId(2, 777) }
+    }
+
+    @Test
+    fun `syncDirtyGames uploads dirty games and marks them as synced`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repoWithApi = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        val syncData = de.kindermaenner.monatsblitz.infrastructure.persistence.room.projection.GameSyncData(
+            localGameId = 1,
+            tournamentRemoteId = 100,
+            player1Id = 10,
+            player2Id = 20,
+            leg = 1,
+            result = GameResult.Win,
+            remoteGameId = 555L
+        )
+        coEvery { gameDao.getGamesForSync() } returns listOf(syncData)
+        coEvery { api.createGames(any()) } returns de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGamesResponseDto(
+            success = true,
+            count = 1,
+            items = listOf(de.kindermaenner.monatsblitz.infrastructure.api.dto.GameSyncResponseItemDto(success = true, gameId = 555))
+        )
+
+        repoWithApi.syncDirtyGames()
+
+        coVerify { gameDao.markGameAsSynced(1, 555) }
+    }
+
+    @Test
+    fun `submitResultsAndFinalize sends results, calls finalize on API, and marks storage finalized`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val playerDao = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>()
+        val repoFull = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDao,
+            monatsblitzApi = api
+        )
+        val tournamentEntity = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 50L)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(tournamentEntity, emptyList(), emptyList())
+        coEvery { tournamentPlayerDao.getRankingForTournament(1L) } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef(1L, 10L, 3.0, 1)
+        )
+        coEvery { playerDao.getPlayersByIds(listOf(10L)) } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 10L, name = "Meier", vorname = "Alice", remoteId = 101L)
+        )
+        coEvery { api.createResults(any()) } returns de.kindermaenner.monatsblitz.infrastructure.api.dto.BatchResponseDto(success = true, count = 1, items = emptyList())
+        coEvery { api.finalize(any()) } returns de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeResponseDto(success = true, tournamentId = 50, postId = 200)
+
+        repoFull.submitResultsAndFinalize(1L)
+
+        coVerify { api.createResults(match { it.tournamentId == 50 && it.results.first().playerId == 101 }) }
+        coVerify { api.finalize(de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeRequestDto(tournamentId = 50)) }
+        coVerify { tournamentStorage.finalizeTournament() }
+    }
+
+    @Test
+    fun `getActiveOpenTournamentId checks local state and remote status`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repoWithApi = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        val tournamentEntity = TournamentEntity(id = 123L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 99L)
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(de.kindermaenner.monatsblitz.infrastructure.TournamentState(123L, finalized = false))
+        coEvery { tournamentDao.getTournament(123L) } returns TournamentWithDetails(tournamentEntity, emptyList(), emptyList())
+        coEvery { api.getTournament(99) } returns de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(
+            id = 99,
+            date = "2026-10-19",
+            mode = "3+2",
+            roundCount = 1,
+            status = "finalized"
+        )
+
+        val result = repoWithApi.getActiveOpenTournamentId()
+
+        org.junit.Assert.assertNull(result)
+        coVerify { tournamentStorage.finalizeTournament() }
+    }
 }
+

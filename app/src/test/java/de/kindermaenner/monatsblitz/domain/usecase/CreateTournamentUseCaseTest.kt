@@ -6,7 +6,6 @@ import de.kindermaenner.monatsblitz.domain.model.NewGame
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
-import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -18,12 +17,10 @@ import java.time.LocalDate
 
 class CreateTournamentUseCaseTest {
 
-    private val tournamentStorage = mockk<TournamentStorage>(relaxed = true)
     private val tournamentRepository = mockk<TournamentRepository>()
     private val createNewGamesUseCase = mockk<CreateNewGamesUseCase>()
-    
+
     private val useCase = CreateTournamentUseCase(
-        tournamentStorage,
         tournamentRepository,
         createNewGamesUseCase
     )
@@ -43,17 +40,18 @@ class CreateTournamentUseCaseTest {
         val result = useCase(players, mode, date, rounds)
 
         assertEquals(expectedTournament, result)
-        coVerify { tournamentRepository.createTournament(match { 
-            it.mode == mode && it.players == players && it.games == newGames 
-        }) }
-        coVerify { tournamentStorage.saveTournamentState(100, false) }
+        coVerify {
+            tournamentRepository.createTournament(match {
+                it.mode == mode && it.players == players && it.games == newGames
+            })
+        }
     }
 
     @Test
     fun `invoke with 2 rounds should pass 2 to createNewGamesUseCase`() = runTest {
         val players = listOf(Player(1, "A", "A"))
         val rounds = 2
-        
+
         every { createNewGamesUseCase(players, 2) } returns emptyList()
         coEvery { tournamentRepository.createTournament(any()) } returns Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 2, players)
 
@@ -62,3 +60,4 @@ class CreateTournamentUseCaseTest {
         coVerify { createNewGamesUseCase(players, 2) }
     }
 }
+

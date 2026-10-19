@@ -11,6 +11,8 @@ import de.kindermaenner.monatsblitz.ui.crosstable.CrosstableScreen
 import de.kindermaenner.monatsblitz.ui.crosstable.CrosstableViewModel
 import de.kindermaenner.monatsblitz.ui.ranking.RankingScreen
 import de.kindermaenner.monatsblitz.ui.ranking.RankingViewModel
+import de.kindermaenner.monatsblitz.ui.settings.SettingsScreen
+import de.kindermaenner.monatsblitz.ui.settings.SettingsViewModel
 import de.kindermaenner.monatsblitz.ui.tournamentsetup.TournamentSetupScreen
 import de.kindermaenner.monatsblitz.ui.tournamentsetup.TournamentSetupViewModel
 
@@ -85,10 +87,14 @@ fun AppNavHost(
 
         // Settings
         composable<AppRoute.Settings> {
-            de.kindermaenner.monatsblitz.ui.screens.SettingsScreen(
-                appSettingsStorage = appContainer.appSettingsStorage,
+            val vm: SettingsViewModel = viewModel(
+                factory = appContainer.settingsViewModelFactory
+            )
+            SettingsScreen(
+                viewModel = vm,
                 onBack = { navController.popBackStack() }
             )
         }
     }
 }
+

@@ -1,5 +1,7 @@
 package de.kindermaenner.monatsblitz.infrastructure.sync
 
+import de.kindermaenner.monatsblitz.domain.model.SyncStatus
+import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
 import de.kindermaenner.monatsblitz.domain.usecase.SyncGameResultsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncTournamentUseCase
@@ -14,13 +16,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import retrofit2.HttpException
 
-enum class SyncStatus {
-    SYNCED,
-    SYNCING,
-    FAILED,
-    FINALIZED
-}
-
 class TournamentSyncManager(
     private val tournamentStorage: TournamentStorage,
     private val tournamentDao: TournamentDao,
@@ -28,13 +23,13 @@ class TournamentSyncManager(
     private val syncTournamentUseCase: SyncTournamentUseCase,
     private val syncGameResultsUseCase: SyncGameResultsUseCase,
     private val syncPlayersUseCase: SyncPlayersUseCase
-) {
+) : TournamentSyncService {
     private val _syncStatus = MutableStateFlow(SyncStatus.SYNCED)
-    val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
+    override val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
 
     private val syncMutex = Mutex()
 
-    suspend fun checkInitialStatus(tournamentId: Long) {
+    override suspend fun checkInitialStatus(tournamentId: Long) {
         val state = tournamentStorage.getTournamentState().first()
         if (state?.finalized == true) {
             _syncStatus.value = SyncStatus.FINALIZED
@@ -52,8 +47,9 @@ class TournamentSyncManager(
         }
     }
 
-    suspend fun triggerSync(tournamentId: Long) {
+    override suspend fun triggerSync(tournamentId: Long) {
         if (_syncStatus.value == SyncStatus.FINALIZED) return
+
 
         syncMutex.withLock {
             val state = tournamentStorage.getTournamentState().first()

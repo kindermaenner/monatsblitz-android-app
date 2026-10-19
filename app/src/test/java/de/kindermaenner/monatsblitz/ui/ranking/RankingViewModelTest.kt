@@ -1,9 +1,8 @@
 package de.kindermaenner.monatsblitz.ui.ranking
 
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
+import de.kindermaenner.monatsblitz.domain.model.TournamentRankingItem
+import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase
 import de.kindermaenner.monatsblitz.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.every
@@ -22,8 +21,7 @@ class RankingViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    private val tournamentPlayerDao = mockk<TournamentPlayerDao>()
-    private val playerDao = mockk<PlayerDao>()
+    private val tournamentRepository = mockk<TournamentRepository>()
 
     @Before
     fun setup() {
@@ -36,63 +34,39 @@ class RankingViewModelTest {
     @Test
     fun `init should load and map ranking data correctly`() = runTest {
         val tournamentId = 100L
-        val players = listOf(
-            PlayerEntity(id = 1, name = "Meier", vorname = "Alice", dirty = false),
-            PlayerEntity(id = 2, name = "Mueller", vorname = "Bob", dirty = false)
-        )
-        val rankingRefs = listOf(
-            TournamentPlayerCrossRef(tournamentId, 1, 2.5, 1),
-            TournamentPlayerCrossRef(tournamentId, 2, 1.0, 2)
+        val rankingItems = listOf(
+            TournamentRankingItem(playerId = 1, name = "Alice Meier", points = 2.5, rank = 1),
+            TournamentRankingItem(playerId = 2, name = "Bob Mueller", points = 1.0, rank = 2)
         )
 
-        coEvery { tournamentPlayerDao.observeRankingForTournament(tournamentId) } returns flowOf(rankingRefs)
-        coEvery { playerDao.getAllPlayers() } returns players
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
 
-        val viewModel = RankingViewModel(tournamentId, tournamentPlayerDao, playerDao)
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository)
 
         val state = viewModel.uiState.value
         assertTrue(state is RankingUiState.Ready)
         val rows = (state as RankingUiState.Ready).rows
         assertEquals(2, rows.size)
-        
+
         assertEquals("Alice Meier", rows[0].name)
         assertEquals(2.5, rows[0].points, 0.0)
         assertEquals(1, rows[0].rank)
-        
+
         assertEquals("Bob Mueller", rows[1].name)
         assertEquals(1.0, rows[1].points, 0.0)
         assertEquals(2, rows[1].rank)
     }
 
     @Test
-    fun `init should handle missing player names gracefully`() = runTest {
-        val tournamentId = 100L
-        val rankingRefs = listOf(
-            TournamentPlayerCrossRef(tournamentId, 999, 1.0, 1)
-        )
-
-        coEvery { tournamentPlayerDao.observeRankingForTournament(tournamentId) } returns flowOf(rankingRefs)
-        coEvery { playerDao.getAllPlayers() } returns emptyList()
-
-        val viewModel = RankingViewModel(tournamentId, tournamentPlayerDao, playerDao)
-
-        val state = viewModel.uiState.value
-        assertTrue(state is RankingUiState.Ready)
-        val rows = (state as RankingUiState.Ready).rows
-        assertEquals("Unbekannt", rows[0].name)
-    }
-
-    @Test
     fun `finalizeTournament should update state to isFinalized when successful`() = runTest {
         val tournamentId = 100L
-        val finalizeTournamentUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase>()
-        val rankingRefs = listOf(TournamentPlayerCrossRef(tournamentId, 1, 2.5, 1))
+        val finalizeTournamentUseCase = mockk<FinalizeTournamentUseCase>()
+        val rankingItems = listOf(TournamentRankingItem(playerId = 1, name = "Alice Meier", points = 2.5, rank = 1))
 
-        coEvery { tournamentPlayerDao.observeRankingForTournament(tournamentId) } returns flowOf(rankingRefs)
-        coEvery { playerDao.getAllPlayers() } returns listOf(PlayerEntity(id = 1, name = "Meier", vorname = "Alice", dirty = false))
-        coEvery { finalizeTournamentUseCase(tournamentId) } returns de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeResponseDto(success = true)
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        coEvery { finalizeTournamentUseCase(tournamentId) } returns Unit
 
-        val viewModel = RankingViewModel(tournamentId, tournamentPlayerDao, playerDao, finalizeTournamentUseCase)
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository, finalizeTournamentUseCase)
 
         viewModel.finalizeTournament()
 
@@ -107,14 +81,13 @@ class RankingViewModelTest {
     @Test
     fun `finalizeTournament should update state with error message when failed`() = runTest {
         val tournamentId = 100L
-        val finalizeTournamentUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase>()
-        val rankingRefs = listOf(TournamentPlayerCrossRef(tournamentId, 1, 2.5, 1))
+        val finalizeTournamentUseCase = mockk<FinalizeTournamentUseCase>()
+        val rankingItems = listOf(TournamentRankingItem(playerId = 1, name = "Alice Meier", points = 2.5, rank = 1))
 
-        coEvery { tournamentPlayerDao.observeRankingForTournament(tournamentId) } returns flowOf(rankingRefs)
-        coEvery { playerDao.getAllPlayers() } returns listOf(PlayerEntity(id = 1, name = "Meier", vorname = "Alice", dirty = false))
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
         coEvery { finalizeTournamentUseCase(tournamentId) } throws RuntimeException("Verbindungsfehler")
 
-        val viewModel = RankingViewModel(tournamentId, tournamentPlayerDao, playerDao, finalizeTournamentUseCase)
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository, finalizeTournamentUseCase)
 
         viewModel.finalizeTournament()
 
@@ -133,37 +106,16 @@ class RankingViewModelTest {
     @Test
     fun `finalizeTournament should set error when finalizeTournamentUseCase is null`() = runTest {
         val tournamentId = 100L
-        val rankingRefs = listOf(TournamentPlayerCrossRef(tournamentId, 1, 2.5, 1))
+        val rankingItems = listOf(TournamentRankingItem(playerId = 1, name = "Alice Meier", points = 2.5, rank = 1))
 
-        coEvery { tournamentPlayerDao.observeRankingForTournament(tournamentId) } returns flowOf(rankingRefs)
-        coEvery { playerDao.getAllPlayers() } returns listOf(PlayerEntity(id = 1, name = "Meier", vorname = "Alice", dirty = false))
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
 
-        val viewModel = RankingViewModel(tournamentId, tournamentPlayerDao, playerDao, finalizeTournamentUseCase = null)
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository, finalizeTournamentUseCase = null)
 
         viewModel.finalizeTournament()
 
         val state = viewModel.uiState.value as RankingUiState.Ready
         assertEquals("Finalisierung nicht konfiguriert", state.finalizeError)
     }
-
-    @Test
-    fun `observeRanking should filter out entries with rank null`() = runTest {
-        val tournamentId = 100L
-        val rankingRefs = listOf(
-            TournamentPlayerCrossRef(tournamentId, 1, 2.5, null),
-            TournamentPlayerCrossRef(tournamentId, 2, 1.0, 1)
-        )
-
-        coEvery { tournamentPlayerDao.observeRankingForTournament(tournamentId) } returns flowOf(rankingRefs)
-        coEvery { playerDao.getAllPlayers() } returns listOf(
-            PlayerEntity(id = 1, name = "Meier", vorname = "Alice", dirty = false),
-            PlayerEntity(id = 2, name = "Mueller", vorname = "Bob", dirty = false)
-        )
-
-        val viewModel = RankingViewModel(tournamentId, tournamentPlayerDao, playerDao)
-
-        val state = viewModel.uiState.value as RankingUiState.Ready
-        assertEquals(1, state.rows.size)
-        assertEquals("Bob Mueller", state.rows[0].name)
-    }
 }
+

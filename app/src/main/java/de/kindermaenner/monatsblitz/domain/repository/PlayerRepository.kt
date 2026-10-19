@@ -12,4 +12,6 @@ interface PlayerRepository {
     suspend fun findPlayersByName(vorname: String, name: String): List<Player>
 
     suspend fun createPlayer(newPlayer: NewPlayer) : Player
+
+    suspend fun syncPlayers()
 }

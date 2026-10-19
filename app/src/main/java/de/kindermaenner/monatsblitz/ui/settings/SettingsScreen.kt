@@ -1,4 +1,4 @@
-package de.kindermaenner.monatsblitz.ui.screens
+package de.kindermaenner.monatsblitz.ui.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -22,21 +22,17 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import de.kindermaenner.monatsblitz.infrastructure.settings.AppSettingsStorage
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    appSettingsStorage: AppSettingsStorage,
+    viewModel: SettingsViewModel,
     onBack: () -> Unit
 ) {
-    val showDetailedSync by appSettingsStorage.showDetailedSyncIndicators.collectAsState(initial = true)
-    val coroutineScope = rememberCoroutineScope()
+    val showDetailedSync by viewModel.showDetailedSyncIndicators.collectAsState()
 
     Scaffold(
         topBar = {
@@ -59,9 +55,7 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        coroutineScope.launch {
-                            appSettingsStorage.setShowDetailedSyncIndicators(!showDetailedSync)
-                        }
+                        viewModel.setShowDetailedSyncIndicators(!showDetailedSync)
                     }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -81,9 +75,7 @@ fun SettingsScreen(
                 Switch(
                     checked = showDetailedSync,
                     onCheckedChange = { checked ->
-                        coroutineScope.launch {
-                            appSettingsStorage.setShowDetailedSyncIndicators(checked)
-                        }
+                        viewModel.setShowDetailedSyncIndicators(checked)
                     },
                     modifier = Modifier.padding(start = 16.dp)
                 )

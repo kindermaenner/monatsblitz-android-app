@@ -6,8 +6,7 @@ import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.PlayerRankingEntry
 import de.kindermaenner.monatsblitz.domain.model.Tournament
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
+import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
@@ -18,13 +17,13 @@ import java.time.LocalDate
 
 class CreateTournamentRankingsUseCaseTest {
 
-    private val tournamentPlayerDao = mockk<TournamentPlayerDao>(relaxed = true)
-    private val useCase = CreateTournamentRankingsUseCase(tournamentPlayerDao)
+    private val tournamentRepository = mockk<TournamentRepository>(relaxed = true)
+    private val useCase = CreateTournamentRankingsUseCase(tournamentRepository)
 
     // ============ invoke() Tests ============
 
     @Test
-    fun `invoke should save player rankings to dao`() = runTest {
+    fun `invoke should save player rankings to repository`() = runTest {
         val players = listOf(
             Player(1, "Mueller", "Anna"),
             Player(2, "Schmidt", "Bob")
@@ -36,12 +35,12 @@ class CreateTournamentRankingsUseCaseTest {
 
         useCase(tournament)
 
-        val capturedRefs = slot<List<TournamentPlayerCrossRef>>()
-        coVerify { tournamentPlayerDao.upsertAll(capture(capturedRefs)) }
+        val capturedEntries = slot<List<PlayerRankingEntry>>()
+        coVerify { tournamentRepository.saveRankings(capture(capturedEntries)) }
 
-        assertEquals(2, capturedRefs.captured.size)
-        assertEquals(1, capturedRefs.captured[0].playerId)
-        assertEquals(2, capturedRefs.captured[1].playerId)
+        assertEquals(2, capturedEntries.captured.size)
+        assertEquals(1, capturedEntries.captured[0].playerId)
+        assertEquals(2, capturedEntries.captured[1].playerId)
     }
 
     @Test
@@ -60,13 +59,13 @@ class CreateTournamentRankingsUseCaseTest {
 
         useCase(tournament)
 
-        val capturedRefs = slot<List<TournamentPlayerCrossRef>>()
-        coVerify { tournamentPlayerDao.upsertAll(capture(capturedRefs)) }
+        val capturedEntries = slot<List<PlayerRankingEntry>>()
+        coVerify { tournamentRepository.saveRankings(capture(capturedEntries)) }
 
-        assertEquals(3, capturedRefs.captured.size)
-        assertEquals(2.0, capturedRefs.captured[0].points ?: 0.0, 0.0)
-        assertEquals(1.0, capturedRefs.captured[1].points ?: 0.0, 0.0)
-        assertEquals(0.0, capturedRefs.captured[2].points ?: 0.0, 0.0)
+        assertEquals(3, capturedEntries.captured.size)
+        assertEquals(2.0, capturedEntries.captured[0].points, 0.0)
+        assertEquals(1.0, capturedEntries.captured[1].points, 0.0)
+        assertEquals(0.0, capturedEntries.captured[2].points, 0.0)
     }
 
     @Test
@@ -85,15 +84,15 @@ class CreateTournamentRankingsUseCaseTest {
 
         useCase(tournament)
 
-        val capturedRefs = slot<List<TournamentPlayerCrossRef>>()
-        coVerify { tournamentPlayerDao.upsertAll(capture(capturedRefs)) }
+        val capturedEntries = slot<List<PlayerRankingEntry>>()
+        coVerify { tournamentRepository.saveRankings(capture(capturedEntries)) }
 
         // Tied for 1st -> Rank 1
-        assertEquals(1, capturedRefs.captured[0].rank)
-        assertEquals(1, capturedRefs.captured[1].rank)
+        assertEquals(1, capturedEntries.captured[0].rank)
+        assertEquals(1, capturedEntries.captured[1].rank)
         // Tied for 2nd -> Rank 2 (Dense: no skipping)
-        assertEquals(2, capturedRefs.captured[2].rank)
-        assertEquals(2, capturedRefs.captured[3].rank)
+        assertEquals(2, capturedEntries.captured[2].rank)
+        assertEquals(2, capturedEntries.captured[3].rank)
     }
 
     // ============ createDenseRanking() Tests ============
@@ -154,13 +153,14 @@ class CreateTournamentRankingsUseCaseTest {
 
         useCase(tournament)
 
-        val capturedRefs = slot<List<TournamentPlayerCrossRef>>()
-        coVerify { tournamentPlayerDao.upsertAll(capture(capturedRefs)) }
+        val capturedEntries = slot<List<PlayerRankingEntry>>()
+        coVerify { tournamentRepository.saveRankings(capture(capturedEntries)) }
 
-        val results = capturedRefs.captured
+        val results = capturedEntries.captured
         assertEquals(1, results[0].rank) // Alice (2.5)
         assertEquals(2, results[1].rank) // Charlie (2.0)
         assertEquals(3, results[2].rank) // Bob (1.0)
         assertEquals(4, results[3].rank) // Diana (0.5)
     }
 }
+

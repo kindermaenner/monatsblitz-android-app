@@ -2,17 +2,12 @@ package de.kindermaenner.monatsblitz.ui.root
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
-import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
-
-import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
-import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentDao
 
 class RootViewModelFactory(
-    private val tournamentPreferences: TournamentStorage,
-    private val syncPlayersUseCase: SyncPlayersUseCase,
-    private val tournamentDao: TournamentDao? = null,
-    private val monatsblitzApi: MonatsblitzApi? = null
+    private val tournamentRepository: TournamentRepository,
+    private val syncPlayersUseCase: SyncPlayersUseCase
 ) : ViewModelProvider.Factory {
 
     override fun <T : ViewModel> create(
@@ -22,10 +17,8 @@ class RootViewModelFactory(
         if (modelClass.isAssignableFrom(RootViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
             return RootViewModel(
-                tournamentPreferences,
-                syncPlayersUseCase,
-                tournamentDao,
-                monatsblitzApi
+                tournamentRepository,
+                syncPlayersUseCase
             ) as T
         }
 
@@ -33,4 +26,4 @@ class RootViewModelFactory(
             "Unknown ViewModel class: ${modelClass.name}"
         )
     }
-}
+}

@@ -4,13 +4,16 @@ import android.content.Context
 import androidx.datastore.preferences.preferencesDataStore
 import de.kindermaenner.monatsblitz.BuildConfig.API_KEY
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
+import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
+import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
-import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncGameResultsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncTournamentUseCase
@@ -20,9 +23,12 @@ import de.kindermaenner.monatsblitz.infrastructure.api.client.RetrofitClient
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
 import de.kindermaenner.monatsblitz.infrastructure.repository.PlayerRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.repository.TournamentRepositoryImpl
+import de.kindermaenner.monatsblitz.infrastructure.settings.AppSettingsStorage
+import de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager
 import de.kindermaenner.monatsblitz.ui.crosstable.CrosstableViewModelFactory
 import de.kindermaenner.monatsblitz.ui.ranking.RankingViewModelFactory
 import de.kindermaenner.monatsblitz.ui.root.RootViewModelFactory
+import de.kindermaenner.monatsblitz.ui.settings.SettingsViewModelFactory
 import de.kindermaenner.monatsblitz.ui.tournamentsetup.TournamentSetupViewModelFactory
 
 class AppContainer(context: Context) {
@@ -31,69 +37,65 @@ class AppContainer(context: Context) {
     val database = AppDatabase.getInstance(context)
 
     private val api = RetrofitClient.createApi(API_KEY)
+    val playerRemoteDataSource = PlayerRemoteDataSource(api)
 
     val playerRepository: PlayerRepository =
         PlayerRepositoryImpl(
-            playerDao = database.playerDao()
+            playerDao = database.playerDao(),
+            remoteDataSource = playerRemoteDataSource
         )
 
     val tournamentStorage = TournamentStorage(context.tournamentDataStore)
-    val tournamentRepository = TournamentRepositoryImpl(
+    val tournamentRepository: TournamentRepository = TournamentRepositoryImpl(
         tournamentDao = database.tournamentDao(),
-        tournamentStorage = tournamentStorage,
+        tournamentPlayerDao = database.tournamentPlayerDao(),
         gameDao = database.gameDao(),
         database = database,
-        tournamentPlayerDao = database.tournamentPlayerDao(),
+        tournamentStorage = tournamentStorage,
+        playerDao = database.playerDao(),
+        monatsblitzApi = api
     )
-    val playerRemoteDataSource = PlayerRemoteDataSource(api)
 
     val syncPlayersUseCase = SyncPlayersUseCase(
-        remoteDataSource = playerRemoteDataSource,
-        playerDao = database.playerDao())
+        playerRepository = playerRepository
+    )
 
     val addPlayerUseCase = AddPlayerUseCase(playerRepository)
 
     val createNewGamesUseCase = CreateNewGamesUseCase()
 
     val createTournamentUseCase = CreateTournamentUseCase(
-        tournamentStorage,
         tournamentRepository,
         createNewGamesUseCase
     )
     val setGameResultUseCase = SetGameResultUseCase(tournamentRepository)
 
     val syncTournamentUseCase = SyncTournamentUseCase(
-        monatsblitzApi = api,
-        tournamentDao = database.tournamentDao()
+        tournamentRepository = tournamentRepository
     )
 
     val syncGameResultsUseCase = SyncGameResultsUseCase(
-        monatsblitzApi = api,
-        gameDao = database.gameDao()
+        tournamentRepository = tournamentRepository
     )
 
     val calculatePlayerPointsUseCase = CalculatePlayerPointsUseCase()
 
     val createTournamentRankingUseCase = CreateTournamentRankingsUseCase(
-        tournamentPlayerDao = database.tournamentPlayerDao(),
+        tournamentRepository = tournamentRepository,
         calculatePlayerPointsUseCase = calculatePlayerPointsUseCase
     )
 
     val finalizeTournamentUseCase = FinalizeTournamentUseCase(
-        monatsblitzApi = api,
-        tournamentDao = database.tournamentDao(),
-        tournamentPlayerDao = database.tournamentPlayerDao(),
-        playerDao = database.playerDao(),
-        tournamentStorage = tournamentStorage,
+        tournamentRepository = tournamentRepository,
         syncTournamentUseCase = syncTournamentUseCase,
         syncGameResultsUseCase = syncGameResultsUseCase,
         syncPlayersUseCase = syncPlayersUseCase,
         createTournamentRankingsUseCase = createTournamentRankingUseCase
     )
 
-    val appSettingsStorage = de.kindermaenner.monatsblitz.infrastructure.settings.AppSettingsStorage(context.settingsDataStore)
+    val appSettingsStorage: SettingsRepository = AppSettingsStorage(context.settingsDataStore)
 
-    val tournamentSyncManager = de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager(
+    val tournamentSyncManager: TournamentSyncService = TournamentSyncManager(
         tournamentStorage = tournamentStorage,
         tournamentDao = database.tournamentDao(),
         gameDao = database.gameDao(),
@@ -122,16 +124,19 @@ class AppContainer(context: Context) {
 
     val rootViewModelFactory =
         RootViewModelFactory(
-            tournamentPreferences = tournamentStorage,
-            syncPlayersUseCase = syncPlayersUseCase,
-            tournamentDao = database.tournamentDao(),
-            monatsblitzApi = api
+            tournamentRepository = tournamentRepository,
+            syncPlayersUseCase = syncPlayersUseCase
         )
 
     fun rankingViewModelFactory(tournamentId: Long) = RankingViewModelFactory(
         tournamentId = tournamentId,
-        tournamentPlayerDao = database.tournamentPlayerDao(),
-        playerDao = database.playerDao(),
+        tournamentRepository = tournamentRepository,
         finalizeTournamentUseCase = finalizeTournamentUseCase
     )
+
+    val settingsViewModelFactory =
+        SettingsViewModelFactory(
+            settingsRepository = appSettingsStorage
+        )
 }
+

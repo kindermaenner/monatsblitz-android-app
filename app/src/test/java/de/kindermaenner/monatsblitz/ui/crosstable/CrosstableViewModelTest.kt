@@ -118,8 +118,8 @@ class CrosstableViewModelTest {
         val p2 = Player(20, "B", "B")
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1, p2))
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
-        val syncManager = mockk<de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager>(relaxed = true)
-        every { syncManager.syncStatus } returns kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus.SYNCED)
+        val syncService = mockk<de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService>(relaxed = true)
+        every { syncService.syncStatus } returns kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.domain.model.SyncStatus.SYNCED)
         
         val viewModel = CrosstableViewModel(
             repository,
@@ -127,7 +127,7 @@ class CrosstableViewModelTest {
             createTournamentRankingsUseCase,
             calculatePlayerPointsUseCase,
             1L,
-            syncManager
+            syncService
         )
         backgroundScope.launch { viewModel.uiState.collect() }
         advanceUntilIdle()
@@ -136,15 +136,15 @@ class CrosstableViewModelTest {
         advanceUntilIdle()
 
         coVerify { setGameResultUseCase(1, 10, 20, 1, GameResult.Win) }
-        coVerify { syncManager.triggerSync(1L) }
+        coVerify { syncService.triggerSync(1L) }
     }
 
     @Test
-    fun `triggerManualSync triggers syncManager`() = runTest {
+    fun `triggerManualSync triggers syncService`() = runTest {
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
-        val syncManager = mockk<de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager>(relaxed = true)
-        every { syncManager.syncStatus } returns kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus.FAILED)
+        val syncService = mockk<de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService>(relaxed = true)
+        every { syncService.syncStatus } returns kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.domain.model.SyncStatus.FAILED)
 
         val viewModel = CrosstableViewModel(
             repository,
@@ -152,7 +152,7 @@ class CrosstableViewModelTest {
             createTournamentRankingsUseCase,
             calculatePlayerPointsUseCase,
             1L,
-            syncManager
+            syncService
         )
         backgroundScope.launch { viewModel.uiState.collect() }
         advanceUntilIdle()
@@ -160,16 +160,16 @@ class CrosstableViewModelTest {
         viewModel.triggerManualSync()
         advanceUntilIdle()
 
-        coVerify { syncManager.triggerSync(1L) }
+        coVerify { syncService.triggerSync(1L) }
     }
 
     @Test
     fun `triggerManualSync does nothing when status is SYNCING or FINALIZED`() = runTest {
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
-        val syncManager = mockk<de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager>(relaxed = true)
-        val statusFlow = kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus.SYNCING)
-        every { syncManager.syncStatus } returns statusFlow
+        val syncService = mockk<de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService>(relaxed = true)
+        val statusFlow = kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.domain.model.SyncStatus.SYNCING)
+        every { syncService.syncStatus } returns statusFlow
 
         val viewModel = CrosstableViewModel(
             repository,
@@ -177,21 +177,21 @@ class CrosstableViewModelTest {
             createTournamentRankingsUseCase,
             calculatePlayerPointsUseCase,
             1L,
-            syncManager
+            syncService
         )
         backgroundScope.launch { viewModel.uiState.collect() }
         advanceUntilIdle()
 
         viewModel.triggerManualSync()
         advanceUntilIdle()
-        coVerify(exactly = 0) { syncManager.triggerSync(any()) }
+        coVerify(exactly = 0) { syncService.triggerSync(any()) }
 
-        statusFlow.value = de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus.FINALIZED
+        statusFlow.value = de.kindermaenner.monatsblitz.domain.model.SyncStatus.FINALIZED
         advanceUntilIdle()
 
         viewModel.triggerManualSync()
         advanceUntilIdle()
-        coVerify(exactly = 0) { syncManager.triggerSync(any()) }
+        coVerify(exactly = 0) { syncService.triggerSync(any()) }
     }
 
     @Test
@@ -200,8 +200,8 @@ class CrosstableViewModelTest {
         val p2 = Player(20, "B", "B")
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1, p2))
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
-        val syncManager = mockk<de.kindermaenner.monatsblitz.infrastructure.sync.TournamentSyncManager>(relaxed = true)
-        every { syncManager.syncStatus } returns kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.infrastructure.sync.SyncStatus.FINALIZED)
+        val syncService = mockk<de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService>(relaxed = true)
+        every { syncService.syncStatus } returns kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.domain.model.SyncStatus.FINALIZED)
 
         val viewModel = CrosstableViewModel(
             repository,
@@ -209,7 +209,7 @@ class CrosstableViewModelTest {
             createTournamentRankingsUseCase,
             calculatePlayerPointsUseCase,
             1L,
-            syncManager
+            syncService
         )
         backgroundScope.launch { viewModel.uiState.collect() }
         advanceUntilIdle()

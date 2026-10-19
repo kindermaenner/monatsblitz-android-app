@@ -1,26 +1,16 @@
 package de.kindermaenner.monatsblitz.domain.usecase
 
-import android.util.Log
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
 import kotlinx.coroutines.test.runTest
-import org.junit.Before
 import org.junit.Test
 
 class SetGameResultUseCaseTest {
 
     private val repository = mockk<TournamentRepository>(relaxed = true)
     private val useCase = SetGameResultUseCase(repository)
-
-    @Before
-    fun setup() {
-        mockkStatic(Log::class)
-        every { Log.i(any(), any()) } returns 0
-    }
 
     @Test
     fun `invoke stores canonical game result when player1Id is smaller than player2Id`() = runTest {

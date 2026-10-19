@@ -22,7 +22,20 @@ class GameResultTest {
         assertEquals(GameResult.Loss, GameResult.fromDisplayName("0"))
         assertEquals(GameResult.Remis, GameResult.fromDisplayName("1/2"))
         assertEquals(GameResult.Open, GameResult.fromDisplayName(" "))
+        assertEquals(GameResult.ForfeitWin, GameResult.fromDisplayName("+"))
+        assertEquals(GameResult.ForfeitLoss, GameResult.fromDisplayName("-"))
         assertNull(GameResult.fromDisplayName("invalid"))
+        assertNull(GameResult.fromDisplayName(""))
+    }
+
+    @Test
+    fun `displayName returns correct string for all results`() {
+        assertEquals(" ", GameResult.Open.displayName)
+        assertEquals("0", GameResult.Loss.displayName)
+        assertEquals("1", GameResult.Win.displayName)
+        assertEquals("1/2", GameResult.Remis.displayName)
+        assertEquals("+", GameResult.ForfeitWin.displayName)
+        assertEquals("-", GameResult.ForfeitLoss.displayName)
     }
 
     @Test
@@ -33,5 +46,18 @@ class GameResultTest {
         assertEquals(0.5, GameResult.Remis.points, 0.0)
         assertEquals(1.0, GameResult.ForfeitWin.points, 0.0)
         assertEquals(0.0, GameResult.ForfeitLoss.points, 0.0)
+
+        // Verify exhaustive mapping for every entry in GameResult
+        val expected = mapOf(
+            GameResult.Open to 0.0,
+            GameResult.Loss to 0.0,
+            GameResult.Win to 1.0,
+            GameResult.Remis to 0.5,
+            GameResult.ForfeitWin to 1.0,
+            GameResult.ForfeitLoss to 0.0
+        )
+        for (entry in GameResult.entries) {
+            assertEquals("Points for $entry should match", expected[entry], entry.points)
+        }
     }
 }

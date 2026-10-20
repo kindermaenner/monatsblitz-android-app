@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -323,52 +324,41 @@ private fun TournamentSettingsCard(
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = "Einstellungen",
-                style = MaterialTheme.typography.titleMedium
-            )
-
             val isToday = selectedDate == LocalDate.now()
             val formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
             val dateLabel = if (isToday) "Heute ($formattedDate)" else formattedDate
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showDatePicker = true }
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DateRange,
-                        contentDescription = "Turnierdatum",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Column {
-                        Text("Turnierdatum", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = "Einstellungen",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                AssistChip(
+                    onClick = { showDatePicker = true },
+                    label = {
                         Text(
-                            dateLabel,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = dateLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = "Turnierdatum",
+                            tint = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                }
-                TextButton(onClick = { showDatePicker = true }) {
-                    Text("Ändern")
-                }
+                )
             }
-
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
 
             GameModeDropdownSelector(
                 selectedMode = selectedMode,

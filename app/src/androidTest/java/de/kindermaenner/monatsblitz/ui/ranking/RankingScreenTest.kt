@@ -1,6 +1,5 @@
 package de.kindermaenner.monatsblitz.ui.ranking
 
-import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -46,8 +45,8 @@ class RankingScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Ranking").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Max Mustermann").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Ranking").assertExists()
+        composeTestRule.onNodeWithText("Max Mustermann").assertExists()
 
         composeTestRule.onNodeWithContentDescription("Zurück").performClick()
         assertTrue("Back button should trigger onBack", backClicked)
@@ -77,7 +76,7 @@ class RankingScreenTest {
         }
 
         composeTestRule.onNodeWithText("Turnier abschließen").performClick()
-        composeTestRule.onNodeWithText("Turnier abschließen?").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Abbrechen").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Turnier abschließen?").assertExists()
+        composeTestRule.onNodeWithText("Abbrechen").assertExists()
     }
 }

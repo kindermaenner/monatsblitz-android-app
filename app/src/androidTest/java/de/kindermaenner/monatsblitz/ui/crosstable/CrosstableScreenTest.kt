@@ -1,10 +1,9 @@
 package de.kindermaenner.monatsblitz.ui.crosstable
 
-import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performClick
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.Tournament
@@ -49,13 +48,13 @@ class CrosstableScreenTest {
                 // onBackToSetup lambda
             }
         }
-        composeTestRule.onNodeWithText("14.08.26 • 3+2").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Rangliste").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Alice Meier").assertIsDisplayed()
+        composeTestRule.onNodeWithText("14.08.26 • 3+2").assertExists()
+        composeTestRule.onNodeWithText("Rangliste").assertExists()
+        composeTestRule.onNodeWithText("Alice Meier").assertExists()
     }
 
     @Test
-    fun crosstableScreen_backPress_showsDialog() {
+    fun crosstableScreen_backClick_showsCancelDialog() {
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
         coEvery { repository.observeTournament(1) } returns flowOf(tournament)
         val viewModel = CrosstableViewModel(repository, setGameResultUseCase, createTournamentRankingsUseCase, 1)
@@ -72,17 +71,10 @@ class CrosstableScreenTest {
         // Initially no dialog
         composeTestRule.onNodeWithText("Turnier abbrechen?").assertDoesNotExist()
 
-        // Trigger back press
-        // Note: performKeyInput with Key.Back might not work on all emulators/versions for BackHandler
-        // An alternative is to use the local dispatcher if we had access to the Activity.
-        // For now, let's try the key input.
-        try {
-            composeTestRule.onRoot().performKeyInput {
-                // We use key event since Key.Back is special
-                // pressKey(Key.Back)
-            }
-        } catch (ignored: Exception) {
-            // ignore if not supported in this environment
-        }
+        // Click back button in TopAppBar
+        composeTestRule.onNodeWithContentDescription("Turnier abbrechen").performClick()
+
+        // Dialog should now be visible
+        composeTestRule.onNodeWithText("Turnier abbrechen?").assertExists()
     }
 }

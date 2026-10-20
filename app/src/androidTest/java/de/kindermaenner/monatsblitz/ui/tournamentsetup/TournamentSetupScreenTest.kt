@@ -1,9 +1,10 @@
 package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
-import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
@@ -24,7 +25,7 @@ class TournamentSetupScreenTest {
     private val addPlayerUseCase = mockk<AddPlayerUseCase>(relaxed = true)
 
     @Test
-    fun setupScreen_displaysPlayersAndButton() {
+    fun setupScreen_displaysTitleAndTogglingPlayersEnablesStartButton() {
         val players = listOf(
             Player(1, "Meier", "Alice"),
             Player(2, "Mueller", "Bob"),
@@ -41,9 +42,15 @@ class TournamentSetupScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Neues Turnier").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Alice Meier").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Bob Mueller").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Mindestens 2 Spieler auswählen").assertIsDisplayed().assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Neues Turnier").assertExists()
+        composeTestRule.onNodeWithText("Mindestens 2 Spieler auswählen").assertExists().assertIsNotEnabled()
+
+        // Select first player
+        composeTestRule.onNodeWithText("Alice Meier").assertExists().performClick()
+        composeTestRule.onNodeWithText("Mindestens 2 Spieler auswählen").assertExists().assertIsNotEnabled()
+
+        // Select second player -> Start button becomes active
+        composeTestRule.onNodeWithText("Bob Mueller").assertExists().performClick()
+        composeTestRule.onNodeWithText("Turnier starten (2 Spieler)").assertExists().assertIsEnabled()
     }
 }

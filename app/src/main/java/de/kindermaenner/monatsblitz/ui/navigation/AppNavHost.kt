@@ -92,9 +92,14 @@ fun AppNavHost(
             )
             SettingsScreen(
                 viewModel = vm,
-                onBack = { navController.popBackStack() }
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(AppRoute.TournamentSetup) {
+                            popUpTo<AppRoute.Settings> { inclusive = true }
+                        }
+                    }
+                }
             )
         }
     }
 }
-

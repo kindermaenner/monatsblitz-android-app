@@ -3,7 +3,6 @@ package de.kindermaenner.monatsblitz.app
 import android.content.Context
 import android.net.ConnectivityManager
 import androidx.datastore.preferences.preferencesDataStore
-import de.kindermaenner.monatsblitz.BuildConfig.API_KEY
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
@@ -18,6 +17,7 @@ import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncGameResultsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncTournamentUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.TestBackendConnectionUseCase
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import de.kindermaenner.monatsblitz.infrastructure.api.PlayerRemoteDataSource
 import de.kindermaenner.monatsblitz.infrastructure.api.client.RetrofitClient
@@ -39,7 +39,13 @@ private val Context.settingsDataStore by preferencesDataStore(name = "app_settin
 class AppContainer(context: Context) {
     val database = AppDatabase.getInstance(context)
 
-    private val api = RetrofitClient.createApi(API_KEY)
+    val appSettingsStorage: SettingsRepository = AppSettingsStorage(context.settingsDataStore)
+    val appSettingsInternal: AppSettingsStorage = appSettingsStorage as AppSettingsStorage
+
+    private val api = RetrofitClient.createDynamicApi(
+        serverUrlProvider = { appSettingsInternal.getServerUrlSync() },
+        apiKeyProvider = { appSettingsInternal.getApiKeySync() }
+    )
     val playerRemoteDataSource = PlayerRemoteDataSource(api)
 
     val playerRepository: PlayerRepository =
@@ -96,7 +102,7 @@ class AppContainer(context: Context) {
         createTournamentRankingsUseCase = createTournamentRankingUseCase
     )
 
-    val appSettingsStorage: SettingsRepository = AppSettingsStorage(context.settingsDataStore)
+    val testBackendConnectionUseCase = TestBackendConnectionUseCase()
 
     val tournamentSyncManager: TournamentSyncService = TournamentSyncManager(
         tournamentStorage = tournamentStorage,
@@ -136,7 +142,8 @@ class AppContainer(context: Context) {
     val rootViewModelFactory =
         RootViewModelFactory(
             tournamentRepository = tournamentRepository,
-            syncPlayersUseCase = syncPlayersUseCase
+            syncPlayersUseCase = syncPlayersUseCase,
+            settingsRepository = appSettingsStorage
         )
 
     fun rankingViewModelFactory(tournamentId: Long) = RankingViewModelFactory(
@@ -148,7 +155,7 @@ class AppContainer(context: Context) {
 
     val settingsViewModelFactory =
         SettingsViewModelFactory(
-            settingsRepository = appSettingsStorage
+            settingsRepository = appSettingsStorage,
+            testBackendConnectionUseCase = testBackendConnectionUseCase
         )
 }
-

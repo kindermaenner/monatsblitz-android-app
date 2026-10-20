@@ -1,6 +1,7 @@
 package de.kindermaenner.monatsblitz.ui.root
 
 import androidx.lifecycle.ViewModel
+import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.util.MainDispatcherRule
@@ -19,17 +20,20 @@ class RootViewModelFactoryTest {
 
     private val tournamentRepository = mockk<TournamentRepository>(relaxed = true)
     private val syncPlayersUseCase = mockk<SyncPlayersUseCase>(relaxed = true)
+    private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
 
     @Before
     fun setUp() {
         coEvery { tournamentRepository.getActiveOpenTournamentId() } returns null
+        coEvery { settingsRepository.isConfigured() } returns true
     }
 
     @Test
     fun `create should return RootViewModel when modelClass matches`() {
         val factory = RootViewModelFactory(
             tournamentRepository = tournamentRepository,
-            syncPlayersUseCase = syncPlayersUseCase
+            syncPlayersUseCase = syncPlayersUseCase,
+            settingsRepository = settingsRepository
         )
 
         val viewModel = factory.create(RootViewModel::class.java)
@@ -40,7 +44,8 @@ class RootViewModelFactoryTest {
     fun `create should throw IllegalArgumentException for unknown ViewModel class`() {
         val factory = RootViewModelFactory(
             tournamentRepository = tournamentRepository,
-            syncPlayersUseCase = syncPlayersUseCase
+            syncPlayersUseCase = syncPlayersUseCase,
+            settingsRepository = settingsRepository
         )
 
         class UnknownViewModel : ViewModel()
@@ -50,4 +55,3 @@ class RootViewModelFactoryTest {
         }
     }
 }
-

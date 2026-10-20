@@ -2,6 +2,7 @@ package de.kindermaenner.monatsblitz.ui.root
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.ui.navigation.AppRoute
@@ -11,7 +12,8 @@ import kotlinx.coroutines.launch
 
 class RootViewModel(
     private val tournamentRepository: TournamentRepository,
-    private val syncPlayersUseCase: SyncPlayersUseCase
+    private val syncPlayersUseCase: SyncPlayersUseCase,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _initialRoute = MutableStateFlow<AppRoute?>(null)
@@ -23,6 +25,11 @@ class RootViewModel(
 
     private fun determineInitialRoute() {
         viewModelScope.launch {
+            if (!settingsRepository.isConfigured()) {
+                _initialRoute.value = AppRoute.Settings
+                return@launch
+            }
+
             safeSyncPlayers()
 
             val activeOpenTournamentId = tournamentRepository.getActiveOpenTournamentId()
@@ -42,4 +49,3 @@ class RootViewModel(
         }
     }
 }
-

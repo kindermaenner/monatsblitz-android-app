@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.ui.root
 
+import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.ui.navigation.AppRoute
@@ -19,23 +20,37 @@ class RootViewModelTest {
 
     private val tournamentRepository = mockk<TournamentRepository>()
     private val syncPlayersUseCase = mockk<SyncPlayersUseCase>(relaxed = true)
+    private val settingsRepository = mockk<SettingsRepository>()
 
     @Test
-    fun `init should determine initial route as TournamentSetup when no open tournament is active`() = runTest {
+    fun `init should determine initial route as Settings when app is not configured`() = runTest {
+        coEvery { settingsRepository.isConfigured() } returns false
+
+        val viewModel = RootViewModel(tournamentRepository, syncPlayersUseCase, settingsRepository)
+
+        assertEquals(AppRoute.Settings, viewModel.initialRoute.value)
+        coVerify(exactly = 0) { syncPlayersUseCase() }
+        coVerify(exactly = 0) { tournamentRepository.getActiveOpenTournamentId() }
+    }
+
+    @Test
+    fun `init should determine initial route as TournamentSetup when configured and no open tournament is active`() = runTest {
+        coEvery { settingsRepository.isConfigured() } returns true
         coEvery { tournamentRepository.getActiveOpenTournamentId() } returns null
 
-        val viewModel = RootViewModel(tournamentRepository, syncPlayersUseCase)
+        val viewModel = RootViewModel(tournamentRepository, syncPlayersUseCase, settingsRepository)
 
         assertEquals(AppRoute.TournamentSetup, viewModel.initialRoute.value)
         coVerify { syncPlayersUseCase() }
     }
 
     @Test
-    fun `init should determine initial route as Crosstable when an open tournament is active`() = runTest {
+    fun `init should determine initial route as Crosstable when configured and an open tournament is active`() = runTest {
         val activeTournamentId = 123L
+        coEvery { settingsRepository.isConfigured() } returns true
         coEvery { tournamentRepository.getActiveOpenTournamentId() } returns activeTournamentId
 
-        val viewModel = RootViewModel(tournamentRepository, syncPlayersUseCase)
+        val viewModel = RootViewModel(tournamentRepository, syncPlayersUseCase, settingsRepository)
 
         val route = viewModel.initialRoute.value as AppRoute.Crosstable
         assertEquals(activeTournamentId, route.id)
@@ -43,13 +58,13 @@ class RootViewModelTest {
     }
 
     @Test
-    fun `init should handle sync failure gracefully`() = runTest {
+    fun `init should handle sync failure gracefully when configured`() = runTest {
+        coEvery { settingsRepository.isConfigured() } returns true
         coEvery { syncPlayersUseCase() } throws Exception("Sync failed")
         coEvery { tournamentRepository.getActiveOpenTournamentId() } returns null
 
-        val viewModel = RootViewModel(tournamentRepository, syncPlayersUseCase)
+        val viewModel = RootViewModel(tournamentRepository, syncPlayersUseCase, settingsRepository)
 
         assertEquals(AppRoute.TournamentSetup, viewModel.initialRoute.value)
     }
 }
-

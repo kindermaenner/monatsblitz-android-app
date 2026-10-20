@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -275,25 +276,20 @@ private fun TournamentSetupBottomBar(
     canStartTournament: Boolean,
     onStartTournament: () -> Unit
 ) {
-    Surface(
-        shadowElevation = 8.dp,
+    BottomAppBar(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
+        Button(
+            onClick = onStartTournament,
+            enabled = canStartTournament,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            Button(
-                onClick = onStartTournament,
-                enabled = canStartTournament,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    if (canStartTournament) "Turnier starten ($selectedCount Spieler)"
-                    else "Mindestens 2 Spieler auswählen"
-                )
-            }
+            Text(
+                if (canStartTournament) "Turnier starten ($selectedCount Spieler)"
+                else "Mindestens 2 Spieler auswählen"
+            )
         }
     }
 }

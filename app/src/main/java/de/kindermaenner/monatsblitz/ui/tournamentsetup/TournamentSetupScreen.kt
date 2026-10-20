@@ -143,7 +143,7 @@ fun TournamentSetupScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             TournamentSettingsCard(
                 selectedDate = state.selectedDate,
@@ -282,7 +282,7 @@ private fun TournamentSetupBottomBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Button(
                 onClick = onStartTournament,
@@ -324,8 +324,8 @@ private fun TournamentSettingsCard(
         )
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val isToday = selectedDate == LocalDate.now()
             val formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
@@ -368,19 +368,11 @@ private fun TournamentSettingsCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onDoubleRoundChanged(!doubleRound) }
-                    .padding(vertical = 4.dp),
+                    .clickable { onDoubleRoundChanged(!doubleRound) },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
-                    Text("Doppelrundig", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        "Hin- und Rückrunde spielen",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text("Doppelrundig", style = MaterialTheme.typography.bodyMedium)
                 Switch(
                     checked = doubleRound,
                     onCheckedChange = onDoubleRoundChanged
@@ -446,7 +438,7 @@ private fun TournamentPlayerList(
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         TournamentPlayerHeader(
             selectedCount = state.selectedPlayerIds.size,

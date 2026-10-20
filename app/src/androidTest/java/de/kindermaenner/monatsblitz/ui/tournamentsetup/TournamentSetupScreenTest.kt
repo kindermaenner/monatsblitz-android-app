@@ -2,7 +2,6 @@ package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import de.kindermaenner.monatsblitz.domain.model.Player
@@ -43,8 +42,8 @@ class TournamentSetupScreenTest {
         }
 
         composeTestRule.onNodeWithText("Neues Turnier").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Alice Meier").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Bob Mueller").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Alice Meier").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Bob Mueller").assertIsDisplayed()
         composeTestRule.onNodeWithText("Mindestens 2 Spieler auswählen").assertIsDisplayed().assertIsNotEnabled()
     }
 }

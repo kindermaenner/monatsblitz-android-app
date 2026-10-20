@@ -3,6 +3,9 @@ package de.kindermaenner.monatsblitz.ui.tournamentsetup
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
@@ -33,10 +36,10 @@ class TournamentSetupViewModel(
 
     init {
         viewModelScope.launch {
-            playerRepository.observePlayers().collect { players ->
-                _uiState.update {
-                    it.copy(
-                        players = players,
+            playerRepository.observePlayers().collect { rawPlayers ->
+                _uiState.update { state ->
+                    state.copy(
+                        players = sortPlayers(rawPlayers, state.sortField, state.sortOrder),
                         isLoading = false
                     )
                 }
@@ -48,6 +51,76 @@ class TournamentSetupViewModel(
                     _uiState.update { it.copy(showDetailedSyncIndicators = showIndicators) }
                 }
             }
+            viewModelScope.launch {
+                settingsRepository.playerSortField.collect { field ->
+                    _uiState.update { state ->
+                        state.copy(
+                            sortField = field,
+                            players = sortPlayers(state.players, field, state.sortOrder)
+                        )
+                    }
+                }
+            }
+            viewModelScope.launch {
+                settingsRepository.playerSortOrder.collect { order ->
+                    _uiState.update { state ->
+                        state.copy(
+                            sortOrder = order,
+                            players = sortPlayers(state.players, state.sortField, order)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun sortPlayers(
+        players: List<Player>,
+        field: PlayerSortField,
+        order: PlayerSortOrder
+    ): List<Player> {
+        val comparator = when (field) {
+            PlayerSortField.LAST_NAME -> compareBy<Player>({ it.name.lowercase() }, { it.vorname.lowercase() })
+            PlayerSortField.FIRST_NAME -> compareBy<Player>({ it.vorname.lowercase() }, { it.name.lowercase() })
+        }
+        return if (order == PlayerSortOrder.ASCENDING) {
+            players.sortedWith(comparator)
+        } else {
+            players.sortedWith(comparator.reversed())
+        }
+    }
+
+    fun toggleSortOrder() {
+        val newOrder = if (_uiState.value.sortOrder == PlayerSortOrder.ASCENDING) {
+            PlayerSortOrder.DESCENDING
+        } else {
+            PlayerSortOrder.ASCENDING
+        }
+        _uiState.update { state ->
+            state.copy(
+                sortOrder = newOrder,
+                players = sortPlayers(state.players, state.sortField, newOrder)
+            )
+        }
+        viewModelScope.launch {
+            settingsRepository?.setPlayerSortOrder(newOrder)
+        }
+    }
+
+    fun toggleSortField() {
+        val newField = if (_uiState.value.sortField == PlayerSortField.LAST_NAME) {
+            PlayerSortField.FIRST_NAME
+        } else {
+            PlayerSortField.LAST_NAME
+        }
+        _uiState.update { state ->
+            state.copy(
+                sortField = newField,
+                players = sortPlayers(state.players, newField, state.sortOrder)
+            )
+        }
+        viewModelScope.launch {
+            settingsRepository?.setPlayerSortField(newField)
         }
     }
 

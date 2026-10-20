@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.SyncStatus
+import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
 import de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase
+import de.kindermaenner.monatsblitz.domain.util.PlayerNameFormatter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -18,7 +20,8 @@ class RankingViewModel(
     private val tournamentId: Long,
     private val tournamentRepository: TournamentRepository,
     private val finalizeTournamentUseCase: FinalizeTournamentUseCase? = null,
-    private val tournamentSyncService: TournamentSyncService? = null
+    private val tournamentSyncService: TournamentSyncService? = null,
+    private val settingsRepository: SettingsRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<RankingUiState>(RankingUiState.Loading)
@@ -32,11 +35,29 @@ class RankingViewModel(
     private var isReadOnly = false
 
     private fun observeRanking() {
+        val tournamentFlow = runCatching { tournamentRepository.observeTournament(tournamentId) }
+            .getOrNull() ?: flowOf(null)
+
         viewModelScope.launch {
-            tournamentRepository.observeTournamentRanking(tournamentId).collect { items ->
+            combine(
+                tournamentRepository.observeTournamentRanking(tournamentId),
+                tournamentFlow,
+                settingsRepository?.useShortPlayerNames ?: flowOf(true)
+            ) { items, tournament, useShortNames ->
+                val shortNameMap = if (useShortNames && tournament != null) {
+                    tournament.players.associate { player ->
+                        player.id to PlayerNameFormatter.formatDisplayName(
+                            player = player,
+                            allPlayers = tournament.players,
+                            useShortName = true
+                        )
+                    }
+                } else emptyMap()
+
                 val rows = items.map { item ->
+                    val displayName = shortNameMap[item.playerId] ?: item.name
                     RankingRowData(
-                        name = item.name,
+                        name = displayName,
                         points = item.points,
                         rank = item.rank
                     )
@@ -50,22 +71,20 @@ class RankingViewModel(
                     isFinalized = currentReady?.isFinalized ?: false,
                     finalizeError = currentReady?.finalizeError
                 )
-            }
+            }.collect {}
         }
 
         viewModelScope.launch {
-            runCatching { tournamentRepository.observeTournament(tournamentId) }
-                .getOrNull()
-                ?.collect { tournament ->
-                    val count = tournament?.games?.values?.count {
-                        it.result == GameResult.Open
-                    } ?: 0
-                    openGamesCount = count
-                    val currentReady = _uiState.value as? RankingUiState.Ready
-                    if (currentReady != null) {
-                        _uiState.value = currentReady.copy(openGamesCount = count)
-                    }
+            tournamentFlow.collect { tournament ->
+                val count = tournament?.games?.values?.count {
+                    it.result == GameResult.Open
+                } ?: 0
+                openGamesCount = count
+                val currentReady = _uiState.value as? RankingUiState.Ready
+                if (currentReady != null) {
+                    _uiState.value = currentReady.copy(openGamesCount = count)
                 }
+            }
         }
 
         if (tournamentSyncService != null) {

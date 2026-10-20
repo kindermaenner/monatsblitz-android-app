@@ -36,6 +36,7 @@ fun CrosstableRow(
     tournament: Tournament,
     round: Int,
     rowData: CrosstableRowData,
+    allPlayerNames: List<String> = emptyList(),
     horizontalScrollState: ScrollState,
     setResult: (rowIndex: Int, columnIndex: Int, round: Int, result: GameResult) -> Unit
 ) {
@@ -89,7 +90,7 @@ fun CrosstableRow(
                             value = rowData.results[columnIndex],
                             enabled = rowData.rowIndex != columnIndex,
                             player1Name = rowData.playerName,
-                            player2Name = tournament.players.getOrNull(columnIndex)?.fullName ?: "",
+                            player2Name = allPlayerNames.getOrNull(columnIndex) ?: tournament.players.getOrNull(columnIndex)?.fullName ?: "",
                             round = round,
                             isDirty = rowData.dirtyFlags.getOrElse(columnIndex) { false },
                             showDetailedSyncIndicator = rowData.showDetailedSyncIndicators,

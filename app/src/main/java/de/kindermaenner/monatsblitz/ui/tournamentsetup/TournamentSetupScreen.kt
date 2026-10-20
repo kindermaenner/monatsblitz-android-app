@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -74,6 +76,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.ui.tournamentsetup.components.GameModeDropdownSelector
 
 internal fun matchesPlayerSearch(player: Player, query: String): Boolean {
@@ -176,6 +180,8 @@ fun TournamentSetupScreen(
                 onSearchQueryChanged = viewModel::onSearchQueryChanged,
                 onSearchFocused = { isSettingsExpanded = false },
                 onShowOnlySelectedChanged = viewModel::onShowOnlySelectedChanged,
+                onToggleSortOrder = viewModel::toggleSortOrder,
+                onToggleSortField = viewModel::toggleSortField,
                 onClearSelectedPlayers = viewModel::clearSelectedPlayers,
                 onPlayerChecked = viewModel::onPlayerChecked,
                 modifier = Modifier.weight(1f)
@@ -487,6 +493,8 @@ private fun TournamentPlayerList(
     onSearchQueryChanged: (String) -> Unit,
     onSearchFocused: () -> Unit,
     onShowOnlySelectedChanged: (Boolean) -> Unit,
+    onToggleSortOrder: () -> Unit,
+    onToggleSortField: () -> Unit,
     onClearSelectedPlayers: () -> Unit,
     onPlayerChecked: (Long, Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -520,7 +528,11 @@ private fun TournamentPlayerList(
             showOnlySelected = state.showOnlySelected,
             totalCount = state.players.size,
             selectedCount = state.selectedPlayerIds.size,
+            sortField = state.sortField,
+            sortOrder = state.sortOrder,
             onShowOnlySelectedChanged = onShowOnlySelectedChanged,
+            onToggleSortOrder = onToggleSortOrder,
+            onToggleSortField = onToggleSortField,
             onClearSelectedPlayers = onClearSelectedPlayers
         )
 
@@ -610,12 +622,16 @@ private fun TournamentPlayerFilterRow(
     showOnlySelected: Boolean,
     totalCount: Int,
     selectedCount: Int,
+    sortField: PlayerSortField,
+    sortOrder: PlayerSortOrder,
     onShowOnlySelectedChanged: (Boolean) -> Unit,
+    onToggleSortOrder: () -> Unit,
+    onToggleSortField: () -> Unit,
     onClearSelectedPlayers: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         FilterChip(
@@ -630,8 +646,36 @@ private fun TournamentPlayerFilterRow(
             label = { Text("Ausgewählt ($selectedCount)") }
         )
 
+        Spacer(modifier = Modifier.weight(1f))
+
+        AssistChip(
+            onClick = onToggleSortField,
+            label = {
+                Text(
+                    text = if (sortField == PlayerSortField.LAST_NAME) "Nachname" else "Vorname",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        )
+
+        AssistChip(
+            onClick = onToggleSortOrder,
+            label = {
+                Text(
+                    text = if (sortOrder == PlayerSortOrder.ASCENDING) "A➔Z" else "Z➔A",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = if (sortOrder == PlayerSortOrder.ASCENDING) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                    contentDescription = "Reihenfolge ändern",
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        )
+
         if (selectedCount > 0) {
-            Spacer(modifier = Modifier.weight(1f))
             TextButton(
                 onClick = onClearSelectedPlayers,
                 contentPadding = PaddingValues(horizontal = 4.dp)
@@ -672,6 +716,7 @@ private fun TournamentPlayerListContent(
                     selectedMatching = selectedMatching,
                     query = query,
                     showDetailedSyncIndicators = state.showDetailedSyncIndicators,
+                    sortField = state.sortField,
                     onPlayerChecked = onPlayerChecked
                 )
             } else {
@@ -680,6 +725,7 @@ private fun TournamentPlayerListContent(
                     unselectedMatching = unselectedMatching,
                     query = query,
                     showDetailedSyncIndicators = state.showDetailedSyncIndicators,
+                    sortField = state.sortField,
                     onPlayerChecked = onPlayerChecked
                 )
             }
@@ -692,6 +738,7 @@ private fun LazyListScope.renderSelectedOnlyPlayers(
     selectedMatching: List<Player>,
     query: String,
     showDetailedSyncIndicators: Boolean,
+    sortField: PlayerSortField,
     onPlayerChecked: (Long, Boolean) -> Unit
 ) {
     if (selectedMatching.isEmpty()) {
@@ -715,6 +762,7 @@ private fun LazyListScope.renderSelectedOnlyPlayers(
                 player = player,
                 selected = true,
                 showDirtyIndicator = showDetailedSyncIndicators,
+                sortField = sortField,
                 onCheckedChange = { checked -> onPlayerChecked(player.id, checked) }
             )
         }
@@ -726,6 +774,7 @@ private fun LazyListScope.renderAllPlayers(
     unselectedMatching: List<Player>,
     query: String,
     showDetailedSyncIndicators: Boolean,
+    sortField: PlayerSortField,
     onPlayerChecked: (Long, Boolean) -> Unit
 ) {
     if (selectedMatching.isEmpty() && unselectedMatching.isEmpty()) {
@@ -758,6 +807,7 @@ private fun LazyListScope.renderAllPlayers(
                     player = player,
                     selected = true,
                     showDirtyIndicator = showDetailedSyncIndicators,
+                    sortField = sortField,
                     onCheckedChange = { checked -> onPlayerChecked(player.id, checked) }
                 )
             }
@@ -781,6 +831,7 @@ private fun LazyListScope.renderAllPlayers(
                     player = player,
                     selected = false,
                     showDirtyIndicator = showDetailedSyncIndicators,
+                    sortField = sortField,
                     onCheckedChange = { checked -> onPlayerChecked(player.id, checked) }
                 )
             }
@@ -793,8 +844,15 @@ private fun PlayerRow(
     player: Player,
     selected: Boolean,
     showDirtyIndicator: Boolean,
+    sortField: PlayerSortField = PlayerSortField.LAST_NAME,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val displayName = if (sortField == PlayerSortField.LAST_NAME && player.name.isNotBlank() && player.vorname.isNotBlank()) {
+        "${player.name}, ${player.vorname}"
+    } else {
+        player.fullName
+    }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -807,7 +865,7 @@ private fun PlayerRow(
             onCheckedChange = onCheckedChange
         )
         Text(
-            text = player.fullName,
+            text = displayName,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.padding(start = 8.dp)

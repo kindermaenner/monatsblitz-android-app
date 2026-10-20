@@ -38,6 +38,7 @@ class RankingViewModelTest {
         every { android.util.Log.i(any(), any()) } returns 0
         every { android.util.Log.e(any(), any()) } returns 0
         every { android.util.Log.e(any(), any(), any()) } returns 0
+        every { tournamentRepository.observeTournament(any()) } returns flowOf(null)
     }
 
     @Test

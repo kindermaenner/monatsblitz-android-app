@@ -12,6 +12,7 @@ import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
 import de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
+import de.kindermaenner.monatsblitz.domain.util.PlayerNameFormatter
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableRowData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -60,8 +61,9 @@ class CrosstableViewModel(
             repository.observeTournament(tournamentId),
             _selectedLeg,
             tournamentSyncService?.syncStatus ?: flowOf(SyncStatus.SYNCED),
-            settingsRepository?.showDetailedSyncIndicators ?: flowOf(true)
-        ) { tournament, leg, syncStatus, showDetailedSyncIndicators ->
+            settingsRepository?.showDetailedSyncIndicators ?: flowOf(true),
+            settingsRepository?.useShortPlayerNames ?: flowOf(true)
+        ) { tournament, leg, syncStatus, showDetailedSyncIndicators, useShortNames ->
             val pointsMap = tournament?.players?.associate { player ->
                 player.id to calculatePlayerPointsUseCase(tournament, player.id)
             } ?: emptyMap()
@@ -72,6 +74,7 @@ class CrosstableViewModel(
                     leg = leg,
                     pointsMap = pointsMap,
                     showDetailedSyncIndicators = showDetailedSyncIndicators,
+                    useShortNames = useShortNames,
                     enabled = syncStatus != SyncStatus.FINALIZED
                 )
             } else {
@@ -99,8 +102,16 @@ class CrosstableViewModel(
         leg: Int,
         pointsMap: Map<Long, Double>,
         showDetailedSyncIndicators: Boolean,
+        useShortNames: Boolean,
         enabled: Boolean
     ): List<CrosstableRowData> {
+        val playerDisplayNames = tournament.players.associate { player ->
+            player.id to PlayerNameFormatter.formatDisplayName(
+                player = player,
+                allPlayers = tournament.players,
+                useShortName = useShortNames
+            )
+        }
         return tournament.playerIds.indices.map { rowIndex ->
             val playerId = tournament.playerIds[rowIndex]
             val points = pointsMap[playerId] ?: 0.0
@@ -124,7 +135,7 @@ class CrosstableViewModel(
 
             CrosstableRowData(
                 rowIndex = rowIndex,
-                playerName = tournament.players.getOrNull(rowIndex)?.fullName ?: "",
+                playerName = playerDisplayNames[playerId] ?: tournament.players.getOrNull(rowIndex)?.fullName ?: "",
                 totalPoints = points,
                 results = results,
                 dirtyFlags = dirtyFlags,

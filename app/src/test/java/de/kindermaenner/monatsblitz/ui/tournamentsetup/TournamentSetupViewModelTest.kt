@@ -4,6 +4,8 @@ import de.kindermaenner.monatsblitz.domain.model.GameMode
 import java.time.LocalDate
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
@@ -313,5 +315,34 @@ class TournamentSetupViewModelTest {
 
         syncIndicatorsFlow.value = false
         assertFalse(viewModel.uiState.value.showDetailedSyncIndicators)
+    }
+
+    @Test
+    fun `players are sorted by last name ascending by default and can be toggled`() = runTest {
+        val p1 = Player(1, "Mueller", "Alice")
+        val p2 = Player(2, "Meier", "Bob")
+        coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1, p2))
+
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+
+        // Default: Last name ascending -> Meier (p2), Mueller (p1)
+        assertEquals(listOf(p2, p1), viewModel.uiState.value.players)
+        assertEquals(PlayerSortField.LAST_NAME, viewModel.uiState.value.sortField)
+        assertEquals(PlayerSortOrder.ASCENDING, viewModel.uiState.value.sortOrder)
+
+        // Toggle sort order -> Descending: Mueller (p1), Meier (p2)
+        viewModel.toggleSortOrder()
+        assertEquals(listOf(p1, p2), viewModel.uiState.value.players)
+        assertEquals(PlayerSortOrder.DESCENDING, viewModel.uiState.value.sortOrder)
+
+        // Toggle sort field -> First name descending: Bob Meier (p2), Alice Mueller (p1)
+        viewModel.toggleSortField()
+        assertEquals(listOf(p2, p1), viewModel.uiState.value.players)
+        assertEquals(PlayerSortField.FIRST_NAME, viewModel.uiState.value.sortField)
+
+        // Toggle order -> First name ascending: Alice Mueller (p1), Bob Meier (p2)
+        viewModel.toggleSortOrder()
+        assertEquals(listOf(p1, p2), viewModel.uiState.value.players)
+        assertEquals(PlayerSortOrder.ASCENDING, viewModel.uiState.value.sortOrder)
     }
 }

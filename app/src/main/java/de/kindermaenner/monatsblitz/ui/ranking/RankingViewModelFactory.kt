@@ -2,6 +2,7 @@ package de.kindermaenner.monatsblitz.ui.ranking
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
 import de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase
@@ -10,7 +11,8 @@ class RankingViewModelFactory(
     private val tournamentId: Long,
     private val tournamentRepository: TournamentRepository,
     private val finalizeTournamentUseCase: FinalizeTournamentUseCase? = null,
-    private val tournamentSyncService: TournamentSyncService? = null
+    private val tournamentSyncService: TournamentSyncService? = null,
+    private val settingsRepository: SettingsRepository? = null
 ) : ViewModelProvider.Factory {
 
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -20,10 +22,10 @@ class RankingViewModelFactory(
                 tournamentId = tournamentId,
                 tournamentRepository = tournamentRepository,
                 finalizeTournamentUseCase = finalizeTournamentUseCase,
-                tournamentSyncService = tournamentSyncService
+                tournamentSyncService = tournamentSyncService,
+                settingsRepository = settingsRepository
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
-

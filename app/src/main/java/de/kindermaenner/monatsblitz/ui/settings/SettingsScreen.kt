@@ -27,6 +27,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,6 +59,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.usecase.ConnectionTestResult
 import de.kindermaenner.monatsblitz.infrastructure.api.client.QrSetupParser
 
@@ -74,6 +77,9 @@ fun SettingsScreen(
     val testResult by viewModel.testResult.collectAsStateWithLifecycle()
     val isSavedMessageVisible by viewModel.isSavedMessageVisible.collectAsStateWithLifecycle()
     val isConfigured by viewModel.isConfigured.collectAsStateWithLifecycle()
+    val playerSortField by viewModel.playerSortField.collectAsStateWithLifecycle()
+    val playerSortOrder by viewModel.playerSortOrder.collectAsStateWithLifecycle()
+    val useShortPlayerNames by viewModel.useShortPlayerNames.collectAsStateWithLifecycle()
 
     var isPasswordVisible by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -355,6 +361,87 @@ fun SettingsScreen(
                         viewModel.setShowDetailedSyncIndicators(checked)
                     },
                     modifier = Modifier.padding(start = 16.dp)
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        viewModel.setUseShortPlayerNames(!useShortPlayerNames)
+                    }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Kurznamen in Tabellen & Rangliste",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Spart Platz auf kleinen Displays (z. B. 'Peter M.' statt 'Peter Müller').",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = useShortPlayerNames,
+                    onCheckedChange = { checked ->
+                        viewModel.setUseShortPlayerNames(checked)
+                    },
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            Text(
+                text = "Sortierung der Spielerliste",
+                style = MaterialTheme.typography.titleSmall
+            )
+
+            Text(
+                text = "Sortieren nach",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = playerSortField == PlayerSortField.LAST_NAME,
+                    onClick = { viewModel.setPlayerSortField(PlayerSortField.LAST_NAME) },
+                    label = { Text("Nachname") }
+                )
+                FilterChip(
+                    selected = playerSortField == PlayerSortField.FIRST_NAME,
+                    onClick = { viewModel.setPlayerSortField(PlayerSortField.FIRST_NAME) },
+                    label = { Text("Vorname") }
+                )
+            }
+
+            Text(
+                text = "Reihenfolge",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = playerSortOrder == PlayerSortOrder.ASCENDING,
+                    onClick = { viewModel.setPlayerSortOrder(PlayerSortOrder.ASCENDING) },
+                    label = { Text("Aufsteigend (A–Z)") }
+                )
+                FilterChip(
+                    selected = playerSortOrder == PlayerSortOrder.DESCENDING,
+                    onClick = { viewModel.setPlayerSortOrder(PlayerSortOrder.DESCENDING) },
+                    label = { Text("Absteigend (Z–A)") }
                 )
             }
         }

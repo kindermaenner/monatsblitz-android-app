@@ -150,7 +150,8 @@ class AppContainer(context: Context) {
         tournamentId = tournamentId,
         tournamentRepository = tournamentRepository,
         finalizeTournamentUseCase = finalizeTournamentUseCase,
-        tournamentSyncService = tournamentSyncManager
+        tournamentSyncService = tournamentSyncManager,
+        settingsRepository = appSettingsStorage
     )
 
     val settingsViewModelFactory =

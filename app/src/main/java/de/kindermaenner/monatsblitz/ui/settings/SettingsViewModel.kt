@@ -2,6 +2,8 @@ package de.kindermaenner.monatsblitz.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.model.QrSetupConfig
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.usecase.ConnectionTestResult
@@ -157,6 +159,48 @@ class SettingsViewModel(
     fun setShowDetailedSyncIndicators(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setShowDetailedSyncIndicators(enabled)
+        }
+    }
+
+    val playerSortField: StateFlow<PlayerSortField> =
+        settingsRepository.playerSortField
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = PlayerSortField.LAST_NAME
+            )
+
+    val playerSortOrder: StateFlow<PlayerSortOrder> =
+        settingsRepository.playerSortOrder
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = PlayerSortOrder.ASCENDING
+            )
+
+    val useShortPlayerNames: StateFlow<Boolean> =
+        settingsRepository.useShortPlayerNames
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = true
+            )
+
+    fun setPlayerSortField(field: PlayerSortField) {
+        viewModelScope.launch {
+            settingsRepository.setPlayerSortField(field)
+        }
+    }
+
+    fun setPlayerSortOrder(order: PlayerSortOrder) {
+        viewModelScope.launch {
+            settingsRepository.setPlayerSortOrder(order)
+        }
+    }
+
+    fun setUseShortPlayerNames(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setUseShortPlayerNames(enabled)
         }
     }
 }

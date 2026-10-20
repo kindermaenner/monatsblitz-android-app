@@ -334,6 +334,7 @@ private fun CrosstableTableContent(
                     tournament = tournament,
                     round = state.leg,
                     rowData = rowData,
+                    allPlayerNames = state.rows.map { it.playerName },
                     horizontalScrollState = horizontalScrollState,
                     setResult = onSetResult
                 )

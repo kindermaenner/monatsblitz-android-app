@@ -2,6 +2,8 @@ package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import java.time.LocalDate
 
 data class TournamentSetupUiState(
@@ -9,6 +11,8 @@ data class TournamentSetupUiState(
     val selectedPlayerIds: Set<Long> = emptySet(),
     val searchQuery: String = "",
     val showOnlySelected: Boolean = false,
+    val sortField: PlayerSortField = PlayerSortField.LAST_NAME,
+    val sortOrder: PlayerSortOrder = PlayerSortOrder.ASCENDING,
 
     val selectedDate: LocalDate = LocalDate.now(),
     val selectedMode: GameMode = GameMode.BLITZ_5_0,

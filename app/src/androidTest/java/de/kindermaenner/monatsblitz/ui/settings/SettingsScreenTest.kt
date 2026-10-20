@@ -160,4 +160,19 @@ class SettingsScreenTest {
 
         composeTestRule.onNodeWithText("API-Schlüssel ungültig (401).").assertExists()
     }
+
+    @Test
+    fun settingsScreen_displaysQrScanButton() {
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onBack = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("scan_qr_button").assertExists()
+        composeTestRule.onNodeWithText("QR-Code scannen").assertExists()
+    }
 }

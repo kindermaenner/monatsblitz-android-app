@@ -107,6 +107,22 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `applyQrConfig updates inputs and triggers connection test`() = runTest {
+        coEvery { testBackendConnectionUseCase("https://sc-example.de", "qr-key") } returns
+            ConnectionTestResult.Success(playerCount = 10)
+
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        advanceUntilIdle()
+
+        viewModel.applyQrConfig(de.kindermaenner.monatsblitz.domain.model.QrSetupConfig("https://sc-example.de", "qr-key"))
+        advanceUntilIdle()
+
+        assertEquals("https://sc-example.de", viewModel.serverUrlInput.value)
+        assertEquals("qr-key", viewModel.apiKeyInput.value)
+        assertTrue(viewModel.testResult.value is ConnectionTestResult.Success)
+    }
+
+    @Test
     fun `showDetailedSyncIndicators reflects repository state`() = runTest {
         val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
         backgroundScope.launch { viewModel.showDetailedSyncIndicators.collect() }

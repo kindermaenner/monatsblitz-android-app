@@ -143,8 +143,8 @@ fun TournamentSetupScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             TournamentSettingsCard(
                 selectedDate = state.selectedDate,
@@ -661,7 +661,7 @@ private fun LazyListScope.renderAllPlayers(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Kein Spieler gefunden für '$query'.",
+                    text = if (query.isEmpty()) "Noch keine Spieler vorhanden." else "Kein Spieler gefunden für '$query'.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

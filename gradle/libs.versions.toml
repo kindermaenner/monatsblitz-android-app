@@ -29,6 +29,7 @@ runtime = "1.11.4"
 room = "2.8.4"
 ksp = "2.3.9"
 plantuml = "1.2026.6"
+playServicesCodeScanner = "16.1.0"
 
 [libraries]
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
@@ -76,6 +77,7 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 plantuml = { module = "net.sourceforge.plantuml:plantuml", version.ref = "plantuml" }
+play-services-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "playServicesCodeScanner" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

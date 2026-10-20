@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -25,6 +26,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -52,7 +55,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import de.kindermaenner.monatsblitz.domain.usecase.ConnectionTestResult
+import de.kindermaenner.monatsblitz.infrastructure.api.client.QrSetupParser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,6 +77,15 @@ fun SettingsScreen(
 
     var isPasswordVisible by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    val barcodeScanner = remember(context) {
+        val options = GmsBarcodeScannerOptions.Builder()
+            .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+            .enableAutoZoom()
+            .build()
+        GmsBarcodeScanning.getClient(context, options)
+    }
 
     LaunchedEffect(isSavedMessageVisible) {
         if (isSavedMessageVisible) {
@@ -114,18 +130,51 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Bitte gib die Adresse deiner WordPress-Website und deinen API-Schlüssel ein, um die App mit dem Monatsblitz-Plugin zu verbinden.",
+                            text = "Bitte gib die Adresse deiner WordPress-Website und deinen API-Schlüssel ein – oder scanne einfach den Einrichtungs-QR-Code im WordPress-Admin.",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
             }
 
-            Text(
-                text = "Server-Verbindung",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Server-Verbindung",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                FilledTonalButton(
+                    onClick = {
+                        barcodeScanner.startScan()
+                            .addOnSuccessListener { barcode ->
+                                val raw = barcode.rawValue
+                                val config = raw?.let { QrSetupParser.parse(it) }
+                                if (config != null) {
+                                    viewModel.applyQrConfig(config)
+                                } else {
+                                    viewModel.onQrScanError("Der gescannte QR-Code enthält keine gültigen Monatsblitz-Daten.")
+                                }
+                            }
+                            .addOnFailureListener {
+                                // Scan abgebrochen oder Fehler
+                            }
+                    },
+                    modifier = Modifier.testTag("scan_qr_button")
+                ) {
+                    Icon(
+                        Icons.Default.QrCodeScanner,
+                        contentDescription = "QR-Code scannen",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("QR-Code scannen")
+                }
+            }
 
             OutlinedTextField(
                 value = serverUrl,

@@ -80,6 +80,18 @@ class SettingsViewModel(
         _isSavedMessageVisible.value = false
     }
 
+    fun applyQrConfig(config: de.kindermaenner.monatsblitz.domain.model.QrSetupConfig) {
+        _serverUrlInput.value = config.serverUrl
+        _apiKeyInput.value = config.apiKey
+        _testResult.value = null
+        _isSavedMessageVisible.value = false
+        testConnection()
+    }
+
+    fun onQrScanError(message: String) {
+        _testResult.value = ConnectionTestResult.Error(message)
+    }
+
     fun saveSettings() {
         viewModelScope.launch {
             val trimmedUrl = _serverUrlInput.value.trim()

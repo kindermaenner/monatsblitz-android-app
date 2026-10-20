@@ -104,6 +104,7 @@ dependencies {
     implementation(libs.okhttp)
 
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.play.services.code.scanner)
     
     implementation(libs.androidx.datastore.preferences)
 

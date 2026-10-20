@@ -21,6 +21,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
@@ -134,8 +145,10 @@ fun TournamentSetupScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             TournamentSettingsCard(
+                selectedDate = state.selectedDate,
                 selectedMode = state.selectedMode,
                 doubleRound = state.doubleRound,
+                onDateChanged = viewModel::onDateChanged,
                 onModeChanged = viewModel::onModeChanged,
                 onDoubleRoundChanged = viewModel::onDoubleRoundChanged
             )
@@ -286,11 +299,23 @@ private fun TournamentSetupBottomBar(
 
 @Composable
 private fun TournamentSettingsCard(
+    selectedDate: LocalDate,
     selectedMode: GameMode,
     doubleRound: Boolean,
+    onDateChanged: (LocalDate) -> Unit,
     onModeChanged: (GameMode) -> Unit,
     onDoubleRoundChanged: (Boolean) -> Unit
 ) {
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker) {
+        TournamentDatePickerDialog(
+            initialDate = selectedDate,
+            onDateSelected = onDateChanged,
+            onDismiss = { showDatePicker = false }
+        )
+    }
+
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.outlinedCardColors(
@@ -304,6 +329,45 @@ private fun TournamentSettingsCard(
             Text(
                 text = "Einstellungen",
                 style = MaterialTheme.typography.titleMedium
+            )
+
+            val isToday = selectedDate == LocalDate.now()
+            val formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+            val dateLabel = if (isToday) "Heute ($formattedDate)" else formattedDate
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDatePicker = true }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = "Turnierdatum",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Column {
+                        Text("Turnierdatum", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            dateLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                TextButton(onClick = { showDatePicker = true }) {
+                    Text("Ändern")
+                }
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
 
             GameModeDropdownSelector(
@@ -333,6 +397,41 @@ private fun TournamentSettingsCard(
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TournamentDatePickerDialog(
+    initialDate: LocalDate,
+    onDateSelected: (LocalDate) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initialDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val date = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
+                        onDateSelected(date)
+                    }
+                    onDismiss()
+                }
+            ) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        }
+    ) {
+        DatePicker(state = datePickerState)
     }
 }
 

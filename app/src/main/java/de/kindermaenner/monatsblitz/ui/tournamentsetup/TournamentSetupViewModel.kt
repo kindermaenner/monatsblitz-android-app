@@ -88,6 +88,12 @@ class TournamentSetupViewModel(
         _uiState.update { it.copy(selectedPlayerIds = emptySet()) }
     }
 
+    fun onDateChanged(date: LocalDate) {
+        _uiState.update {
+            it.copy(selectedDate = date)
+        }
+    }
+
     fun onModeChanged(mode: GameMode) {
         _uiState.update {
             it.copy(selectedMode = mode)
@@ -110,7 +116,7 @@ class TournamentSetupViewModel(
             val tournament = createTournamentUseCase.invoke(
                 players = players,
                 mode = state.selectedMode,
-                date = LocalDate.now(),
+                date = state.selectedDate,
                 rounds = if (state.doubleRound) 2 else 1
             )
             _navigationEffect.emit(tournament.id)

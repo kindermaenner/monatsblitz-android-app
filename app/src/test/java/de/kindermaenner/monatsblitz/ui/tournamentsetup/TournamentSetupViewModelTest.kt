@@ -1,6 +1,8 @@
 package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
 import de.kindermaenner.monatsblitz.domain.model.GameMode
+import java.time.LocalDate
+import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
@@ -118,6 +120,33 @@ class TournamentSetupViewModelTest {
             mode = GameMode.BLITZ_5_0,
             date = any(),
             rounds = 1
+        ) }
+    }
+
+    @Test
+    fun `onDateChanged updates selectedDate and is passed to createTournament`() = runTest {
+        val p1 = Player(1, "A", "A")
+        val mockTournament = mockk<Tournament>()
+        io.mockk.every { mockTournament.id } returns 456L
+
+        coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1))
+        coEvery { createTournamentUseCase(any(), any(), any(), any()) } returns mockTournament
+
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        viewModel.togglePlayer(1L)
+
+        val customDate = LocalDate.of(2025, 11, 15)
+        viewModel.onDateChanged(customDate)
+
+        assertEquals(customDate, viewModel.uiState.value.selectedDate)
+
+        viewModel.createTournament()
+
+        coVerify { createTournamentUseCase(
+            players = listOf(p1),
+            mode = any(),
+            date = customDate,
+            rounds = any()
         ) }
     }
 

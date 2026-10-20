@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -22,11 +23,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import java.time.Instant
 import java.time.LocalDate
@@ -61,6 +65,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -106,10 +111,17 @@ fun TournamentSetupScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val canStartTournament = state.selectedPlayerIds.size >= 2
+    var isSettingsExpanded by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         viewModel.navigationEffect.collect { tournamentId ->
             onNavigateToCrosstable(tournamentId)
+        }
+    }
+
+    LaunchedEffect(state.searchQuery) {
+        if (state.searchQuery.isNotBlank()) {
+            isSettingsExpanded = false
         }
     }
 
@@ -148,6 +160,8 @@ fun TournamentSetupScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             TournamentSettingsCard(
+                isExpanded = isSettingsExpanded,
+                onToggleExpanded = { isSettingsExpanded = !isSettingsExpanded },
                 selectedDate = state.selectedDate,
                 selectedMode = state.selectedMode,
                 doubleRound = state.doubleRound,
@@ -160,6 +174,7 @@ fun TournamentSetupScreen(
                 state = state,
                 onShowAddPlayerDialog = { viewModel.onShowAddPlayerDialog(true) },
                 onSearchQueryChanged = viewModel::onSearchQueryChanged,
+                onSearchFocused = { isSettingsExpanded = false },
                 onShowOnlySelectedChanged = viewModel::onShowOnlySelectedChanged,
                 onClearSelectedPlayers = viewModel::clearSelectedPlayers,
                 onPlayerChecked = viewModel::onPlayerChecked,
@@ -297,6 +312,8 @@ private fun TournamentSetupBottomBar(
 
 @Composable
 private fun TournamentSettingsCard(
+    isExpanded: Boolean,
+    onToggleExpanded: () -> Unit,
     selectedDate: LocalDate,
     selectedMode: GameMode,
     doubleRound: Boolean,
@@ -320,60 +337,109 @@ private fun TournamentSettingsCard(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            val isToday = selectedDate == LocalDate.now()
-            val formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-            val dateLabel = if (isToday) "Heute ($formattedDate)" else formattedDate
+        val isToday = selectedDate == LocalDate.now()
+        val formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+        val dateLabel = if (isToday) "Heute ($formattedDate)" else formattedDate
+        val roundLabel = if (doubleRound) "Doppelrunde" else "Einfachrunde"
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Einstellungen",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                AssistChip(
-                    onClick = { showDatePicker = true },
-                    label = {
-                        Text(
-                            text = dateLabel,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.DateRange,
-                            contentDescription = "Turnierdatum",
-                            tint = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                )
-            }
-
-            GameModeDropdownSelector(
-                selectedMode = selectedMode,
-                onModeSelected = onModeChanged
-            )
-
+        if (!isExpanded) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onDoubleRoundChanged(!doubleRound) },
+                    .clickable { onToggleExpanded() }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Doppelrundig", style = MaterialTheme.typography.bodyMedium)
-                Switch(
-                    checked = doubleRound,
-                    onCheckedChange = onDoubleRoundChanged
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Einstellungen",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "(${if (isToday) "Heute" else formattedDate} • ${selectedMode.displayName} • $roundLabel)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Einstellungen aufklappen",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        } else {
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { onToggleExpanded() }
+                    ) {
+                        Text(
+                            text = "Einstellungen",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        IconButton(
+                            onClick = onToggleExpanded,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowUp,
+                                contentDescription = "Einstellungen einklappen",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    AssistChip(
+                        onClick = { showDatePicker = true },
+                        label = {
+                            Text(
+                                text = dateLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = "Turnierdatum",
+                                tint = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    )
+                }
+
+                GameModeDropdownSelector(
+                    selectedMode = selectedMode,
+                    onModeSelected = onModeChanged
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onDoubleRoundChanged(!doubleRound) },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Doppelrundig", style = MaterialTheme.typography.bodyMedium)
+                    Switch(
+                        checked = doubleRound,
+                        onCheckedChange = onDoubleRoundChanged
+                    )
+                }
             }
         }
     }
@@ -419,6 +485,7 @@ private fun TournamentPlayerList(
     state: TournamentSetupUiState,
     onShowAddPlayerDialog: () -> Unit,
     onSearchQueryChanged: (String) -> Unit,
+    onSearchFocused: () -> Unit,
     onShowOnlySelectedChanged: (Boolean) -> Unit,
     onClearSelectedPlayers: () -> Unit,
     onPlayerChecked: (Long, Boolean) -> Unit,
@@ -445,7 +512,8 @@ private fun TournamentPlayerList(
 
         TournamentPlayerSearchBar(
             query = state.searchQuery,
-            onSearchQueryChanged = onSearchQueryChanged
+            onSearchQueryChanged = onSearchQueryChanged,
+            onSearchFocused = onSearchFocused
         )
 
         TournamentPlayerFilterRow(
@@ -506,7 +574,8 @@ private fun TournamentPlayerHeader(
 @Composable
 private fun TournamentPlayerSearchBar(
     query: String,
-    onSearchQueryChanged: (String) -> Unit
+    onSearchQueryChanged: (String) -> Unit,
+    onSearchFocused: () -> Unit
 ) {
     OutlinedTextField(
         value = query,
@@ -526,7 +595,13 @@ private fun TournamentPlayerSearchBar(
             capitalization = KeyboardCapitalization.Words,
             imeAction = ImeAction.Search
         ),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { focusState ->
+                if (focusState.isFocused) {
+                    onSearchFocused()
+                }
+            }
     )
 }
 

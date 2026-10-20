@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
@@ -56,5 +57,25 @@ class TournamentSetupScreenTest {
         composeTestRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Bob Mueller"))
         composeTestRule.onNodeWithText("Bob Mueller").assertExists().performClick()
         composeTestRule.onNodeWithText("Turnier starten (2 Spieler)").assertExists().assertIsEnabled()
+    }
+
+    @Test
+    fun setupScreen_settingsCardCanBeCollapsedAndExpanded() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        // Initially expanded: "Doppelrundig" switch is visible
+        composeTestRule.onNodeWithText("Doppelrundig").assertExists()
+
+        // Collapse settings
+        composeTestRule.onNodeWithContentDescription("Einstellungen einklappen").performClick()
+        composeTestRule.onNodeWithText("Doppelrundig").assertDoesNotExist()
+
+        // Expand settings
+        composeTestRule.onNodeWithContentDescription("Einstellungen aufklappen").performClick()
+        composeTestRule.onNodeWithText("Doppelrundig").assertExists()
     }
 }

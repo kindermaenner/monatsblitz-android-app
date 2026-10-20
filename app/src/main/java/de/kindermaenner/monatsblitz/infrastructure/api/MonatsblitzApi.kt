@@ -13,6 +13,7 @@ import de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewPlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewTournamentDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerBatchItemDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerBatchResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.RecreatePostsDto
@@ -34,7 +35,7 @@ interface MonatsblitzApi {
     @POST("player")
     suspend fun createPlayer(
         @Body request: NewPlayerDto
-    ): PlayerDto
+    ): PlayerBatchItemDto
 
     @POST("player")
     suspend fun createPlayers(

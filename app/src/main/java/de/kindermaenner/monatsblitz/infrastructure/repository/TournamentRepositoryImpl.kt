@@ -164,7 +164,9 @@ class TournamentRepositoryImpl(
     override suspend fun syncDirtyTournaments() {
         val api = requireApi()
 
-        tournamentDao.getDirtyTournaments().forEach {
+        val dirtyTournaments = tournamentDao.getDirtyTournaments()
+        Log.i(TAG, "syncDirtyTournaments: found ${dirtyTournaments.size} dirty tournaments")
+        dirtyTournaments.forEach {
             val dto = NewTournamentDto(
                 date = it.tournament.date.toString(),
                 mode = it.tournament.mode.displayName,
@@ -172,11 +174,14 @@ class TournamentRepositoryImpl(
                 playerIds = it.players.mapNotNull { player -> player.remoteId }
             )
             try {
+                Log.i(TAG, "syncDirtyTournaments: Sending tournament to API: $dto")
                 val response = api.createTournament(dto)
+                Log.i(TAG, "syncDirtyTournaments: Response from API: $response")
                 if (response.success) {
                     tournamentDao.updateTournamentRemoteId(it.tournament.id, response.tournamentId)
                 }
             } catch (e: HttpException) {
+                Log.e(TAG, "syncDirtyTournaments: HTTP error ${e.code()}", e)
                 handleCreateTournamentConflict(api, it.tournament.id, it.tournament.date.toString(), e)
             }
         }
@@ -310,4 +315,4 @@ class TournamentRepositoryImpl(
         private const val ERROR_PLAYER_DAO_NOT_CONFIGURED = "PlayerDao ist nicht konfiguriert"
     }
 
-}
+}

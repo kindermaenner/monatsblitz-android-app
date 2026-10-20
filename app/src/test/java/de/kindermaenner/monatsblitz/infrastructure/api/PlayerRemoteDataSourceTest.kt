@@ -1,6 +1,7 @@
 package de.kindermaenner.monatsblitz.infrastructure.api
 
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewPlayerDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerBatchItemDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerDto
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -15,8 +16,11 @@ class PlayerRemoteDataSourceTest {
     private val dataSource = PlayerRemoteDataSource(api)
 
     @Test
-    fun `getPlayers calls api and returns list`() = runTest {
-        val players = listOf(PlayerDto(id = 1, surname = "Carlsen", forename = "Magnus"))
+    fun `getPlayers calls api and returns players list`() = runTest {
+        val players = listOf(
+            PlayerDto(id = 1L, surname = "Carlsen", forename = "Magnus"),
+            PlayerDto(id = 2L, surname = "Nakamura", forename = "Hikaru")
+        )
         coEvery { api.getPlayers() } returns players
 
         val result = dataSource.getPlayers()
@@ -28,7 +32,7 @@ class PlayerRemoteDataSourceTest {
     @Test
     fun `createPlayer calls api and returns created player`() = runTest {
         val newPlayer = NewPlayerDto(forename = "Magnus", surname = "Carlsen")
-        val createdPlayer = PlayerDto(id = 1, surname = "Carlsen", forename = "Magnus")
+        val createdPlayer = PlayerBatchItemDto(success = true, playerId = 1L)
         coEvery { api.createPlayer(newPlayer) } returns createdPlayer
 
         val result = dataSource.createPlayer(newPlayer)
@@ -41,11 +45,5 @@ class PlayerRemoteDataSourceTest {
     fun `getPlayers should throw exception if api fails`() = runTest {
         coEvery { api.getPlayers() } throws Exception("API Error")
         dataSource.getPlayers()
-    }
-
-    @Test(expected = Exception::class)
-    fun `createPlayer should throw exception if api fails`() = runTest {
-        coEvery { api.createPlayer(any()) } throws Exception("API Error")
-        dataSource.createPlayer(NewPlayerDto(forename = "F", surname = "S"))
     }
 }

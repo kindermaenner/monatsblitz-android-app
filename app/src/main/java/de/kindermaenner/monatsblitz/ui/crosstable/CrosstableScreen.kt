@@ -1,6 +1,7 @@
 package de.kindermaenner.monatsblitz.ui.crosstable
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -70,6 +71,12 @@ fun CrosstableScreen(
     val coroutineScope = rememberCoroutineScope()
     var showBackDialog by remember { mutableStateOf(false) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(viewModel) {
+        viewModel.syncMessageEvent.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     val handleBackNavigation = {
         if (state.syncStatus == SyncStatus.FINALIZED) {

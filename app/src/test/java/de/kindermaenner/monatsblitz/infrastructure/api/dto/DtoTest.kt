@@ -193,7 +193,7 @@ class DtoTest {
 
     @Test
     fun `PlayerDto, NewPlayerDto, and PlayerBatchItemDto data class methods test`() {
-        val p1 = PlayerDto(id = 1, surname = "Mustermann", forename = "Max")
+        val p1 = PlayerDto(id = 1L, surname = "Mustermann", forename = "Max")
         val p2 = p1.copy()
         assertEquals(p1, p2)
         assertEquals(p1.hashCode(), p2.hashCode())
@@ -205,7 +205,7 @@ class DtoTest {
         assertEquals(np1.hashCode(), np2.hashCode())
         assertTrue(np1.toString().contains("NewPlayerDto"))
 
-        val bi1 = PlayerBatchItemDto(success = true, playerId = 1, message = "OK")
+        val bi1 = PlayerBatchItemDto(success = true, playerId = 1L, message = "OK")
         val bi2 = bi1.copy()
         val bi3 = bi1.copy(message = null)
         assertEquals(bi1, bi2)

@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 data class PlayerBatchItemDto(
     val success: Boolean,
     @SerialName("player_id")
-    val playerId: Int? = null,
+    val playerId: Long? = null,
     val message: String? = null
 )
 

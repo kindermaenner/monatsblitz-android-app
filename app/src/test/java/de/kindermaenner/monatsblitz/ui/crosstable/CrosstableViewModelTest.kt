@@ -265,4 +265,36 @@ class CrosstableViewModelTest {
 
         coVerify { repository.resetTournament() }
     }
+
+    @Test
+    fun `triggerManualSync emits syncMessageEvent on failure with error reason`() = runTest {
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        val syncService = mockk<de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService>()
+        val statusFlow = kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.domain.model.SyncStatus.FAILED)
+        val errorFlow = kotlinx.coroutines.flow.MutableStateFlow<String?>("Server nicht erreichbar")
+        coEvery { syncService.checkInitialStatus(any()) } returns Unit
+        coEvery { syncService.triggerSync(any()) } returns Unit
+        every { syncService.syncStatus } returns statusFlow
+        every { syncService.lastSyncError } returns errorFlow
+
+        val viewModel = CrosstableViewModel(
+            repository,
+            setGameResultUseCase,
+            createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase,
+            1L,
+            syncService
+        )
+        val messages = mutableListOf<String>()
+        backgroundScope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+            viewModel.syncMessageEvent.collect { messages.add(it) }
+        }
+        viewModel.uiState.first { it.tournament != null }
+
+        viewModel.triggerManualSync()
+        advanceUntilIdle()
+
+        org.junit.Assert.assertEquals(listOf("Server nicht erreichbar"), messages)
+    }
 }

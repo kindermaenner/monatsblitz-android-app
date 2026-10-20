@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.infrastructure.repository
 
+import android.util.Log
 import de.kindermaenner.monatsblitz.domain.model.NewPlayer
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
@@ -16,6 +17,10 @@ class PlayerRepositoryImpl(
     private val playerDao: PlayerDao,
     private val remoteDataSource: PlayerRemoteDataSource? = null
 ) : PlayerRepository {
+
+    companion object {
+        private const val TAG = "PlayerRepositoryImpl"
+    }
 
     override fun observePlayers(): Flow<List<Player>> =
         playerDao.observePlayers()
@@ -43,27 +48,48 @@ class PlayerRepositoryImpl(
             ?: throw IllegalStateException("PlayerRemoteDataSource ist nicht konfiguriert")
 
         val dirtyPlayers = playerDao.getDirtyPlayers()
+        Log.i(TAG, "syncPlayers: ${dirtyPlayers.size} dirty players to sync")
         dirtyPlayers.forEach {
+            Log.i(TAG, "syncPlayers: creating player on server: ${it.vorname} ${it.name}")
             val result = remote.createPlayer(it.toNewPlayerDto())
-            playerDao.setRemoteId(
-                playerId = it.id,
-                remoteId = result.id.toLong()
-            )
+            Log.i(TAG, "syncPlayers: server result: $result")
+            if (result.success && result.playerId != null) {
+                playerDao.setRemoteId(
+                    playerId = it.id,
+                    remoteId = result.playerId
+                )
+            }
         }
 
         val remotePlayers = remote.getPlayers().map { it.toEntity() }
+        Log.i(TAG, "syncPlayers: fetched ${remotePlayers.size} remote players")
         remotePlayers.forEach { remotePlayer ->
-            val existingByRemoteId = playerDao.getPlayerByRemoteId(remotePlayer.remoteId!!)
+            val remoteId = remotePlayer.remoteId ?: return@forEach
+            val existingByRemoteId = playerDao.getPlayerByRemoteId(remoteId)
             if (existingByRemoteId != null) {
-                playerDao.update(remotePlayer.copy(id = existingByRemoteId.id))
+                playerDao.update(
+                    existingByRemoteId.copy(
+                        name = remotePlayer.name.trim(),
+                        vorname = remotePlayer.vorname.trim(),
+                        dirty = false
+                    )
+                )
             } else {
-                val existingByName = playerDao.findPlayersByName(remotePlayer.vorname, remotePlayer.name).firstOrNull()
+                val existingByName = playerDao.findPlayersByName(
+                    remotePlayer.vorname.trim(),
+                    remotePlayer.name.trim()
+                ).firstOrNull()
                 if (existingByName != null) {
-                    playerDao.setRemoteId(playerId = existingByName.id, remoteId = remotePlayer.remoteId)
+                    playerDao.setRemoteId(playerId = existingByName.id, remoteId = remoteId)
                 } else {
-                    playerDao.insert(remotePlayer)
+                    playerDao.insert(
+                        remotePlayer.copy(
+                            name = remotePlayer.name.trim(),
+                            vorname = remotePlayer.vorname.trim()
+                        )
+                    )
                 }
             }
         }
     }
-}
+}

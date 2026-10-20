@@ -21,12 +21,24 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
+import io.mockk.mockkStatic
+import io.mockk.every
+import android.util.Log
 import retrofit2.HttpException
 import retrofit2.Response
 import java.time.LocalDate
 
 class TournamentSyncManagerTest {
+
+    @Before
+    fun setup() {
+        mockkStatic(Log::class)
+        every { Log.i(any(), any()) } returns 0
+        every { Log.e(any(), any()) } returns 0
+        every { Log.e(any(), any(), any()) } returns 0
+    }
 
     private val tournamentStorage = mockk<TournamentStorage>(relaxed = true)
     private val tournamentDao = mockk<TournamentDao>(relaxed = true)
@@ -226,5 +238,43 @@ class TournamentSyncManagerTest {
         coVerify { syncTournamentUseCase() }
         coVerify { syncGameResultsUseCase() }
         assertEquals(SyncStatus.SYNCED, syncManager.syncStatus.value)
+    }
+
+    @Test
+    fun `triggerSync populates lastSyncError on HTTP 500 and clears it on success`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
+        val errorResponse = Response.error<Any>(
+            500,
+            "Internal Server Error".toResponseBody("application/json".toMediaType())
+        )
+        coEvery { syncGameResultsUseCase() } throws HttpException(errorResponse)
+
+        syncManager.triggerSync(1L)
+
+        assertEquals(SyncStatus.FAILED, syncManager.syncStatus.value)
+        org.junit.Assert.assertNotNull(syncManager.lastSyncError.value)
+        org.junit.Assert.assertTrue(syncManager.lastSyncError.value!!.contains("500"))
+
+        // Now simulate success
+        val syncedEntity = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 100L)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(syncedEntity, emptyList(), emptyList())
+        coEvery { gameDao.getDirtyGamesForTournament(1L) } returns emptyList()
+        coEvery { syncGameResultsUseCase() } returns Unit
+
+        syncManager.triggerSync(1L)
+
+        assertEquals(SyncStatus.SYNCED, syncManager.syncStatus.value)
+        org.junit.Assert.assertNull(syncManager.lastSyncError.value)
+    }
+
+    @Test
+    fun `triggerSync populates lastSyncError on UnknownHostException`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
+        coEvery { syncPlayersUseCase() } throws java.net.UnknownHostException("Unable to resolve host")
+
+        syncManager.triggerSync(1L)
+
+        assertEquals(SyncStatus.FAILED, syncManager.syncStatus.value)
+        org.junit.Assert.assertEquals("Server nicht erreichbar. Bitte Internetverbindung und Server-Adresse prüfen.", syncManager.lastSyncError.value)
     }
 }

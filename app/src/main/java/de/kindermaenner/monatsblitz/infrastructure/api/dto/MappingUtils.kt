@@ -44,9 +44,9 @@ fun PlayerEntity.toNewPlayerDto() : NewPlayerDto =
         surname = name
     )
 
-fun  PlayerDto.toEntity() : PlayerEntity =
+fun PlayerDto.toEntity() : PlayerEntity =
     PlayerEntity(
-        remoteId = id.toLong(),
+        remoteId = id,
         name = surname,
         vorname = forename,
         dirty = false

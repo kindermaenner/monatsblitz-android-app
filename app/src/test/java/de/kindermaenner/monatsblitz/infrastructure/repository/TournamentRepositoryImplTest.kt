@@ -49,6 +49,8 @@ class TournamentRepositoryImplTest {
     fun setup() {
         mockkStatic(Log::class)
         every { Log.i(any(), any()) } returns 0
+        every { Log.e(any(), any()) } returns 0
+        every { Log.e(any(), any(), any()) } returns 0
         
         // Mock withTransaction to just execute the block
         mockkStatic("androidx.room.RoomDatabaseKt")

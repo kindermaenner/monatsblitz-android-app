@@ -14,7 +14,9 @@ import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCa
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 import de.kindermaenner.monatsblitz.domain.util.PlayerNameFormatter
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableRowData
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -155,6 +157,9 @@ class CrosstableViewModel(
         }
     }
 
+    private val _syncMessageEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val syncMessageEvent = _syncMessageEvent.asSharedFlow()
+
     fun triggerManualSync() {
         val tournament = uiState.value.tournament ?: return
         val currentStatus = uiState.value.syncStatus
@@ -163,6 +168,13 @@ class CrosstableViewModel(
         }
         viewModelScope.launch {
             tournamentSyncService?.triggerSync(tournament.id)
+            val newStatus = tournamentSyncService?.syncStatus?.value
+            val error = runCatching { tournamentSyncService?.lastSyncError?.value }.getOrNull()
+            if (newStatus == SyncStatus.FAILED) {
+                _syncMessageEvent.emit(error ?: "Synchronisierung fehlgeschlagen.")
+            } else if (newStatus == SyncStatus.SYNCED) {
+                _syncMessageEvent.emit("Erfolgreich synchronisiert!")
+            }
         }
     }
 

@@ -56,7 +56,7 @@ class SerializationTest {
 
         assertTrue("Success should be true", response.success)
         assertTrue("Count should be 1", response.count == 1)
-        assertTrue("First item should have id 301", response.items[0].playerId == 301)
+        assertTrue("First item should have id 301", response.items[0].playerId == 301L)
     }
 
     @Test
@@ -172,10 +172,10 @@ class SerializationTest {
 
     @Test
     fun `PlayerDto and NewPlayerDto serialize and deserialize correctly`() {
-        val player = PlayerDto(id = 77, surname = "Kasparov", forename = "Garry")
+        val player = PlayerDto(id = 77L, surname = "Kasparov", forename = "Garry")
         val playerJson = json.encodeToString(player)
         val decodedPlayer = json.decodeFromString<PlayerDto>(playerJson)
-        org.junit.Assert.assertEquals(77, decodedPlayer.id)
+        org.junit.Assert.assertEquals(77L, decodedPlayer.id)
         org.junit.Assert.assertEquals("Garry", decodedPlayer.forename)
 
         val newPlayer = NewPlayerDto(surname = "Karpov", forename = "Anatoly")
@@ -187,11 +187,11 @@ class SerializationTest {
 
     @Test
     fun `PlayerBatchItemDto handles various field states`() {
-        val item1 = PlayerBatchItemDto(success = true, playerId = 99, message = null)
+        val item1 = PlayerBatchItemDto(success = true, playerId = 99L, message = null)
         val json1 = json.encodeToString(item1)
         val decoded1 = json.decodeFromString<PlayerBatchItemDto>(json1)
         org.junit.Assert.assertTrue(decoded1.success)
-        org.junit.Assert.assertEquals(99, decoded1.playerId)
+        org.junit.Assert.assertEquals(99L, decoded1.playerId)
         org.junit.Assert.assertNull(decoded1.message)
 
         val item2 = PlayerBatchItemDto(success = false, playerId = null, message = "Duplikat")
@@ -212,5 +212,12 @@ class SerializationTest {
         org.junit.Assert.assertNull(response.postUpdated)
         org.junit.Assert.assertNull(response.published)
     }
-}
 
+    @Test
+    fun `CreatePlayerResponseDto deserializes correctly from WordPress single player response`() {
+        val jsonString = """{"success": true, "player_id": 42}"""
+        val response = json.decodeFromString<CreatePlayerResponseDto>(jsonString)
+        org.junit.Assert.assertTrue(response.success)
+        org.junit.Assert.assertEquals(42L, response.playerId)
+    }
+}

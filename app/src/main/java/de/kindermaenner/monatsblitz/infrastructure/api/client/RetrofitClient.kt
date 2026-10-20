@@ -13,6 +13,8 @@ object RetrofitClient {
 
     private val json = Json {
         ignoreUnknownKeys = true
+        isLenient = true
+        coerceInputValues = true
     }
     private val contentType = "application/json".toMediaType()
 

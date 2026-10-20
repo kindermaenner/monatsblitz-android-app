@@ -2,8 +2,10 @@ package de.kindermaenner.monatsblitz.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.kindermaenner.monatsblitz.domain.model.QrSetupConfig
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.usecase.ConnectionTestResult
+import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.TestBackendConnectionUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,7 +17,8 @@ import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val settingsRepository: SettingsRepository,
-    private val testBackendConnectionUseCase: TestBackendConnectionUseCase = TestBackendConnectionUseCase()
+    private val testBackendConnectionUseCase: TestBackendConnectionUseCase = TestBackendConnectionUseCase(),
+    private val syncPlayersUseCase: SyncPlayersUseCase? = null
 ) : ViewModel() {
 
     private val _serverUrlInput = MutableStateFlow("")
@@ -80,25 +83,49 @@ class SettingsViewModel(
         _isSavedMessageVisible.value = false
     }
 
-    fun applyQrConfig(config: de.kindermaenner.monatsblitz.domain.model.QrSetupConfig) {
+    fun applyQrConfig(config: QrSetupConfig) {
         _serverUrlInput.value = config.serverUrl
         _apiKeyInput.value = config.apiKey
         _testResult.value = null
         _isSavedMessageVisible.value = false
-        testConnection()
+        saveSettings()
     }
 
     fun onQrScanError(message: String) {
         _testResult.value = ConnectionTestResult.Error(message)
     }
 
-    fun saveSettings() {
+    fun saveSettings(onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
             val trimmedUrl = _serverUrlInput.value.trim()
             val trimmedKey = _apiKeyInput.value.trim()
-            settingsRepository.setServerUrl(trimmedUrl)
-            settingsRepository.setApiKey(trimmedKey)
-            _isSavedMessageVisible.value = true
+            if (trimmedUrl.isEmpty() || trimmedKey.isEmpty()) {
+                return@launch
+            }
+
+            _isTestingConnection.value = true
+            _testResult.value = null
+
+            val result = testBackendConnectionUseCase(
+                rawUrl = trimmedUrl,
+                rawApiKey = trimmedKey
+            )
+            _testResult.value = result
+            _isTestingConnection.value = false
+
+            if (result is ConnectionTestResult.Success) {
+                settingsRepository.setServerUrl(trimmedUrl)
+                settingsRepository.setApiKey(trimmedKey)
+                _isSavedMessageVisible.value = true
+
+                try {
+                    syncPlayersUseCase?.invoke()
+                } catch (_: Exception) {
+                    // Offline-first
+                }
+
+                onSuccess?.invoke()
+            }
         }
     }
 
@@ -112,6 +139,14 @@ class SettingsViewModel(
             )
             _testResult.value = result
             _isTestingConnection.value = false
+
+            if (result is ConnectionTestResult.Success) {
+                try {
+                    syncPlayersUseCase?.invoke()
+                } catch (_: Exception) {
+                    // Offline-first
+                }
+            }
         }
     }
 

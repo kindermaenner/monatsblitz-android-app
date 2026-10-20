@@ -32,6 +32,7 @@ class SettingsViewModelTest {
 
     private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
     private val testBackendConnectionUseCase = mockk<TestBackendConnectionUseCase>()
+    private val syncPlayersUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase>(relaxed = true)
 
     private val serverUrlFlow = MutableStateFlow("")
     private val apiKeyFlow = MutableStateFlow("")
@@ -42,6 +43,7 @@ class SettingsViewModelTest {
         every { settingsRepository.serverUrl } returns serverUrlFlow
         every { settingsRepository.apiKey } returns apiKeyFlow
         every { settingsRepository.showDetailedSyncIndicators } returns syncFlow
+        coEvery { testBackendConnectionUseCase(any(), any()) } returns ConnectionTestResult.Success(playerCount = 5)
     }
 
     @Test
@@ -111,7 +113,7 @@ class SettingsViewModelTest {
         coEvery { testBackendConnectionUseCase("https://sc-example.de", "qr-key") } returns
             ConnectionTestResult.Success(playerCount = 10)
 
-        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase, syncPlayersUseCase)
         advanceUntilIdle()
 
         viewModel.applyQrConfig(de.kindermaenner.monatsblitz.domain.model.QrSetupConfig("https://sc-example.de", "qr-key"))
@@ -120,6 +122,9 @@ class SettingsViewModelTest {
         assertEquals("https://sc-example.de", viewModel.serverUrlInput.value)
         assertEquals("qr-key", viewModel.apiKeyInput.value)
         assertTrue(viewModel.testResult.value is ConnectionTestResult.Success)
+        coVerify(exactly = 1) { settingsRepository.setServerUrl("https://sc-example.de") }
+        coVerify(exactly = 1) { settingsRepository.setApiKey("qr-key") }
+        coVerify(atLeast = 1) { syncPlayersUseCase() }
     }
 
     @Test

@@ -242,17 +242,26 @@ fun SettingsScreen(
 
                 Button(
                     onClick = {
-                        viewModel.saveSettings()
-                        if (!isConfigured) {
-                            onBack()
+                        viewModel.saveSettings {
+                            if (!isConfigured) {
+                                onBack()
+                            }
                         }
                     },
-                    enabled = serverUrl.isNotBlank() && apiKey.isNotBlank(),
+                    enabled = !isTesting && serverUrl.isNotBlank() && apiKey.isNotBlank(),
                     modifier = Modifier
                         .weight(1f)
                         .testTag("save_settings_button")
                 ) {
-                    Text(if (!isConfigured) "Speichern & Los" else "Speichern")
+                    if (isTesting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(if (!isConfigured) "Übernehmen & Los" else "Einstellungen übernehmen")
                 }
             }
 

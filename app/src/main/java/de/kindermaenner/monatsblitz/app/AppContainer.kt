@@ -156,6 +156,7 @@ class AppContainer(context: Context) {
     val settingsViewModelFactory =
         SettingsViewModelFactory(
             settingsRepository = appSettingsStorage,
-            testBackendConnectionUseCase = testBackendConnectionUseCase
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            syncPlayersUseCase = syncPlayersUseCase
         )
 }

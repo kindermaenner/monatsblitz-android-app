@@ -20,6 +20,11 @@ class RankingScreenTest {
 
     private val tournamentRepository = mockk<TournamentRepository>(relaxed = true)
 
+    @org.junit.Before
+    fun setup() {
+        every { tournamentRepository.observeTournament(any()) } returns flowOf(null)
+    }
+
     @Test
     fun rankingScreen_displaysRowsAndHandlesBack() {
         val tournamentId = 1L

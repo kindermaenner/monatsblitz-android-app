@@ -50,7 +50,7 @@ class CrosstableScreenTest {
         }
         composeTestRule.onNodeWithText("14.08.26 • 3+2").assertExists()
         composeTestRule.onNodeWithText("Rangliste").assertExists()
-        composeTestRule.onNodeWithText("Alice Meier").assertExists()
+        composeTestRule.onNodeWithText("Alice").assertExists()
     }
 
     @Test

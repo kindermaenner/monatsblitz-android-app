@@ -14,9 +14,15 @@ import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import java.time.LocalDate
 
+@RunWith(RobolectricTestRunner::class)
 class TournamentSetupScreenTest {
 
     @get:Rule
@@ -26,7 +32,7 @@ class TournamentSetupScreenTest {
     private val createTournamentUseCase = mockk<CreateTournamentUseCase>(relaxed = true)
     private val addPlayerUseCase = mockk<AddPlayerUseCase>(relaxed = true)
 
-    @org.junit.Before
+    @Before
     fun setup() {
         coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
     }
@@ -74,7 +80,7 @@ class TournamentSetupScreenTest {
             TournamentSettingsCard(
                 isExpanded = isExpanded.value,
                 onToggleExpanded = { isExpanded.value = !isExpanded.value },
-                selectedDate = java.time.LocalDate.now(),
+                selectedDate = LocalDate.now(),
                 selectedMode = GameMode.BLITZ_3_2,
                 doubleRound = false,
                 onDateChanged = {},

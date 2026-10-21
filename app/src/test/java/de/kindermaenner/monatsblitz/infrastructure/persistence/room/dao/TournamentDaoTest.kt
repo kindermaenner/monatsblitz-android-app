@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 
@@ -18,7 +19,7 @@ class TournamentDaoTest : DaoTest() {
     @Test
     fun insertAndGetTournamentWithDetails() = runTest {
         val date = LocalDate.of(2026, 8, 14)
-        val tournamentId = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = null))
+        val tournamentId = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = null, isLocalOnly = true))
         
         val p1 = playerDao.insert(PlayerEntity(name = "P1", vorname = "V1"))
         val p2 = playerDao.insert(PlayerEntity(name = "P2", vorname = "V2"))
@@ -33,6 +34,7 @@ class TournamentDaoTest : DaoTest() {
         val result = tournamentDao.getTournament(tournamentId)
         assertNotNull(result)
         assertEquals(GameMode.BLITZ_3_2, result?.tournament?.mode)
+        assertTrue(result?.tournament?.isLocalOnly == true)
         assertEquals(2, result?.players?.size)
         assertEquals(1, result?.games?.size)
         assertEquals(p1, result?.games?.get(0)?.player1Id)

@@ -6,7 +6,10 @@ import androidx.test.core.app.ApplicationProvider
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
 import org.junit.After
 import org.junit.Before
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 abstract class DaoTest {
     protected lateinit var db: AppDatabase
     protected lateinit var playerDao: PlayerDao
@@ -17,7 +20,9 @@ abstract class DaoTest {
     @Before
     fun createDb() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
         playerDao = db.playerDao()
         tournamentDao = db.tournamentDao()
         gameDao = db.gameDao()

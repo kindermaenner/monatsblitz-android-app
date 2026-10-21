@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.usecase.ConnectionTestResult
@@ -20,7 +21,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class SettingsScreenTest {
 
     @get:Rule
@@ -31,12 +35,19 @@ class SettingsScreenTest {
     private val syncFlow = MutableStateFlow(true)
     private val serverUrlFlow = MutableStateFlow("https://sg-koenigslutter.de")
     private val apiKeyFlow = MutableStateFlow("test-key")
+    private val offlineFlow = MutableStateFlow(false)
 
     @Before
     fun setup() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        try {
+            com.google.mlkit.common.sdkinternal.MlKitContext.initializeIfNeeded(context)
+        } catch (_: Exception) {}
+
         every { settingsRepository.showDetailedSyncIndicators } returns syncFlow
         every { settingsRepository.serverUrl } returns serverUrlFlow
         every { settingsRepository.apiKey } returns apiKeyFlow
+        every { settingsRepository.standaloneOfflineMode } returns offlineFlow
     }
 
     @Test
@@ -72,10 +83,12 @@ class SettingsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Detaillierte Sync-Indikatoren").performClick()
+        composeTestRule.onNodeWithText("Detaillierte Sync-Indikatoren")
+            .performScrollTo()
+            .performClick()
         composeTestRule.waitForIdle()
 
-        coVerify { settingsRepository.setShowDetailedSyncIndicators(false) }
+        coVerify(timeout = 3000) { settingsRepository.setShowDetailedSyncIndicators(false) }
     }
 
     @Test
@@ -127,6 +140,8 @@ class SettingsScreenTest {
             ConnectionTestResult.Success(playerCount = 8)
 
         val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        viewModel.onServerUrlChanged("https://sg-koenigslutter.de")
+        viewModel.onApiKeyChanged("test-key")
 
         composeTestRule.setContent {
             SettingsScreen(
@@ -135,10 +150,14 @@ class SettingsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithTag("test_connection_button").performClick()
+        composeTestRule.onNodeWithTag("test_connection_button")
+            .performScrollTo()
+            .performClick()
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Verbindung erfolgreich! 8 Spieler gefunden.").assertExists()
+        composeTestRule.onNodeWithText("Verbindung erfolgreich! 8 Spieler gefunden.")
+            .performScrollTo()
+            .assertExists()
     }
 
     @Test
@@ -147,6 +166,8 @@ class SettingsScreenTest {
             ConnectionTestResult.Error("API-Schlüssel ungültig (401).")
 
         val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        viewModel.onServerUrlChanged("https://sg-koenigslutter.de")
+        viewModel.onApiKeyChanged("test-key")
 
         composeTestRule.setContent {
             SettingsScreen(
@@ -155,10 +176,14 @@ class SettingsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithTag("test_connection_button").performClick()
+        composeTestRule.onNodeWithTag("test_connection_button")
+            .performScrollTo()
+            .performClick()
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("API-Schlüssel ungültig (401).").assertExists()
+        composeTestRule.onNodeWithText("API-Schlüssel ungültig (401).")
+            .performScrollTo()
+            .assertExists()
     }
 
     @Test

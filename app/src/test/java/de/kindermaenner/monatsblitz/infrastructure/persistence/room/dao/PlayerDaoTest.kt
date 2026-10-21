@@ -4,8 +4,10 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.Playe
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlayerDaoTest : DaoTest() {
@@ -32,7 +34,7 @@ class PlayerDaoTest : DaoTest() {
 
     @Test
     fun getDirtyPlayersAndMarkClean() = runTest {
-        val id = playerDao.insert(PlayerEntity(name = "P1", vorname = "V1", dirty = true))
+        val id = playerDao.insert(PlayerEntity(name = "P1", vorname = "V1", dirty = true, isLocal = false))
         
         var dirty = playerDao.getDirtyPlayers()
         assertEquals(1, dirty.size)
@@ -40,6 +42,29 @@ class PlayerDaoTest : DaoTest() {
         playerDao.markPlayerAsClean(id)
         dirty = playerDao.getDirtyPlayers()
         assertEquals(0, dirty.size)
+    }
+
+    @Test
+    fun getDirtyPlayers_ignoresLocalPlayers() = runTest {
+        playerDao.insert(PlayerEntity(name = "Teddy", vorname = "Baum", dirty = true, isLocal = true))
+        val dirty = playerDao.getDirtyPlayers()
+        assertEquals(0, dirty.size)
+    }
+
+    @Test
+    fun promoteLocalPlayer_marksPlayerAsDirtyAndNotLocal() = runTest {
+        val id = playerDao.insert(PlayerEntity(name = "Teddy", vorname = "Baum", dirty = false, isLocal = true))
+        
+        playerDao.promoteLocalPlayer(id)
+        
+        val player = playerDao.getPlayerById(id)
+        assertNotNull(player)
+        assertTrue(player?.dirty == true)
+        assertFalse(player?.isLocal == true)
+        
+        val dirty = playerDao.getDirtyPlayers()
+        assertEquals(1, dirty.size)
+        assertEquals(id, dirty[0].id)
     }
 
     @Test

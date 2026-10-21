@@ -10,9 +10,13 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class RankingScreenTest {
 
     @get:Rule
@@ -20,7 +24,7 @@ class RankingScreenTest {
 
     private val tournamentRepository = mockk<TournamentRepository>(relaxed = true)
 
-    @org.junit.Before
+    @Before
     fun setup() {
         every { tournamentRepository.observeTournament(any()) } returns flowOf(null)
     }

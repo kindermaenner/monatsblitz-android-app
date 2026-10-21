@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.ui.navigation
 
+import android.content.Context
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -7,6 +8,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.testing.TestNavHostController
+import androidx.test.core.app.ApplicationProvider
+import com.google.mlkit.common.sdkinternal.MlKitContext
 import de.kindermaenner.monatsblitz.app.AppContainer
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
@@ -25,8 +28,11 @@ import kotlinx.coroutines.flow.flowOf
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.time.LocalDate
 
+@RunWith(RobolectricTestRunner::class)
 class AppNavHostTest {
 
     @get:Rule
@@ -40,6 +46,11 @@ class AppNavHostTest {
 
     @Before
     fun setup() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        try {
+            MlKitContext.initializeIfNeeded(context)
+        } catch (_: Exception) {}
+
         val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")), emptyMap())
         coEvery { tournamentRepository.observeTournament(any()) } returns flowOf(tournament)
         coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
@@ -47,6 +58,7 @@ class AppNavHostTest {
         every { settingsRepository.showDetailedSyncIndicators } returns flowOf(true)
         every { settingsRepository.serverUrl } returns flowOf("https://sg-koenigslutter.de")
         every { settingsRepository.apiKey } returns flowOf("test-key")
+        every { settingsRepository.standaloneOfflineMode } returns flowOf(false)
 
         // Setup factories in mock container
         val setupFactory = TournamentSetupViewModelFactory(playerRepository, mockk(relaxed = true), mockk(relaxed = true))

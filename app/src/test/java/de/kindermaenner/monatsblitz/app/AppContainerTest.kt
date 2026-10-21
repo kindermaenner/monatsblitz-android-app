@@ -1,14 +1,20 @@
 package de.kindermaenner.monatsblitz.app
 
-import androidx.test.platform.app.InstrumentationRegistry
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertSame
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class AppContainerTest {
 
     @Test
     fun appContainer_initializesAllPropertiesAndFactories() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val context = ApplicationProvider.getApplicationContext<Context>()
         val container = AppContainer(context)
 
         assertNotNull(container.database)
@@ -44,10 +50,10 @@ class AppContainerTest {
 
     @Test
     fun appDatabase_getInstance_returnsSingleton() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val db1 = de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase.getInstance(context)
-        val db2 = de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase.getInstance(context)
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db1 = AppDatabase.getInstance(context)
+        val db2 = AppDatabase.getInstance(context)
         assertNotNull(db1)
-        org.junit.Assert.assertSame(db1, db2)
+        assertSame(db1, db2)
     }
 }

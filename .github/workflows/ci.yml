@@ -27,7 +27,7 @@ jobs:
     with:
       keystore-file: "monatsblitz-android-app-release.jks"
       build-type: ${{ inputs.build-type || 'Debug' }}
-      run-instrumented-tests: false
+      run-instrumented-tests: true
       test-api-level: "34"
       run-sonar: true
       run-ftp-upload: ${{ github.ref == 'refs/heads/main' }}

@@ -297,4 +297,46 @@ class CrosstableViewModelTest {
 
         org.junit.Assert.assertEquals(listOf("Server nicht erreichbar"), messages)
     }
+
+    @Test
+    fun `uiState sorts players alphabetically in crosstable`() = runTest {
+        val p1 = Player(1, "Schmidt", "Bob")
+        val p2 = Player(2, "Meier", "Alice")
+        val p3 = Player(3, "Adams", "Charlie")
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1, p2, p3))
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+
+        val viewModel = CrosstableViewModel(
+            repository,
+            setGameResultUseCase,
+            createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase,
+            1L
+        )
+
+        val state = viewModel.uiState.first { it.tournament != null }
+        assertEquals(listOf("Alice", "Bob", "Charlie"), state.rows.map { it.playerName })
+        assertEquals(listOf(2L, 1L, 3L), state.tournament?.playerIds)
+    }
+
+    @Test
+    fun `uiState sorts players alphabetically with umlauts and case insensitivity`() = runTest {
+        val p1 = Player(1, "Zimmermann", "Zoe")
+        val p2 = Player(2, "Arzt", "Änne")
+        val p3 = Player(3, "Bauer", "Berta")
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1, p2, p3))
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+
+        val viewModel = CrosstableViewModel(
+            repository,
+            setGameResultUseCase,
+            createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase,
+            1L
+        )
+
+        val state = viewModel.uiState.first { it.tournament != null }
+        assertEquals(listOf("Änne", "Berta", "Zoe"), state.rows.map { it.playerName })
+        assertEquals(listOf(2L, 3L, 1L), state.tournament?.playerIds)
+    }
 }

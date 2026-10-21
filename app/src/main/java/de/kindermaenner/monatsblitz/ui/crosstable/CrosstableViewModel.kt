@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.text.Collator
+import java.util.Locale
 
 class CrosstableViewModel(
     private val repository: TournamentRepository,
@@ -65,7 +67,34 @@ class CrosstableViewModel(
             tournamentSyncService?.syncStatus ?: flowOf(SyncStatus.SYNCED),
             settingsRepository?.showDetailedSyncIndicators ?: flowOf(true),
             settingsRepository?.useShortPlayerNames ?: flowOf(true)
-        ) { tournament, leg, syncStatus, showDetailedSyncIndicators, useShortNames ->
+        ) { rawTournament, leg, syncStatus, showDetailedSyncIndicators, useShortNames ->
+            val tournament = rawTournament?.let { t ->
+                val playerDisplayNames = t.players.associate { player ->
+                    player.id to PlayerNameFormatter.formatDisplayName(
+                        player = player,
+                        allPlayers = t.players,
+                        useShortName = useShortNames
+                    )
+                }
+                val collator = Collator.getInstance(Locale.GERMAN).apply {
+                    strength = Collator.SECONDARY
+                }
+                val sortedPlayers = t.players.sortedWith(
+                    Comparator { p1, p2 ->
+                        val n1 = playerDisplayNames[p1.id] ?: p1.fullName
+                        val n2 = playerDisplayNames[p2.id] ?: p2.fullName
+                        val res = collator.compare(n1, n2)
+                        if (res != 0) return@Comparator res
+                        val nameRes = collator.compare(p1.name, p2.name)
+                        if (nameRes != 0) return@Comparator nameRes
+                        val vornameRes = collator.compare(p1.vorname, p2.vorname)
+                        if (vornameRes != 0) return@Comparator vornameRes
+                        p1.id.compareTo(p2.id)
+                    }
+                )
+                t.copy(players = sortedPlayers)
+            }
+
             val pointsMap = tournament?.players?.associate { player ->
                 player.id to calculatePlayerPointsUseCase(tournament, player.id)
             } ?: emptyMap()

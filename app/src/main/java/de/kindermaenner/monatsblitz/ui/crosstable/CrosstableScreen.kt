@@ -187,15 +187,12 @@ private fun CrosstableTopBar(
 ) {
     TopAppBar(
         title = {
-            Column {
-                Text("Kreuztabelle")
-                if (tournament != null) {
-                    Text(
-                        text = "${tournament.date.format(DateTimeFormatter.ofPattern("dd.MM.yy"))} • ${tournament.mode.displayName}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            if (tournament != null) {
+                Text(
+                    text = "${tournament.date.format(DateTimeFormatter.ofPattern("dd.MM.yy"))} • ${tournament.mode.displayName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         },
         navigationIcon = {

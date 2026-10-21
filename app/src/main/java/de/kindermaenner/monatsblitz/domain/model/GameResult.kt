@@ -6,7 +6,8 @@ enum class GameResult(val displayName: String) {
     Win("1"),
     Remis("1/2"),
     ForfeitWin("+"),
-    ForfeitLoss("-");
+    ForfeitLoss("-"),
+    ForfeitDraw("=");
 
     fun opposite(): GameResult = when (this) {
         Open -> Open
@@ -15,6 +16,7 @@ enum class GameResult(val displayName: String) {
         Remis -> Remis
         ForfeitWin -> ForfeitLoss
         ForfeitLoss -> ForfeitWin
+        ForfeitDraw -> ForfeitDraw
     }
 
     val points: Double
@@ -25,6 +27,7 @@ enum class GameResult(val displayName: String) {
             Remis -> 0.5
             ForfeitWin -> 1.0
             ForfeitLoss -> 0.0
+            ForfeitDraw -> 0.5
         }
 
     companion object {

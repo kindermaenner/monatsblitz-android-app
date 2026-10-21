@@ -5,6 +5,7 @@ import de.kindermaenner.monatsblitz.domain.model.Game
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase
@@ -338,5 +339,57 @@ class CrosstableViewModelTest {
         val state = viewModel.uiState.first { it.tournament != null }
         assertEquals(listOf("Änne", "Berta", "Zoe"), state.rows.map { it.playerName })
         assertEquals(listOf(2L, 3L, 1L), state.tournament?.playerIds)
+    }
+
+    @Test
+    fun `uiState sets isWithdrawn on row data correctly`() = runTest {
+        val p1 = Player(1, "Schmidt", "Bob")
+        val p2 = Player(2, "Meier", "Alice")
+        val tournament = Tournament(
+            id = 1,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = listOf(p1, p2),
+            withdrawnPlayerIds = setOf(1L)
+        )
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+
+        val viewModel = CrosstableViewModel(
+            repository,
+            setGameResultUseCase,
+            createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase,
+            1L
+        )
+
+        val state = viewModel.uiState.first { it.tournament != null }
+        val aliceRow = state.rows.first { it.playerId == 2L }
+        val bobRow = state.rows.first { it.playerId == 1L }
+
+        org.junit.Assert.assertFalse(aliceRow.isWithdrawn)
+        org.junit.Assert.assertTrue(bobRow.isWithdrawn)
+    }
+
+    @Test
+    fun `withdrawPlayer delegates to repository`() = runTest {
+        val p1 = Player(1, "Schmidt", "Bob")
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1))
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        coEvery { repository.withdrawPlayer(1L, 1L, PlayerWithdrawRule.YOUTH_DRAW) } returns Unit
+
+        val viewModel = CrosstableViewModel(
+            repository,
+            setGameResultUseCase,
+            createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase,
+            1L
+        )
+
+        viewModel.uiState.first { it.tournament != null }
+        viewModel.withdrawPlayer(1L, PlayerWithdrawRule.YOUTH_DRAW)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { repository.withdrawPlayer(1L, 1L, PlayerWithdrawRule.YOUTH_DRAW) }
     }
 }

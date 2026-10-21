@@ -14,6 +14,7 @@ fun String.toGameResult(): GameResult {
         "0.5:0.5" -> GameResult.Remis
         "+:-" -> GameResult.ForfeitWin
         "-:+" -> GameResult.ForfeitLoss
+        "=" -> GameResult.ForfeitDraw
         else -> GameResult.Open
     }
 }
@@ -24,6 +25,7 @@ fun GameResult.toResultString(): String = when (this) {
     GameResult.Remis -> "0.5:0.5"
     GameResult.ForfeitWin -> "+:-"
     GameResult.ForfeitLoss -> "-:+"
+    GameResult.ForfeitDraw -> "="
     GameResult.Open -> "offen"
 }
 

@@ -55,7 +55,12 @@ class RankingViewModel(
                 } else emptyMap()
 
                 val rows = items.map { item ->
-                    val displayName = shortNameMap[item.playerId] ?: item.name
+                    val baseName = shortNameMap[item.playerId] ?: item.name
+                    val displayName = if (tournament?.withdrawnPlayerIds?.contains(item.playerId) == true && !baseName.endsWith("(z)")) {
+                        "$baseName (z)"
+                    } else {
+                        baseName
+                    }
                     RankingRowData(
                         name = displayName,
                         points = item.points,

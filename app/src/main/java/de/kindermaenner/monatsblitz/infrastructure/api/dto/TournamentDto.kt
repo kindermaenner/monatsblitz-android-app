@@ -12,7 +12,9 @@ data class TournamentDto(
     val roundCount: Int,
     val status: String = "open",
     @SerialName("player_ids")
-    val playerIds: List<Long> = emptyList()
+    val playerIds: List<Long> = emptyList(),
+    @SerialName("withdrawn_player_ids")
+    val withdrawnPlayerIds: List<Long> = emptyList()
 )
 
 @Serializable

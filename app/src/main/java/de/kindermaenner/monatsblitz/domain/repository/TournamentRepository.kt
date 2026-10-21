@@ -41,6 +41,12 @@ interface TournamentRepository {
     suspend fun adoptRemoteTournament(remoteTournamentId: Int): Long
 
     suspend fun getRecentTournamentModes(): List<String>
+
+    suspend fun withdrawPlayer(
+        tournamentId: Long,
+        playerId: Long,
+        rule: de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule
+    )
 }
 
 data class RemoteOpenTournamentInfo(

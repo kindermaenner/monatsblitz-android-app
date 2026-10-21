@@ -172,5 +172,33 @@ class RankingViewModelTest {
         val state = viewModel.uiState.value as RankingUiState.Ready
         assertTrue(state.isReadOnly)
     }
+
+    @Test
+    fun `ranking rows append (z) suffix to withdrawn players`() = runTest {
+        val tournamentId = 100L
+        val rankingItems = listOf(
+            TournamentRankingItem(playerId = 1, name = "Alice Meier", points = 1.0, rank = 1),
+            TournamentRankingItem(playerId = 2, name = "Bob Mueller", points = 0.5, rank = 2)
+        )
+        val p1 = Player(1, "Meier", "Alice")
+        val p2 = Player(2, "Mueller", "Bob")
+        val tournament = Tournament(
+            id = tournamentId,
+            mode = GameMode.BLITZ_5_0,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = listOf(p1, p2),
+            withdrawnPlayerIds = setOf(2L)
+        )
+
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        every { tournamentRepository.observeTournament(tournamentId) } returns flowOf(tournament)
+
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository)
+
+        val state = viewModel.uiState.value as RankingUiState.Ready
+        assertEquals("Alice", state.rows[0].name)
+        assertEquals("Bob (z)", state.rows[1].name)
+    }
 }
 

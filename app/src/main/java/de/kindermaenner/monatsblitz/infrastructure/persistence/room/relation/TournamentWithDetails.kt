@@ -29,5 +29,11 @@ data class TournamentWithDetails(
             entityColumn = "playerId"
         )
     )
-    val players: List<PlayerEntity>
+    val players: List<PlayerEntity>,
+
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "tournamentId"
+    )
+    val playerRefs: List<TournamentPlayerCrossRef> = emptyList()
 )

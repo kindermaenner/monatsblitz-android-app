@@ -3,6 +3,7 @@ package de.kindermaenner.monatsblitz.infrastructure.repository
 import android.util.Log
 import androidx.room.withTransaction
 import de.kindermaenner.monatsblitz.domain.model.GameResult
+import de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule
 import de.kindermaenner.monatsblitz.domain.model.NewTournament
 import de.kindermaenner.monatsblitz.domain.model.PlayerRankingEntry
 import de.kindermaenner.monatsblitz.domain.model.Tournament
@@ -16,6 +17,7 @@ import de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeRequestDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDtoData
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewTournamentDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.ResultDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.WithdrawPlayerDto
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.repository.RemoteOpenTournamentInfo
 import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
@@ -158,14 +160,60 @@ class TournamentRepositoryImpl(
                     } else {
                         "Unbekannt"
                     }
+                    val displayName = if (entry.hasLeft) "$fullName (z)" else fullName
                     TournamentRankingItem(
                         playerId = entry.playerId,
-                        name = fullName,
+                        name = displayName,
                         points = entry.points ?: 0.0,
                         rank = entry.rank
                     )
                 }
             }
+    }
+
+    override suspend fun withdrawPlayer(
+        tournamentId: Long,
+        playerId: Long,
+        rule: PlayerWithdrawRule
+    ) {
+        tournamentPlayerDao.setPlayerWithdrawn(tournamentId, playerId, true)
+
+        val games = gameDao.getGamesForTournament(tournamentId)
+        val openGamesToUpdate = games.filter { game ->
+            (game.player1Id == playerId || game.player2Id == playerId) && game.result == GameResult.Open
+        }
+
+        openGamesToUpdate.forEach { game ->
+            val newResult = when (rule) {
+                PlayerWithdrawRule.YOUTH_DRAW -> GameResult.ForfeitDraw
+                PlayerWithdrawRule.REGULAR_LOSS -> {
+                    if (game.player1Id == playerId) {
+                        GameResult.ForfeitLoss
+                    } else {
+                        GameResult.ForfeitWin
+                    }
+                }
+            }
+            gameDao.update(game.copy(result = newResult, dirty = true))
+        }
+
+        val tournament = tournamentDao.getTournament(tournamentId)
+        val player = playerDao?.getPlayerById(playerId)
+        val remoteTournamentId = tournament?.tournament?.remoteId
+        val remotePlayerId = player?.remoteId
+        if (remoteTournamentId != null && remotePlayerId != null && monatsblitzApi != null) {
+            try {
+                monatsblitzApi.withdrawPlayer(
+                    WithdrawPlayerDto(
+                        tournamentId = remoteTournamentId.toInt(),
+                        playerId = remotePlayerId.toInt(),
+                        hasLeft = 1
+                    )
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "withdrawPlayer: Failed to notify remote backend", e)
+            }
+        }
     }
 
     override suspend fun syncDirtyTournaments() {
@@ -277,8 +325,16 @@ class TournamentRepositoryImpl(
             throw IllegalStateException(errorMsg)
         }
 
+        val withdrawnPlayerRefs = tournamentPlayerDao.getRankingForTournament(tournamentId).filter { it.hasLeft }
+        val withdrawnRemoteIds = withdrawnPlayerRefs.mapNotNull { ref ->
+            playerEntities[ref.playerId]?.remoteId?.toInt()
+        }
+
         val finalizeResponse = api.finalize(
-            FinalizeRequestDto(tournamentId = remoteId.toInt())
+            FinalizeRequestDto(
+                tournamentId = remoteId.toInt(),
+                withdrawnPlayerIds = withdrawnRemoteIds.ifEmpty { null }
+            )
         )
         if (!finalizeResponse.success) {
             throw IllegalStateException("Finalisierung auf dem Server fehlgeschlagen")
@@ -384,10 +440,13 @@ class TournamentRepositoryImpl(
                 tournamentId = tournamentDao.insert(newEntity)
             }
 
+            val withdrawnRemoteIds = remoteTournament.withdrawnPlayerIds.toSet()
             val playerRefs = localPlayers.map {
+                val hasLeft = it.remoteId != null && withdrawnRemoteIds.contains(it.remoteId)
                 TournamentPlayerCrossRef(
                     tournamentId = tournamentId,
-                    playerId = it.id
+                    playerId = it.id,
+                    hasLeft = hasLeft
                 )
             }
             tournamentPlayerDao.deleteForTournament(tournamentId)
@@ -446,6 +505,10 @@ class TournamentRepositoryImpl(
                         playerPoints[game.player2Id] = (playerPoints[game.player2Id] ?: 0.0) + 1.0
                     }
                     GameResult.Remis -> {
+                        playerPoints[game.player1Id] = (playerPoints[game.player1Id] ?: 0.0) + 0.5
+                        playerPoints[game.player2Id] = (playerPoints[game.player2Id] ?: 0.0) + 0.5
+                    }
+                    GameResult.ForfeitDraw -> {
                         playerPoints[game.player1Id] = (playerPoints[game.player1Id] ?: 0.0) + 0.5
                         playerPoints[game.player2Id] = (playerPoints[game.player2Id] ?: 0.0) + 0.5
                     }

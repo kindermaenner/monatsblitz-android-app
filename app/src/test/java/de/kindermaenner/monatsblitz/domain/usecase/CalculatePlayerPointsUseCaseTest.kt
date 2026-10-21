@@ -62,4 +62,23 @@ class CalculatePlayerPointsUseCaseTest {
         assertEquals(0.0, useCase(tournament, 2L), 0.0)
         assertEquals(1.5, useCase(tournament, 3L), 0.0)
     }
+
+    @Test
+    fun `invoke should calculate points for forfeit draw and forfeit win and loss`() {
+        val players = listOf(
+            Player(1, "A", "A"),
+            Player(2, "B", "B"),
+            Player(3, "C", "C")
+        )
+        val canonicalGames = mapOf(
+            1L to Game(1, 1, 2, 1, GameResult.ForfeitDraw), // P1: 0.5, P2: 0.5
+            2L to Game(2, 1, 3, 1, GameResult.ForfeitWin),  // P1: 1.0, P3: 0.0
+            3L to Game(3, 2, 3, 1, GameResult.ForfeitLoss)  // P2: 0.0, P3: 1.0
+        )
+        val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 1, players, canonicalGames)
+
+        assertEquals(1.5, useCase(tournament, 1L), 0.0)
+        assertEquals(0.5, useCase(tournament, 2L), 0.0)
+        assertEquals(1.0, useCase(tournament, 3L), 0.0)
+    }
 }

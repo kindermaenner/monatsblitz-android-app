@@ -50,7 +50,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import de.kindermaenner.monatsblitz.domain.model.GameResult
+import de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule
 import de.kindermaenner.monatsblitz.domain.model.SyncStatus
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableHeader
@@ -70,6 +79,7 @@ fun CrosstableScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var showBackDialog by remember { mutableStateOf(false) }
+    var playerToWithdraw by remember { mutableStateOf<Triple<Long, String, Boolean>?>(null) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(viewModel) {
@@ -97,6 +107,15 @@ fun CrosstableScreen(
             onBackToSetup()
         },
         onDismiss = { showBackDialog = false }
+    )
+
+    PlayerWithdrawDialog(
+        playerInfo = playerToWithdraw,
+        onConfirm = { playerId, rule ->
+            viewModel.withdrawPlayer(playerId, rule)
+            playerToWithdraw = null
+        },
+        onDismiss = { playerToWithdraw = null }
     )
 
     val tournament = state.tournament
@@ -139,7 +158,10 @@ fun CrosstableScreen(
                 padding = padding,
                 horizontalScrollState = horizontalScrollState,
                 onSelectLeg = viewModel::selectLeg,
-                onSetResult = viewModel::setResult
+                onSetResult = viewModel::setResult,
+                onPlayerNameClick = { playerId, playerName, isWithdrawn ->
+                    playerToWithdraw = Triple(playerId, playerName, isWithdrawn)
+                }
             )
         }
     }
@@ -297,7 +319,8 @@ private fun CrosstableTableContent(
     padding: PaddingValues,
     horizontalScrollState: ScrollState,
     onSelectLeg: (Int) -> Unit,
-    onSetResult: (rowIndex: Int, columnIndex: Int, round: Int, result: GameResult) -> Unit
+    onSetResult: (rowIndex: Int, columnIndex: Int, round: Int, result: GameResult) -> Unit,
+    onPlayerNameClick: (playerId: Long, playerName: String, isWithdrawn: Boolean) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -340,6 +363,7 @@ private fun CrosstableTableContent(
                     rowData = rowData,
                     allPlayerNames = state.rows.map { it.playerName },
                     horizontalScrollState = horizontalScrollState,
+                    onPlayerNameClick = onPlayerNameClick,
                     setResult = onSetResult
                 )
                 HorizontalDivider(
@@ -348,4 +372,121 @@ private fun CrosstableTableContent(
             }
         }
     }
+}
+
+@Composable
+private fun PlayerWithdrawDialog(
+    playerInfo: Triple<Long, String, Boolean>?,
+    onConfirm: (Long, PlayerWithdrawRule) -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (playerInfo == null) return
+    val (playerId, playerName, isWithdrawn) = playerInfo
+
+    if (isWithdrawn) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(playerName) },
+            text = { Text("$playerName hat das Turnier bereits vorzeitig beendet (z).") },
+            confirmButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Schließen")
+                }
+            }
+        )
+        return
+    }
+
+    var selectedRule by remember { mutableStateOf(PlayerWithdrawRule.YOUTH_DRAW) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Turnier vorzeitig beenden") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "$playerName verlässt das Turnier vorzeitig. Wie sollen alle noch ungespielten Partien gewertet werden?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Column(modifier = Modifier.selectableGroup()) {
+                    // Option 1: Jugendregel
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = (selectedRule == PlayerWithdrawRule.YOUTH_DRAW),
+                                onClick = { selectedRule = PlayerWithdrawRule.YOUTH_DRAW },
+                                role = Role.RadioButton
+                            )
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (selectedRule == PlayerWithdrawRule.YOUTH_DRAW),
+                            onClick = null
+                        )
+                        Column(modifier = Modifier.padding(start = 8.dp)) {
+                            Text(
+                                text = "Jugendregel (Kulanz)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Restliche Partien als Remis (=) werten (0.5 Pkt. für beide)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Option 2: Regulär
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = (selectedRule == PlayerWithdrawRule.REGULAR_LOSS),
+                                onClick = { selectedRule = PlayerWithdrawRule.REGULAR_LOSS },
+                                role = Role.RadioButton
+                            )
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (selectedRule == PlayerWithdrawRule.REGULAR_LOSS),
+                            onClick = null
+                        )
+                        Column(modifier = Modifier.padding(start = 8.dp)) {
+                            Text(
+                                text = "Regulär (Erwachsene)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Restliche Partien als verloren (-) werten (Gegner erhalten +)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(playerId, selectedRule) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Turnier beenden")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        }
+    )
 }

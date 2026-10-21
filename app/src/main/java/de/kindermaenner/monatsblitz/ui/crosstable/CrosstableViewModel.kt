@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameResult
+import de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule
 import de.kindermaenner.monatsblitz.domain.model.SyncStatus
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
@@ -164,14 +165,18 @@ class CrosstableViewModel(
                 }
             }
 
+            val isWithdrawn = tournament.withdrawnPlayerIds.contains(playerId)
+
             CrosstableRowData(
                 rowIndex = rowIndex,
+                playerId = playerId,
                 playerName = playerDisplayNames[playerId] ?: tournament.players.getOrNull(rowIndex)?.fullName ?: "",
                 totalPoints = points,
                 results = results,
                 dirtyFlags = dirtyFlags,
                 showDetailedSyncIndicators = showDetailedSyncIndicators,
-                enabled = enabled
+                enabled = enabled,
+                isWithdrawn = isWithdrawn
             )
         }
     }
@@ -182,6 +187,16 @@ class CrosstableViewModel(
         viewModelScope.launch {
             Log.i("CrosstableViewModel", "setGameResultUseCase: tournament=${tournament.id}, rowIndex=$rowIndex, columnIndex=$columnIndex, round=$round, result=$result")
             setGameResultUseCase(tournament.id, tournament.playerIds[rowIndex], tournament.playerIds[columnIndex], round, result)
+            tournamentSyncService?.triggerSync(tournament.id)
+        }
+    }
+
+    fun withdrawPlayer(playerId: Long, rule: PlayerWithdrawRule) {
+        val tournament = uiState.value.tournament ?: return
+        if (uiState.value.syncStatus == SyncStatus.FINALIZED) return
+        viewModelScope.launch {
+            Log.i("CrosstableViewModel", "withdrawPlayer: tournament=${tournament.id}, playerId=$playerId, rule=$rule")
+            repository.withdrawPlayer(tournament.id, playerId, rule)
             tournamentSyncService?.triggerSync(tournament.id)
         }
     }

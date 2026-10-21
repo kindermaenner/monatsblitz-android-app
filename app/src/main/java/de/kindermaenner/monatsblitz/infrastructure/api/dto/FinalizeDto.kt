@@ -6,7 +6,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class FinalizeRequestDto(
     @SerialName("tournament_id")
-    val tournamentId: Int
+    val tournamentId: Int,
+    @SerialName("withdrawn_player_ids")
+    val withdrawnPlayerIds: List<Int>? = null
 )
 
 typealias FinalizeDto = FinalizeRequestDto

@@ -2,6 +2,7 @@ package de.kindermaenner.monatsblitz.ui.crosstable.components
 
 import android.util.Log
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -23,12 +24,14 @@ import de.kindermaenner.monatsblitz.domain.model.Tournament
 
 data class CrosstableRowData(
     val rowIndex: Int,
+    val playerId: Long = 0L,
     val playerName: String,
     val totalPoints: Double,
     val results: List<String>,
     val dirtyFlags: List<Boolean> = emptyList(),
     val showDetailedSyncIndicators: Boolean = true,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val isWithdrawn: Boolean = false
 )
 
 @Composable
@@ -38,6 +41,7 @@ fun CrosstableRow(
     rowData: CrosstableRowData,
     allPlayerNames: List<String> = emptyList(),
     horizontalScrollState: ScrollState,
+    onPlayerNameClick: ((playerId: Long, playerName: String, isWithdrawn: Boolean) -> Unit)? = null,
     setResult: (rowIndex: Int, columnIndex: Int, round: Int, result: GameResult) -> Unit
 ) {
     Row(
@@ -62,12 +66,26 @@ fun CrosstableRow(
         Box(
             modifier = Modifier
                 .width(NameColumnWidth)
-                .padding(horizontal = 4.dp),
+                .padding(horizontal = 4.dp)
+                .then(
+                    if (onPlayerNameClick != null && rowData.enabled) {
+                        Modifier.clickable {
+                            onPlayerNameClick(rowData.playerId, rowData.playerName, rowData.isWithdrawn)
+                        }
+                    } else Modifier
+                ),
             contentAlignment = Alignment.CenterStart
         ) {
+            val displayName = if (rowData.isWithdrawn) "${rowData.playerName} (z)" else rowData.playerName
+            val textColor = if (rowData.isWithdrawn) {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            }
             Text(
-                text = rowData.playerName,
+                text = displayName,
                 style = MaterialTheme.typography.bodyMedium,
+                color = textColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

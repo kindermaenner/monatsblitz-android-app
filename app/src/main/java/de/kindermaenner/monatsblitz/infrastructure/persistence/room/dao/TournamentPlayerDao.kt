@@ -20,6 +20,13 @@ interface TournamentPlayerDao {
         refs: List<TournamentPlayerCrossRef>
     )
     @Query("""
+        UPDATE tournament_player_cross_ref
+        SET hasLeft = :hasLeft
+        WHERE tournamentId = :tournamentId AND playerId = :playerId
+    """)
+    suspend fun setPlayerWithdrawn(tournamentId: Long, playerId: Long, hasLeft: Boolean = true)
+
+    @Query("""
         DELETE FROM tournament_player_cross_ref
         WHERE tournamentId = :tournamentId
     """)
@@ -33,7 +40,7 @@ interface TournamentPlayerDao {
     fun observeRankingForTournament(tournamentId: Long): Flow<List<TournamentPlayerCrossRef>>
 
     @Query("""
-    SELECT r.playerId, r.points, r.rank, p.vorname, p.name
+    SELECT r.playerId, r.points, r.rank, r.hasLeft, p.vorname, p.name
     FROM tournament_player_cross_ref r
     LEFT JOIN players p ON p.id = r.playerId
     WHERE r.tournamentId = :tournamentId AND r.rank IS NOT NULL
@@ -54,5 +61,6 @@ data class TournamentRankingRowEntity(
     val points: Double?,
     val rank: Int,
     val vorname: String?,
-    val name: String?
+    val name: String?,
+    val hasLeft: Boolean = false
 )

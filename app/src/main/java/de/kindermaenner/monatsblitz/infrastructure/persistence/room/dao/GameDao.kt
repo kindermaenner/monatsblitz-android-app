@@ -21,6 +21,12 @@ interface GameDao {
 
     @Query("""
         SELECT * FROM games 
+        WHERE tournamentId = :tournamentId
+    """)
+    suspend fun getGamesForTournament(tournamentId: Long): List<GameEntity>
+
+    @Query("""
+        SELECT * FROM games 
         WHERE id = :id
     """)
     fun observeGame(id : Long) : Flow<GameEntity>

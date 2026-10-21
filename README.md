@@ -21,6 +21,10 @@ The motivation and overall project context are documented in the [Monatsblitz Wo
     *   Automated mode pre-selection: None, Fixed mode, or cyclic Rotation (e.g., alternating 3+2 and 5+0) backed by recent server tournaments as the Single Source of Truth.
     *   Support for single and double round-robin formats.
 *   **Interactive Crosstable:** A central matrix view for entering game results (Win, Loss, Draw) with immediate local persistence.
+*   **Early Tournament Exit (Player Withdrawal):** Tournament directors can mark players who leave the tournament early (e.g., youth players having school the next morning) by clicking their name in the crosstable. Open games are automatically scored according to club rules:
+    *   **Youth / Goodwill rule (Kulanzregel):** Remaining unplayed games are scored as unplayed draw (`=`, 0.5 points for both players).
+    *   **Regular rule:** Remaining unplayed games are scored as forfeit loss (`-`, 0 points for the leaving player, `+` / 1 point for opponents).
+    *   Withdrawn players are marked with `(z)` (*zurückgetreten*) across the crosstable, rankings, and published WordPress results.
 *   **Real-time Rankings:** Automatic calculation of tournament standings based on entered results.
 *   **Offline-First Approach:** Full offline capability ensures tournaments can be conducted without reliable internet access. The local Room database serves as the Single Source of Truth (SSoT).
 *   **QR Code Setup:** Instant configuration of server URL, API key, and club-wide default tournament mode preselection (fixed or rotation) by scanning the QR code in WordPress Admin.

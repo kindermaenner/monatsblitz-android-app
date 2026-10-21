@@ -25,6 +25,8 @@ import de.kindermaenner.monatsblitz.infrastructure.api.dto.ResultBatchResponseDt
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.ResultDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.UpdateGameDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.WithdrawPlayerDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.WithdrawPlayerResponseDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -132,5 +134,8 @@ interface MonatsblitzApi {
     @POST(value = "recreatePosts")
     suspend fun recreatePosts(): RecreatePostsDto
 
-
+    @POST(value = "tournament/withdraw")
+    suspend fun withdrawPlayer(
+        @Body request: WithdrawPlayerDto
+    ): WithdrawPlayerResponseDto
 }

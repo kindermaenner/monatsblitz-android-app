@@ -8,7 +8,8 @@ data class Tournament(
     val date: LocalDate,
     val rounds: Int,
     val players: List<Player>,
-    val games: Map<Long, Game> = mapOf()
+    val games: Map<Long, Game> = mapOf(),
+    val withdrawnPlayerIds: Set<Long> = emptySet()
 ) {
     val playerIds: List<Long>
         get() = players.map { it.id }

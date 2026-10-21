@@ -32,5 +32,6 @@ data class TournamentPlayerCrossRef(
     val tournamentId: Long,
     val playerId: Long,
     val points : Double? = null,
-    val rank : Int? = null
+    val rank : Int? = null,
+    val hasLeft: Boolean = false
 )

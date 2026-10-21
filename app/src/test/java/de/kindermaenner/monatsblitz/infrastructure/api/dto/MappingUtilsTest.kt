@@ -12,6 +12,7 @@ class MappingUtilsTest {
         assertEquals(GameResult.Loss, "0:1".toGameResult())
         assertEquals(GameResult.Remis, "0.5:0.5".toGameResult())
         assertEquals(GameResult.Remis, "0,5:0,5".toGameResult()) // Test comma replacement
+        assertEquals(GameResult.ForfeitDraw, "=".toGameResult())
         assertEquals(GameResult.ForfeitWin, "+:-".toGameResult())
         assertEquals(GameResult.ForfeitLoss, "-:+".toGameResult())
         assertEquals(GameResult.Open, "offen".toGameResult())
@@ -23,6 +24,7 @@ class MappingUtilsTest {
         assertEquals("1:0", GameResult.Win.toResultString())
         assertEquals("0:1", GameResult.Loss.toResultString())
         assertEquals("0.5:0.5", GameResult.Remis.toResultString())
+        assertEquals("=", GameResult.ForfeitDraw.toResultString())
         assertEquals("+:-", GameResult.ForfeitWin.toResultString())
         assertEquals("-:+", GameResult.ForfeitLoss.toResultString())
         assertEquals("offen", GameResult.Open.toResultString())

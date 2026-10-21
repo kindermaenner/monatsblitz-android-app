@@ -68,7 +68,8 @@ fun TournamentWithDetails.toDomain(): Tournament {
         players = players.map { it -> it.toDomain() },
         games = games.associate { gameEntity ->
             gameEntity.id to gameEntity.toDomain()
-        }
+        },
+        withdrawnPlayerIds = playerRefs.filter { it.hasLeft }.map { it.playerId }.toSet()
     )
 }
 

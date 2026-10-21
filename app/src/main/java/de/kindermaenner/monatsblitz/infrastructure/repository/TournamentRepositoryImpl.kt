@@ -343,6 +343,10 @@ class TournamentRepositoryImpl(
         tournamentStorage.finalizeTournament()
     }
 
+    override suspend fun finalizeLocalTournament(tournamentId: Long) {
+        tournamentStorage.finalizeTournament()
+    }
+
     override suspend fun getActiveOpenTournamentId(): Long? {
         val state = tournamentStorage.getTournamentState().first()
         if (state == null || state.finalized) {

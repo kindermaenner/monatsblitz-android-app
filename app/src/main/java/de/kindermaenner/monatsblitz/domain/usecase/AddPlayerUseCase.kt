@@ -6,7 +6,7 @@ import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 
 class AddPlayerUseCase(private val playerRepository: PlayerRepository) {
     
-    suspend operator fun invoke(vorname: String, name: String): Player {
+    suspend operator fun invoke(vorname: String, name: String, isLocal: Boolean = false): Player {
         val trimmedVorname = vorname.trim()
         val trimmedName = name.trim()
         require(trimmedVorname.isNotBlank() && trimmedName.isNotBlank()) {
@@ -21,7 +21,8 @@ class AddPlayerUseCase(private val playerRepository: PlayerRepository) {
         return playerRepository.createPlayer(
             NewPlayer(
                 vorname = trimmedVorname,
-                name = trimmedName
+                name = trimmedName,
+                isLocal = isLocal
             )
         )
     }

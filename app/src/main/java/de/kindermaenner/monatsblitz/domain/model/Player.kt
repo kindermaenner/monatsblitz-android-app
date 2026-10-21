@@ -4,7 +4,8 @@ data class Player(
     val id: Long,
     val name: String,
     val vorname: String,
-    val dirty: Boolean = false
+    val dirty: Boolean = false,
+    val isLocal: Boolean = false
 ) {
     val fullName: String
         get() = "$vorname $name"

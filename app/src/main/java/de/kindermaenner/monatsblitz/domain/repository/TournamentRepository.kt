@@ -34,6 +34,8 @@ interface TournamentRepository {
 
     suspend fun submitResultsAndFinalize(tournamentId: Long)
 
+    suspend fun finalizeLocalTournament(tournamentId: Long)
+
     suspend fun getActiveOpenTournamentId(): Long?
 
     suspend fun getRemoteOpenTournament(): RemoteOpenTournamentInfo?

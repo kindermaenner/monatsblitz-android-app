@@ -70,15 +70,29 @@ class TournamentSetupViewModel(
         if (modeRepository != null) {
             viewModelScope.launch {
                 modeRepository.observeModes().collect { modes ->
-                    _uiState.update { it.copy(availableModes = modes) }
+                    val effectiveModes = if (modes.isEmpty()) {
+                        listOf(GameMode.BLITZ_5_0, GameMode.BLITZ_3_2)
+                    } else modes
+                    _uiState.update { it.copy(availableModes = effectiveModes) }
                     if (!hasPreselectedMode) {
-                        resolvePreselectedMode(modes)
+                        resolvePreselectedMode(effectiveModes)
                     }
                 }
             }
         }
 
         if (settingsRepository != null) {
+            viewModelScope.launch {
+                val isServer = runCatching { settingsRepository.isServerConfigured() }.getOrDefault(true)
+                val isOffline = runCatching { settingsRepository.standaloneOfflineMode.first() }.getOrDefault(false)
+                _uiState.update {
+                    it.copy(
+                        isServerConfigured = isServer,
+                        isStandaloneOffline = isOffline,
+                        isLocalOnly = !isServer || isOffline
+                    )
+                }
+            }
             viewModelScope.launch {
                 settingsRepository.showDetailedSyncIndicators.collect { showIndicators ->
                     _uiState.update { it.copy(showDetailedSyncIndicators = showIndicators) }
@@ -278,6 +292,18 @@ class TournamentSetupViewModel(
         }
     }
 
+    fun onLocalOnlyChanged(enabled: Boolean) {
+        _uiState.update {
+            it.copy(isLocalOnly = enabled)
+        }
+    }
+
+    fun onNewPlayerIsLocalChanged(isLocal: Boolean) {
+        _uiState.update {
+            it.copy(newPlayerIsLocal = isLocal)
+        }
+    }
+
     fun createTournament() {
         viewModelScope.launch {
             val state = uiState.value
@@ -290,7 +316,8 @@ class TournamentSetupViewModel(
                 players = players,
                 mode = mode,
                 date = state.selectedDate,
-                rounds = if (state.doubleRound) 2 else 1
+                rounds = if (state.doubleRound) 2 else 1,
+                isLocalOnly = state.isLocalOnly
             )
             _navigationEffect.emit(tournament.id)
         }
@@ -310,13 +337,18 @@ class TournamentSetupViewModel(
         val name = state.newPlayerName.trim()
         if (vorname.isBlank() || name.isBlank()) return
 
+        val isLocalPlayer = state.newPlayerIsLocal || state.isLocalOnly || !state.isServerConfigured
+
         viewModelScope.launch {
             try {
-                val newPlayer = addPlayerUseCase(vorname, name)
+                val newPlayer = addPlayerUseCase(vorname, name, isLocal = isLocalPlayer)
                 onPlayerChecked(newPlayer.id, true)
                 onShowAddPlayerDialog(false)
                 onNewPlayerNameChanged("", "")
-                runCatching { syncPlayersUseCase?.invoke() }
+                _uiState.update { it.copy(newPlayerIsLocal = false) }
+                if (!isLocalPlayer) {
+                    runCatching { syncPlayersUseCase?.invoke() }
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(addPlayerError = e.message ?: "Fehler beim Anlegen des Spielers.")

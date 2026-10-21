@@ -31,23 +31,26 @@ class RootViewModel(
                 return@launch
             }
 
-            safeSyncPlayers()
+            val isServer = runCatching { settingsRepository.isServerConfigured() }.getOrDefault(true)
+            if (isServer) {
+                safeSyncPlayers()
 
-            val autoAdopt = try {
-                settingsRepository.autoAdoptOpenTournament.first()
-            } catch (_: Exception) {
-                false
-            }
-            if (autoAdopt) {
-                try {
-                    val remoteOpen = tournamentRepository.getRemoteOpenTournament()
-                    if (remoteOpen != null) {
-                        val localId = tournamentRepository.adoptRemoteTournament(remoteOpen.id)
-                        _initialRoute.value = AppRoute.Crosstable(localId)
-                        return@launch
-                    }
+                val autoAdopt = try {
+                    settingsRepository.autoAdoptOpenTournament.first()
                 } catch (_: Exception) {
-                    // Offline-First: Weiter mit lokalem Zustand
+                    false
+                }
+                if (autoAdopt) {
+                    try {
+                        val remoteOpen = tournamentRepository.getRemoteOpenTournament()
+                        if (remoteOpen != null) {
+                            val localId = tournamentRepository.adoptRemoteTournament(remoteOpen.id)
+                            _initialRoute.value = AppRoute.Crosstable(localId)
+                            return@launch
+                        }
+                    } catch (_: Exception) {
+                        // Offline-First: Weiter mit lokalem Zustand
+                    }
                 }
             }
 

@@ -45,7 +45,7 @@ interface PlayerDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(player: PlayerEntity) : Long
 
-    @Query("SELECT * FROM players WHERE dirty = 1")
+    @Query("SELECT * FROM players WHERE dirty = 1 AND isLocal = 0")
     suspend fun getDirtyPlayers(): List<PlayerEntity>
 
     @Query("""
@@ -57,8 +57,15 @@ interface PlayerDao {
 
     @Query("""
     UPDATE players
-    SET dirty = 0, remoteId = :remoteId
+    SET dirty = 0, remoteId = :remoteId, isLocal = 0
     WHERE id = :playerId
 """)
     suspend fun setRemoteId(playerId :Long, remoteId : Long )
+
+    @Query("""
+    UPDATE players
+    SET isLocal = 0, dirty = 1
+    WHERE id = :playerId
+""")
+    suspend fun promoteLocalPlayer(playerId: Long)
 }

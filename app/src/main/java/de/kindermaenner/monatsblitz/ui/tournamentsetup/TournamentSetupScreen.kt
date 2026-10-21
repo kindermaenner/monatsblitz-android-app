@@ -71,6 +71,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -246,10 +247,13 @@ fun TournamentSetupScreen(
                 selectedMode = state.selectedMode,
                 availableModes = state.availableModes,
                 doubleRound = state.doubleRound,
+                isLocalOnly = state.isLocalOnly,
+                isServerConfigured = state.isServerConfigured,
                 onDateChanged = viewModel::onDateChanged,
                 onModeChanged = viewModel::onModeChanged,
                 onAddNewMode = { viewModel.onShowAddModeDialog(true) },
-                onDoubleRoundChanged = viewModel::onDoubleRoundChanged
+                onDoubleRoundChanged = viewModel::onDoubleRoundChanged,
+                onLocalOnlyChanged = viewModel::onLocalOnlyChanged
             )
 
             TournamentPlayerList(
@@ -490,10 +494,13 @@ internal fun TournamentSettingsCard(
     selectedMode: GameMode?,
     availableModes: List<GameMode> = emptyList(),
     doubleRound: Boolean,
+    isLocalOnly: Boolean = false,
+    isServerConfigured: Boolean = true,
     onDateChanged: (LocalDate) -> Unit,
     onModeChanged: (GameMode) -> Unit,
     onAddNewMode: (() -> Unit)? = null,
-    onDoubleRoundChanged: (Boolean) -> Unit
+    onDoubleRoundChanged: (Boolean) -> Unit,
+    onLocalOnlyChanged: (Boolean) -> Unit = {}
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -614,6 +621,49 @@ internal fun TournamentSettingsCard(
                         checked = doubleRound,
                         onCheckedChange = onDoubleRoundChanged
                     )
+                }
+
+                if (isServerConfigured) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onLocalOnlyChanged(!isLocalOnly) },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Nur lokal spielen", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                "Keine Website-Veröffentlichung",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = isLocalOnly,
+                            onCheckedChange = onLocalOnlyChanged,
+                            modifier = Modifier.testTag("tournament_local_only_switch")
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Turniertyp", style = MaterialTheme.typography.bodyMedium)
+                        Surface(
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ) {
+                            Text(
+                                text = "Reines Offline-Turnier",
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1023,6 +1073,20 @@ private fun PlayerRow(
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.padding(start = 8.dp)
         )
+        if (player.isLocal) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Surface(
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ) {
+                Text(
+                    text = "Lokal",
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                )
+            }
+        }
         if (showDirtyIndicator && player.dirty) {
             Spacer(modifier = Modifier.size(6.dp))
             Box(

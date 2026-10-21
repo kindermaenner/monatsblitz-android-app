@@ -43,6 +43,10 @@ class PlayerRepositoryImpl(
         return e.copy(id = id).toDomain()
     }
 
+    override suspend fun promotePlayer(id: Long) {
+        playerDao.promoteLocalPlayer(id)
+    }
+
     override suspend fun syncPlayers() {
         val remote = remoteDataSource
             ?: throw IllegalStateException("PlayerRemoteDataSource ist nicht konfiguriert")
@@ -71,7 +75,8 @@ class PlayerRepositoryImpl(
                     existingByRemoteId.copy(
                         name = remotePlayer.name.trim(),
                         vorname = remotePlayer.vorname.trim(),
-                        dirty = false
+                        dirty = false,
+                        isLocal = false
                     )
                 )
             } else {
@@ -85,7 +90,9 @@ class PlayerRepositoryImpl(
                     playerDao.insert(
                         remotePlayer.copy(
                             name = remotePlayer.name.trim(),
-                            vorname = remotePlayer.vorname.trim()
+                            vorname = remotePlayer.vorname.trim(),
+                            dirty = false,
+                            isLocal = false
                         )
                     )
                 }

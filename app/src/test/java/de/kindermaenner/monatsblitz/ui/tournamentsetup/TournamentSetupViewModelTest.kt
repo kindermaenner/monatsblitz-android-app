@@ -42,6 +42,15 @@ class TournamentSetupViewModelTest {
     private val syncPlayersUseCase = mockk<SyncPlayersUseCase>(relaxed = true)
     private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
 
+    @org.junit.Before
+    fun setUp() {
+        coEvery { settingsRepository.isServerConfigured() } returns true
+        coEvery { settingsRepository.standaloneOfflineMode } returns flowOf(false)
+        coEvery { settingsRepository.showDetailedSyncIndicators } returns flowOf(true)
+        coEvery { settingsRepository.playerSortField } returns flowOf(PlayerSortField.LAST_NAME)
+        coEvery { settingsRepository.playerSortOrder } returns flowOf(PlayerSortOrder.ASCENDING)
+    }
+
     @Test
     fun `initial state loads players from repository`() = runTest {
         val players = listOf(Player(1, "N", "V"))
@@ -507,5 +516,72 @@ class TournamentSetupViewModelTest {
         assertFalse(viewModel.uiState.value.showAddModeDialog)
         assertEquals("Jubilaeumsblitz", viewModel.uiState.value.selectedMode?.name)
         coVerify(exactly = 0) { modeRepo.createMode(any(), any()) }
+    }
+
+    @Test
+    fun `when standaloneOfflineMode is enabled, tournament setup defaults to local only`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        coEvery { settingsRepository.standaloneOfflineMode } returns flowOf(true)
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            settingsRepository = settingsRepository
+        )
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isStandaloneOffline)
+        assertTrue(viewModel.uiState.value.isLocalOnly)
+    }
+
+    @Test
+    fun `addNewPlayer in local mode does not trigger background sync`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        coEvery { settingsRepository.standaloneOfflineMode } returns flowOf(true)
+        val localPlayer = Player(77L, "Baum", "Teddy", isLocal = true)
+        coEvery { addPlayerUseCase("Teddy", "Baum", isLocal = true) } returns localPlayer
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository,
+            createTournamentUseCase,
+            addPlayerUseCase,
+            syncPlayersUseCase = syncPlayersUseCase,
+            settingsRepository = settingsRepository
+        )
+        advanceUntilIdle()
+
+        viewModel.onShowAddPlayerDialog(true)
+        viewModel.onNewPlayerNameChanged("Teddy", "Baum")
+        viewModel.addNewPlayer()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { syncPlayersUseCase.invoke() }
+        assertTrue(viewModel.uiState.value.selectedPlayerIds.contains(77L))
+    }
+
+    @Test
+    fun `createTournament passes isLocalOnly to CreateTournamentUseCase`() = runTest {
+        val p1 = Player(1, "A", "A")
+        val mockTournament = mockk<Tournament>()
+        io.mockk.every { mockTournament.id } returns 555L
+
+        coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1))
+        coEvery { createTournamentUseCase(any(), any(), any(), any(), isLocalOnly = true) } returns mockTournament
+
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        viewModel.onPlayerChecked(1L, true)
+        viewModel.onModeChanged(GameMode.BLITZ_3_2)
+        viewModel.onLocalOnlyChanged(true)
+
+        viewModel.createTournament()
+
+        coVerify { createTournamentUseCase(
+            players = listOf(p1),
+            mode = GameMode.BLITZ_3_2,
+            date = any(),
+            rounds = 1,
+            isLocalOnly = true
+        ) }
     }
 }

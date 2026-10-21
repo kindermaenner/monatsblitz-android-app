@@ -18,6 +18,8 @@ interface SettingsRepository {
     val fixedMode: Flow<String>
     val rotationModes: Flow<List<String>>
 
+    val standaloneOfflineMode: Flow<Boolean>
+
     suspend fun setShowDetailedSyncIndicators(enabled: Boolean)
     suspend fun setServerUrl(url: String)
     suspend fun setApiKey(apiKey: String)
@@ -29,6 +31,8 @@ interface SettingsRepository {
     suspend fun setModePreselectionType(type: ModePreselectionType)
     suspend fun setFixedMode(mode: String)
     suspend fun setRotationModes(modes: List<String>)
+    suspend fun setStandaloneOfflineMode(enabled: Boolean)
 
     suspend fun isConfigured(): Boolean
+    suspend fun isServerConfigured(): Boolean
 }

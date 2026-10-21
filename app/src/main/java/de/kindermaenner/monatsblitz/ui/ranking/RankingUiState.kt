@@ -1,5 +1,7 @@
 package de.kindermaenner.monatsblitz.ui.ranking
 
+import de.kindermaenner.monatsblitz.domain.model.Tournament
+
 sealed interface RankingUiState {
     data object Loading : RankingUiState
     data class Ready(
@@ -8,6 +10,7 @@ sealed interface RankingUiState {
         val isReadOnly: Boolean = false,
         val isFinalizing: Boolean = false,
         val isFinalized: Boolean = false,
-        val finalizeError: String? = null
+        val finalizeError: String? = null,
+        val tournament: Tournament? = null
     ) : RankingUiState
 }

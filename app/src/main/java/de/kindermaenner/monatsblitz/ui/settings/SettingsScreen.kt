@@ -79,6 +79,8 @@ fun SettingsScreen(
     val testResult by viewModel.testResult.collectAsStateWithLifecycle()
     val isSavedMessageVisible by viewModel.isSavedMessageVisible.collectAsStateWithLifecycle()
     val isConfigured by viewModel.isConfigured.collectAsStateWithLifecycle()
+    val isServerConfigured by viewModel.isServerConfigured.collectAsStateWithLifecycle()
+    val standaloneOfflineMode by viewModel.standaloneOfflineMode.collectAsStateWithLifecycle()
     val playerSortField by viewModel.playerSortField.collectAsStateWithLifecycle()
     val playerSortOrder by viewModel.playerSortOrder.collectAsStateWithLifecycle()
     val useShortPlayerNames by viewModel.useShortPlayerNames.collectAsStateWithLifecycle()
@@ -143,10 +145,57 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Bitte gib die Adresse deiner WordPress-Website und deinen API-Schlüssel ein – oder scanne einfach den Einrichtungs-QR-Code im WordPress-Admin.",
+                            text = "Bitte gib die Adresse deiner WordPress-Website und deinen API-Schlüssel ein – oder scanne einfach den Einrichtungs-QR-Code im WordPress-Admin. Alternativ kannst du die App auch dauerhaft im Offline-Modus nutzen.",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
+                }
+            }
+
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (standaloneOfflineMode) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Dauerhafter Offline-Betrieb",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "App komplett ohne WordPress-Server nutzen (z. B. für Kuscheltier- oder private Turniere).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Switch(
+                        checked = standaloneOfflineMode,
+                        onCheckedChange = { enabled ->
+                            viewModel.setStandaloneOfflineMode(enabled)
+                        },
+                        modifier = Modifier.testTag("standalone_offline_switch")
+                    )
+                }
+            }
+
+            if (standaloneOfflineMode && !isServerConfigured) {
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("continue_to_setup_button")
+                ) {
+                    Text("Weiter zum Turniersetup")
                 }
             }
 

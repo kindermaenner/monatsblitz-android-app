@@ -27,6 +27,7 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     private val modePreselectionTypeKey = stringPreferencesKey("mode_preselection_type")
     private val fixedModeKey = stringPreferencesKey("fixed_mode")
     private val rotationModesKey = stringPreferencesKey("rotation_modes")
+    private val standaloneOfflineModeKey = booleanPreferencesKey("standalone_offline_mode")
 
     @Volatile
     private var cachedServerUrl: String? = null
@@ -84,6 +85,10 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
         } else {
             raw.split(";").map { it.trim() }.filter { it.isNotEmpty() }
         }
+    }
+
+    override val standaloneOfflineMode: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[standaloneOfflineModeKey] ?: false
     }
 
     override suspend fun setShowDetailedSyncIndicators(enabled: Boolean) {
@@ -148,10 +153,25 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
         }
     }
 
+    override suspend fun setStandaloneOfflineMode(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[standaloneOfflineModeKey] = enabled
+        }
+    }
+
     override suspend fun isConfigured(): Boolean {
         val prefs = dataStore.data.first()
-        val url = prefs[serverUrlKey]?.trim().orEmpty()
-        val key = prefs[apiKeyKey]?.trim().orEmpty()
+        val url = runCatching { prefs[serverUrlKey]?.trim().orEmpty() }.getOrDefault("")
+        val key = runCatching { prefs[apiKeyKey]?.trim().orEmpty() }.getOrDefault("")
+        if (url.isNotEmpty() && key.isNotEmpty()) return true
+        val offline = runCatching { prefs[standaloneOfflineModeKey] }.getOrNull() ?: false
+        return offline
+    }
+
+    override suspend fun isServerConfigured(): Boolean {
+        val prefs = dataStore.data.first()
+        val url = runCatching { prefs[serverUrlKey]?.trim().orEmpty() }.getOrDefault("")
+        val key = runCatching { prefs[apiKeyKey]?.trim().orEmpty() }.getOrDefault("")
         return url.isNotEmpty() && key.isNotEmpty()
     }
 

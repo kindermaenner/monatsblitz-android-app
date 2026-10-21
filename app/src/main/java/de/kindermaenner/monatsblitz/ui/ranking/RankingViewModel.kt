@@ -74,7 +74,8 @@ class RankingViewModel(
                     isReadOnly = currentReady?.isReadOnly ?: isReadOnly,
                     isFinalizing = currentReady?.isFinalizing ?: false,
                     isFinalized = currentReady?.isFinalized ?: false,
-                    finalizeError = currentReady?.finalizeError
+                    finalizeError = currentReady?.finalizeError,
+                    tournament = tournament ?: currentReady?.tournament
                 )
             }.collect {}
         }
@@ -87,7 +88,7 @@ class RankingViewModel(
                 openGamesCount = count
                 val currentReady = _uiState.value as? RankingUiState.Ready
                 if (currentReady != null) {
-                    _uiState.value = currentReady.copy(openGamesCount = count)
+                    _uiState.value = currentReady.copy(openGamesCount = count, tournament = tournament)
                 }
             }
         }

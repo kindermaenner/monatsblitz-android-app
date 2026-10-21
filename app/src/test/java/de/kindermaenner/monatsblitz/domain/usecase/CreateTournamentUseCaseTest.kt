@@ -5,6 +5,7 @@ import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.NewGame
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.Tournament
+import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -59,5 +60,36 @@ class CreateTournamentUseCaseTest {
 
         coVerify { createNewGamesUseCase(players, 2) }
     }
-}
 
+    @Test
+    fun `invoke with isLocalOnly false promotes local players`() = runTest {
+        val playerRepo = mockk<PlayerRepository>(relaxed = true)
+        val localUseCase = CreateTournamentUseCase(tournamentRepository, createNewGamesUseCase, playerRepo)
+        val p1 = Player(1, "A", "A", isLocal = true)
+        val p2 = Player(2, "B", "B", isLocal = false)
+        val players = listOf(p1, p2)
+
+        every { createNewGamesUseCase(players, 1) } returns emptyList()
+        coEvery { tournamentRepository.createTournament(any()) } returns Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, players)
+
+        localUseCase(players, GameMode.BLITZ_3_2, LocalDate.now(), 1, isLocalOnly = false)
+
+        coVerify(exactly = 1) { playerRepo.promotePlayer(1L) }
+        coVerify(exactly = 0) { playerRepo.promotePlayer(2L) }
+    }
+
+    @Test
+    fun `invoke with isLocalOnly true does not promote local players`() = runTest {
+        val playerRepo = mockk<PlayerRepository>(relaxed = true)
+        val localUseCase = CreateTournamentUseCase(tournamentRepository, createNewGamesUseCase, playerRepo)
+        val p1 = Player(1, "A", "A", isLocal = true)
+        val players = listOf(p1)
+
+        every { createNewGamesUseCase(players, 1) } returns emptyList()
+        coEvery { tournamentRepository.createTournament(any()) } returns Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, players)
+
+        localUseCase(players, GameMode.BLITZ_3_2, LocalDate.now(), 1, isLocalOnly = true)
+
+        coVerify(exactly = 0) { playerRepo.promotePlayer(any()) }
+    }
+}

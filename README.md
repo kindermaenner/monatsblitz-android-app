@@ -26,7 +26,16 @@ The motivation and overall project context are documented in the [Monatsblitz Wo
     *   **Regular rule:** Remaining unplayed games are scored as forfeit loss (`-`, 0 points for the leaving player, `+` / 1 point for opponents).
     *   Withdrawn players are marked with `(z)` (*zurückgetreten*) across the crosstable, rankings, and published WordPress results.
 *   **Real-time Rankings:** Automatic calculation of tournament standings based on entered results.
-*   **Offline-First Approach:** Full offline capability ensures tournaments can be conducted without reliable internet access. The local Room database serves as the Single Source of Truth (SSoT).
+*   **Offline-First Approach & Standalone Offline Mode:**
+    *   Full offline capability ensures tournaments can be conducted without reliable internet access. The local Room database serves as the Single Source of Truth (SSoT).
+    *   **Standalone Offline Mode ("Dauerhafter Offline-Betrieb"):** Complete operation without any server or WordPress configuration (ideal for plush toy tournaments, home tournaments, or chess events without website publication).
+    *   **First-Time Routing:** If neither server nor offline mode is configured, the app opens the Settings screen directly, allowing the user to configure the backend or enable offline mode with a single tap. Once configured or set to offline mode, the app starts directly into Tournament Setup.
+    *   **Per-Tournament Local Mode:** Even with a configured WordPress server, individual tournaments can be run locally ("Nur lokal spielen") without website publication or background sync.
+    *   **Local Player Management & Merge:** Local players created during offline tournaments persist in the Room DB and remain reusable. If a local player is later used in an online tournament, they are automatically merged and promoted to the server without duplicate entries.
+*   **PDF Export & System Share / Print:**
+    *   Export tournament results directly from the ranking screen as clean A4 PDF documents.
+    *   Includes tournament metadata, final ranking standings, and the complete crosstable matrix (with result indicators, tie-breaks, and withdrawal markers).
+    *   Integrated with the Android system share sheet for one-tap sharing via messengers, email, or direct printing.
 *   **QR Code Setup:** Instant configuration of server URL, API key, and club-wide default tournament mode preselection (fixed or rotation) by scanning the QR code in WordPress Admin.
 *   **Automatic Live Sync & Status:** Non-blocking background synchronization after every result change with batched retry, upsert support for score corrections, an interactive TopAppBar status indicator, and configurable cell-level indicators.
 *   **WordPress Integration:** Automatic synchronization of players from the club website and publishing final results back to the WordPress plugin to generate news posts.

@@ -90,7 +90,8 @@ class AppContainer(context: Context) {
 
     val createTournamentUseCase = CreateTournamentUseCase(
         tournamentRepository,
-        createNewGamesUseCase
+        createNewGamesUseCase,
+        playerRepository
     )
     val setGameResultUseCase = SetGameResultUseCase(tournamentRepository)
 

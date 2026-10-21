@@ -59,6 +59,11 @@ class TournamentSyncManager(
         }
 
         val tournament = tournamentDao.getTournament(tournamentId)
+        if (tournament?.tournament?.isLocalOnly == true) {
+            _syncStatus.value = SyncStatus.SYNCED
+            return
+        }
+
         val isTournamentUnsynced = tournament != null && tournament.tournament.remoteId == null
         val dirtyGames = gameDao.getDirtyGamesForTournament(tournamentId)
 
@@ -79,6 +84,12 @@ class TournamentSyncManager(
 
     private suspend fun triggerSyncInternal(tournamentId: Long) {
         if (_syncStatus.value == SyncStatus.FINALIZED) return
+
+        val tournament = tournamentDao.getTournament(tournamentId)
+        if (tournament?.tournament?.isLocalOnly == true) {
+            _syncStatus.value = SyncStatus.SYNCED
+            return
+        }
 
         syncMutex.withLock {
             if (isFinalizedInStorage()) {

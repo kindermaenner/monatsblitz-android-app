@@ -18,5 +18,7 @@ data class TournamentEntity(
 
     val rounds: Int,
 
-    val dirty : Boolean = true
+    val dirty : Boolean = true,
+
+    val isLocalOnly: Boolean = false
 )

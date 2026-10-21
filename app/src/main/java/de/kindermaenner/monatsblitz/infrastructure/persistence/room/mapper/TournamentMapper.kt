@@ -69,7 +69,8 @@ fun TournamentWithDetails.toDomain(): Tournament {
         games = games.associate { gameEntity ->
             gameEntity.id to gameEntity.toDomain()
         },
-        withdrawnPlayerIds = playerRefs.filter { it.hasLeft }.map { it.playerId }.toSet()
+        withdrawnPlayerIds = playerRefs.filter { it.hasLeft }.map { it.playerId }.toSet(),
+        isLocalOnly = tournament.isLocalOnly
     )
 }
 
@@ -78,8 +79,9 @@ fun NewTournament.toEntity() : TournamentEntity =
         mode = mode,
         date = date,
         rounds = rounds,
-        dirty = true,
-        remoteId = null
+        dirty = !isLocalOnly,
+        remoteId = null,
+        isLocalOnly = isLocalOnly
     )
 fun NewGame.toEntity(tournamentId : Long) : GameEntity = GameEntity(
     tournamentId = tournamentId,

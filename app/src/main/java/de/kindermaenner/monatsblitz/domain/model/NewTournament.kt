@@ -7,5 +7,6 @@ data class NewTournament(
     val date: LocalDate,
     val rounds: Int,
     val players: List<Player>,
-    val games: List<NewGame>
+    val games: List<NewGame>,
+    val isLocalOnly: Boolean = false
 )

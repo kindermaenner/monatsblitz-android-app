@@ -9,7 +9,8 @@ fun PlayerEntity.toDomain(): Player =
         id = id,
         name = name,
         vorname = vorname,
-        dirty = dirty
+        dirty = dirty,
+        isLocal = isLocal
     )
 
 fun Player.toEntity(): PlayerEntity =
@@ -18,7 +19,8 @@ fun Player.toEntity(): PlayerEntity =
         name = name,
         vorname = vorname,
         remoteId = null,
-        dirty = true
+        dirty = !isLocal,
+        isLocal = isLocal
     )
 
 fun NewPlayer.toEntity(): PlayerEntity =
@@ -26,5 +28,6 @@ fun NewPlayer.toEntity(): PlayerEntity =
         name = name,
         vorname = vorname,
         remoteId = null,
-        dirty = true
+        dirty = !isLocal,
+        isLocal = isLocal
     )

@@ -48,6 +48,18 @@ class SettingsViewModel(
 
     val isConfigured: StateFlow<Boolean> = combine(
         settingsRepository.serverUrl,
+        settingsRepository.apiKey,
+        settingsRepository.standaloneOfflineMode
+    ) { url, key, offline ->
+        (url.isNotBlank() && key.isNotBlank()) || offline
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
+    val isServerConfigured: StateFlow<Boolean> = combine(
+        settingsRepository.serverUrl,
         settingsRepository.apiKey
     ) { url, key ->
         url.isNotBlank() && key.isNotBlank()
@@ -56,6 +68,14 @@ class SettingsViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = false
     )
+
+    val standaloneOfflineMode: StateFlow<Boolean> =
+        settingsRepository.standaloneOfflineMode
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = false
+            )
 
     val showDetailedSyncIndicators: StateFlow<Boolean> =
         settingsRepository.showDetailedSyncIndicators
@@ -210,6 +230,12 @@ class SettingsViewModel(
     fun setShowDetailedSyncIndicators(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setShowDetailedSyncIndicators(enabled)
+        }
+    }
+
+    fun setStandaloneOfflineMode(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setStandaloneOfflineMode(enabled)
         }
     }
 

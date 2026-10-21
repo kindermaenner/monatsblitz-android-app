@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,9 +32,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.kindermaenner.monatsblitz.infrastructure.export.TournamentPdfGenerator
 import de.kindermaenner.monatsblitz.ui.ranking.components.RankingTable
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,6 +118,26 @@ private fun RankingTopBar(
         },
         actions = {
             if (uiState is RankingUiState.Ready) {
+                val context = LocalContext.current
+                IconButton(
+                    onClick = {
+                        val tournament = uiState.tournament
+                        if (tournament != null) {
+                            TournamentPdfGenerator.generateAndSharePdf(
+                                context = context,
+                                tournament = tournament,
+                                rankingRows = uiState.rows
+                            )
+                        }
+                    },
+                    modifier = Modifier.testTag("export_pdf_button")
+                ) {
+                    Icon(
+                        Icons.Default.Share,
+                        contentDescription = "Als PDF teilen / drucken"
+                    )
+                }
+
                 FilledTonalButton(
                     onClick = onFinalizeClick,
                     enabled = !uiState.isFinalizing && !uiState.isFinalized && !uiState.isReadOnly,

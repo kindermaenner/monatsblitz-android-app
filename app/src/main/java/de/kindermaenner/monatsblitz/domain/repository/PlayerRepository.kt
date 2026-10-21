@@ -13,5 +13,7 @@ interface PlayerRepository {
 
     suspend fun createPlayer(newPlayer: NewPlayer) : Player
 
+    suspend fun promotePlayer(id: Long)
+
     suspend fun syncPlayers()
 }

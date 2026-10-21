@@ -39,12 +39,14 @@ class SettingsViewModelTest {
     private val serverUrlFlow = MutableStateFlow("")
     private val apiKeyFlow = MutableStateFlow("")
     private val syncFlow = MutableStateFlow(true)
+    private val offlineFlow = MutableStateFlow(false)
 
     @Before
     fun setup() {
         every { settingsRepository.serverUrl } returns serverUrlFlow
         every { settingsRepository.apiKey } returns apiKeyFlow
         every { settingsRepository.showDetailedSyncIndicators } returns syncFlow
+        every { settingsRepository.standaloneOfflineMode } returns offlineFlow
         coEvery { testBackendConnectionUseCase(any(), any()) } returns ConnectionTestResult.Success(playerCount = 5)
     }
 
@@ -236,5 +238,14 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         coVerify { syncModes() }
+    }
+
+    @Test
+    fun `setStandaloneOfflineMode delegates to repository`() = runTest {
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        viewModel.setStandaloneOfflineMode(true)
+        advanceUntilIdle()
+
+        coVerify { settingsRepository.setStandaloneOfflineMode(true) }
     }
 }

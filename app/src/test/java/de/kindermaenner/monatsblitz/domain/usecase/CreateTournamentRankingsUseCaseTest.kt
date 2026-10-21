@@ -69,7 +69,7 @@ class CreateTournamentRankingsUseCaseTest {
     }
 
     @Test
-    fun `invoke should calculate dense ranking correctly with tied points`() = runTest {
+    fun `invoke should calculate competition ranking correctly with tied points`() = runTest {
         val players = listOf(
             Player(1, "A", "A"),
             Player(2, "B", "B"),
@@ -90,9 +90,9 @@ class CreateTournamentRankingsUseCaseTest {
         // Tied for 1st -> Rank 1
         assertEquals(1, capturedEntries.captured[0].rank)
         assertEquals(1, capturedEntries.captured[1].rank)
-        // Tied for 2nd -> Rank 2 (Dense: no skipping)
-        assertEquals(2, capturedEntries.captured[2].rank)
-        assertEquals(2, capturedEntries.captured[3].rank)
+        // Tied for 3rd -> Rank 3 (Competition: skips rank 2)
+        assertEquals(3, capturedEntries.captured[2].rank)
+        assertEquals(3, capturedEntries.captured[3].rank)
     }
 
     // ============ createDenseRanking() Tests ============
@@ -134,7 +134,7 @@ class CreateTournamentRankingsUseCaseTest {
     }
 
     @Test
-    fun `full workflow with real tournament scenario (Dense Ranking)`() = runTest {
+    fun `full workflow with real tournament scenario`() = runTest {
         val players = listOf(
             Player(1, "Meier", "Alice"),
             Player(2, "Mueller", "Bob"),

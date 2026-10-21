@@ -14,7 +14,7 @@ class CreateTournamentRankingsUseCase(
             val points = calculatePlayerPointsUseCase(tournament, player.id)
             playerResult.add(PlayerRankingEntry(playerId = player.id, tournamentId = tournament.id, points = points))
         }
-        val playerRanks = createDenseRanking(playerResult)
+        val playerRanks = createCompetitionHandling(playerResult)
         tournamentRepository.saveRankings(playerRanks)
     }
 

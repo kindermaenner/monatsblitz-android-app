@@ -26,7 +26,7 @@ Die App dient als mobiles Werkzeug für Turnierleiter, um monatliche Blitzschach
 *   **Live-Ranking:**
     *   Aufruf einer aktuellen Rangliste während des laufenden Turniers.
     *   Berechnung nach Punkten (Sieg = 1.0, Remis = 0.5, Niederlage = 0.0).
-    *   Verwendung von **Dense Ranking** (keine Platz-Lücken bei Punktgleichheit, z. B. 1, 1, 2, 3).
+    *   Verwendung von **Standard Competition Ranking** (mit Platz-Lücken bei Punktgleichheit, z. B. 1, 1, 3, 4).
     *   Keine Verwendung von Feinwertungen (wie Sonneborn-Berger).
 *   **Synchronisation während der Durchführung:**
     *   Die Synchronisation mit dem Backend kann jederzeit durch den Benutzer über eine geeignete Bedienung (z. B. Sync-Icon in der TopBar / Aktionsleiste oder Pull-to-Refresh) manuell ausgelöst werden.

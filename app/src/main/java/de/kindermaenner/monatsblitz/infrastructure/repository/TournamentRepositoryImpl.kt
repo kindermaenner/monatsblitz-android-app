@@ -462,8 +462,10 @@ class TournamentRepositoryImpl(
             val sorted = playerPoints.entries.sortedByDescending { it.value }
             var lastPoints: Double? = null
             var lastRank = 0
+            var itemsProcessed = 0
             val updatedRefs = sorted.map { (playerId, points) ->
-                val rank = if (lastPoints != null && points == lastPoints) lastRank else lastRank + 1
+                itemsProcessed++
+                val rank = if (lastPoints != null && points == lastPoints) lastRank else itemsProcessed
                 lastPoints = points
                 lastRank = rank
                 TournamentPlayerCrossRef(

@@ -13,9 +13,16 @@ Die App dient als mobiles Werkzeug für Turnierleiter, um monatliche Blitzschach
 *   **Spielerneuanlage:**
     *   Turnierleiter können neue Spieler manuell in der App anlegen. Diese werden lokal gespeichert und beim nächsten Sync an WordPress übertragen.
     *   **Namenseindeutigkeit:** Es darf keine zwei Spieler mit gleichem Namen geben. Vorname und Nachname bilden zusammen das eindeutige Kriterium. Die App validiert Eingaben (getrimmt, case-insensitive) gegen alle lokal und remote vorhandenen Spieler. Die Neuanlage eines bereits existierenden Namens wird mit einer Fehlermeldung unterbunden.
-*   **Modus-Konfiguration:**
-    *   Wahl des Zeitmodus (z. B. "5+0", "3+2", "Handicap").
-    *   Wahl des Formats: Einrundig oder Doppelrundig (Round Robin).
+*   **Modus-Konfiguration & Dynamische Modi:**
+    *   **Auswahlliste:** Dropdown mit allen bekannten Modi (z. B. "3+2", "5+0", "10+0").
+    *   **Neuen Modus hinzufügen:** Über "+ Neuer Modus" im Dropdown können direkt neue Modi angelegt werden:
+        *   **Dauerhaft speichern (Standard):** Nach Bestätigungssicherheitsabfrage wird der Modus in der lokalen DB gesichert und via `POST /mode` mit dem WordPress-Server synchronisiert.
+        *   **Einmalig (One-Shot):** Ohne Serverübertragung oder dauerhafte Speicherung direkt für das aktuelle Turnier verwendbar (z. B. "Jubiläumsblitz", "Weihnachtsturnier").
+    *   **Automatische Vorabauswahl (in den Einstellungen konfigurierbar):**
+        *   *Keine:* Dropdown startet unselektiert.
+        *   *Fester Modus:* Immer derselbe Modus ist standardmäßig vorausgewählt.
+        *   *Rotation:* Wechselt automatisch zyklisch durch eine Liste konfigurierter Modi (z. B. alternierend 3+2 und 5+0). Die Ermittlung des letzten Modus erfolgt anhand der jüngsten Turniere auf dem WordPress-Server (Single Source of Truth), wodurch auch Gerätewechsel fehlerfrei unterstützt werden. One-Shot-Turniere werden bei der Rotationsermittlung automatisch übersprungen.
+    *   **Wahl des Formats:** Einrundig oder Doppelrundig (Round Robin).
 *   **Turnierstart:** Mit dem Start werden alle notwendigen Paarungen (jeder gegen jeden) initial ohne Ergebnis erzeugt.
 
 ### Phase 2: Durchführung (Aktiv)

@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.domain.repository
 
+import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import kotlinx.coroutines.flow.Flow
@@ -13,6 +14,10 @@ interface SettingsRepository {
     val useShortPlayerNames: Flow<Boolean>
     val autoAdoptOpenTournament: Flow<Boolean>
 
+    val modePreselectionType: Flow<ModePreselectionType>
+    val fixedMode: Flow<String>
+    val rotationModes: Flow<List<String>>
+
     suspend fun setShowDetailedSyncIndicators(enabled: Boolean)
     suspend fun setServerUrl(url: String)
     suspend fun setApiKey(apiKey: String)
@@ -20,5 +25,10 @@ interface SettingsRepository {
     suspend fun setPlayerSortOrder(order: PlayerSortOrder)
     suspend fun setUseShortPlayerNames(enabled: Boolean)
     suspend fun setAutoAdoptOpenTournament(enabled: Boolean)
+
+    suspend fun setModePreselectionType(type: ModePreselectionType)
+    suspend fun setFixedMode(mode: String)
+    suspend fun setRotationModes(modes: List<String>)
+
     suspend fun isConfigured(): Boolean
 }

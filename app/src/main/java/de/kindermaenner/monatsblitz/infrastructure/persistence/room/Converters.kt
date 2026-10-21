@@ -24,7 +24,7 @@ class Converters {
 
     @TypeConverter
     fun toGameMode(value: String): GameMode =
-        GameMode.valueOf(value)
+        GameMode.fromString(value)
 
     // -------- GameResult --------
     @TypeConverter

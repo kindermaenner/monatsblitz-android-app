@@ -4,6 +4,7 @@ import de.kindermaenner.monatsblitz.infrastructure.api.dto.BatchResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGameDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGamesDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGamesResponseDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateModeResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateResultDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateResultsDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateTournamentResponseDto
@@ -11,6 +12,8 @@ import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateYearPageDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeRequestDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.ModeDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewModeDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewPlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.NewTournamentDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerBatchItemDto
@@ -43,6 +46,15 @@ interface MonatsblitzApi {
     suspend fun createPlayers(
         @Body request: List<NewPlayerDto>
     ): PlayerBatchResponseDto
+
+    // Mode interface
+    @GET("modes")
+    suspend fun getModes(): List<ModeDto>
+
+    @POST("mode")
+    suspend fun createMode(
+        @Body request: NewModeDto
+    ): CreateModeResponseDto
 
     // tournament interface
 

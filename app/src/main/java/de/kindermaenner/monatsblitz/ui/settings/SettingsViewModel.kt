@@ -2,11 +2,15 @@ package de.kindermaenner.monatsblitz.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.model.QrSetupConfig
+import de.kindermaenner.monatsblitz.domain.repository.ModeRepository
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.usecase.ConnectionTestResult
+import de.kindermaenner.monatsblitz.domain.usecase.SyncModesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.TestBackendConnectionUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,13 +18,16 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val settingsRepository: SettingsRepository,
     private val testBackendConnectionUseCase: TestBackendConnectionUseCase = TestBackendConnectionUseCase(),
-    private val syncPlayersUseCase: SyncPlayersUseCase? = null
+    private val syncPlayersUseCase: SyncPlayersUseCase? = null,
+    private val syncModesUseCase: SyncModesUseCase? = null,
+    private val modeRepository: ModeRepository? = null
 ) : ViewModel() {
 
     private val _serverUrlInput = MutableStateFlow("")
@@ -55,6 +62,38 @@ class SettingsViewModel(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = true
+            )
+
+    val availableModes: StateFlow<List<GameMode>> =
+        (modeRepository?.observeModes() ?: flowOf(GameMode.DEFAULT_MODES))
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = GameMode.DEFAULT_MODES
+            )
+
+    val modePreselectionType: StateFlow<ModePreselectionType> =
+        settingsRepository.modePreselectionType
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = ModePreselectionType.NONE
+            )
+
+    val fixedMode: StateFlow<String> =
+        settingsRepository.fixedMode
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = "3+2"
+            )
+
+    val rotationModes: StateFlow<List<String>> =
+        settingsRepository.rotationModes
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = listOf("3+2", "5+0")
             )
 
     private var hasLoadedInitialSettings = false
@@ -122,6 +161,7 @@ class SettingsViewModel(
 
                 try {
                     syncPlayersUseCase?.invoke()
+                    syncModesUseCase?.invoke()
                 } catch (_: Exception) {
                     // Offline-first
                 }
@@ -145,6 +185,7 @@ class SettingsViewModel(
             if (result is ConnectionTestResult.Success) {
                 try {
                     syncPlayersUseCase?.invoke()
+                    syncModesUseCase?.invoke()
                 } catch (_: Exception) {
                     // Offline-first
                 }
@@ -215,6 +256,39 @@ class SettingsViewModel(
     fun setAutoAdoptOpenTournament(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setAutoAdoptOpenTournament(enabled)
+        }
+    }
+
+    fun setModePreselectionType(type: ModePreselectionType) {
+        viewModelScope.launch {
+            settingsRepository.setModePreselectionType(type)
+        }
+    }
+
+    fun setFixedMode(mode: String) {
+        viewModelScope.launch {
+            settingsRepository.setFixedMode(mode)
+        }
+    }
+
+    fun setRotationModes(modes: List<String>) {
+        viewModelScope.launch {
+            settingsRepository.setRotationModes(modes)
+        }
+    }
+
+    fun toggleRotationMode(modeName: String) {
+        viewModelScope.launch {
+            val current = rotationModes.value.toMutableList()
+            if (current.contains(modeName)) {
+                if (current.size > 1) {
+                    current.remove(modeName)
+                    settingsRepository.setRotationModes(current)
+                }
+            } else {
+                current.add(modeName)
+                settingsRepository.setRotationModes(current)
+            }
         }
     }
 }

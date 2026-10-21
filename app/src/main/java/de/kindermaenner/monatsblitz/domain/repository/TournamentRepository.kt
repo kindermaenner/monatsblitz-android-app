@@ -39,6 +39,8 @@ interface TournamentRepository {
     suspend fun getRemoteOpenTournament(): RemoteOpenTournamentInfo?
 
     suspend fun adoptRemoteTournament(remoteTournamentId: Int): Long
+
+    suspend fun getRecentTournamentModes(): List<String>
 }
 
 data class RemoteOpenTournamentInfo(

@@ -1,6 +1,8 @@
 package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
 import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
+import de.kindermaenner.monatsblitz.domain.repository.ModeRepository
 import java.time.LocalDate
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.model.Player
@@ -405,5 +407,105 @@ class TournamentSetupViewModelTest {
         viewModel.adoptRemoteTournament()
         advanceUntilIdle()
         assertEquals(42L, navigatedId)
+    }
+
+    @Test
+    fun `preselection fixed mode selects configured mode`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val settings = mockk<SettingsRepository>(relaxed = true)
+        coEvery { settings.modePreselectionType } returns flowOf(ModePreselectionType.FIXED)
+        coEvery { settings.fixedMode } returns flowOf("5+0")
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            settingsRepository = settings
+        )
+        advanceUntilIdle()
+
+        assertEquals("5+0", viewModel.uiState.value.selectedMode?.name)
+    }
+
+    @Test
+    fun `preselection rotation mode calculates next mode and skips one-shots`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val settings = mockk<SettingsRepository>(relaxed = true)
+        coEvery { settings.modePreselectionType } returns flowOf(ModePreselectionType.ROTATION)
+        coEvery { settings.rotationModes } returns flowOf(listOf("3+2", "5+0"))
+
+        val tournamentRepo = mockk<TournamentRepository>(relaxed = true)
+        // Last tournament was a one-shot ("Jubilaeumsblitz"), before that was "3+2"
+        coEvery { tournamentRepo.getRecentTournamentModes() } returns listOf("Jubilaeumsblitz", "3+2", "5+0")
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            settingsRepository = settings,
+            tournamentRepository = tournamentRepo
+        )
+        advanceUntilIdle()
+
+        assertEquals("5+0", viewModel.uiState.value.selectedMode?.name)
+    }
+
+    @Test
+    fun `add new mode permanent workflow shows confirm dialog and saves to repository`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val modeRepo = mockk<ModeRepository>(relaxed = true)
+        val createdMode = GameMode(id = 10L, remoteId = 100L, name = "10+0")
+        coEvery { modeRepo.observeModes() } returns flowOf(listOf(GameMode.BLITZ_3_2, GameMode.BLITZ_5_0))
+        coEvery { modeRepo.createMode("10+0", permanent = true) } returns createdMode
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            modeRepository = modeRepo
+        )
+        advanceUntilIdle()
+
+        viewModel.onShowAddModeDialog(true)
+        viewModel.onNewModeNameChanged("10+0")
+        viewModel.onNewModePermanentChanged(true)
+        viewModel.onConfirmAddMode()
+
+        // Confirmation dialog is shown
+        assertTrue(viewModel.uiState.value.showConfirmAddModeDialog)
+
+        // Confirm
+        viewModel.executeAddMode(permanent = true)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.showConfirmAddModeDialog)
+        assertFalse(viewModel.uiState.value.showAddModeDialog)
+        assertEquals("10+0", viewModel.uiState.value.selectedMode?.name)
+        coVerify { modeRepo.createMode("10+0", permanent = true) }
+    }
+
+    @Test
+    fun `add new mode one-shot workflow sets selectedMode directly without confirm dialog`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val modeRepo = mockk<ModeRepository>(relaxed = true)
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            modeRepository = modeRepo
+        )
+        advanceUntilIdle()
+
+        viewModel.onShowAddModeDialog(true)
+        viewModel.onNewModeNameChanged("Jubilaeumsblitz")
+        viewModel.onNewModePermanentChanged(false)
+        viewModel.onConfirmAddMode()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.showConfirmAddModeDialog)
+        assertFalse(viewModel.uiState.value.showAddModeDialog)
+        assertEquals("Jubilaeumsblitz", viewModel.uiState.value.selectedMode?.name)
+        coVerify(exactly = 0) { modeRepo.createMode(any(), any()) }
     }
 }

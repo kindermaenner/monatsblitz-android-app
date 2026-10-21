@@ -1,7 +1,9 @@
 package de.kindermaenner.monatsblitz.ui.settings
 
 import androidx.lifecycle.ViewModel
+import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
+import de.kindermaenner.monatsblitz.domain.usecase.SyncModesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.ConnectionTestResult
 import de.kindermaenner.monatsblitz.domain.usecase.TestBackendConnectionUseCase
 import de.kindermaenner.monatsblitz.util.MainDispatcherRule
@@ -161,5 +163,54 @@ class SettingsViewModelTest {
         assertThrows(IllegalArgumentException::class.java) {
             factory.create(UnknownViewModel::class.java)
         }
+    }
+
+    @Test
+    fun `setModePreselectionType delegates to repository`() = runTest {
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        viewModel.setModePreselectionType(ModePreselectionType.ROTATION)
+        advanceUntilIdle()
+
+        coVerify { settingsRepository.setModePreselectionType(ModePreselectionType.ROTATION) }
+    }
+
+    @Test
+    fun `setFixedMode delegates to repository`() = runTest {
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        viewModel.setFixedMode("10+0")
+        advanceUntilIdle()
+
+        coVerify { settingsRepository.setFixedMode("10+0") }
+    }
+
+    @Test
+    fun `toggleRotationMode toggles mode in rotationModes list`() = runTest {
+        every { settingsRepository.rotationModes } returns MutableStateFlow(listOf("3+2", "5+0"))
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+
+        viewModel.toggleRotationMode("10+0")
+        advanceUntilIdle()
+        coVerify { settingsRepository.setRotationModes(listOf("3+2", "5+0", "10+0")) }
+
+        viewModel.toggleRotationMode("5+0")
+        advanceUntilIdle()
+        coVerify { settingsRepository.setRotationModes(listOf("3+2")) }
+    }
+
+    @Test
+    fun `saveSettings triggers syncModesUseCase on success`() = runTest {
+        val syncModes = mockk<SyncModesUseCase>(relaxed = true)
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            syncPlayersUseCase = syncPlayersUseCase,
+            syncModesUseCase = syncModes
+        )
+        viewModel.onServerUrlChanged("https://test.de")
+        viewModel.onApiKeyChanged("secret")
+        viewModel.saveSettings()
+        advanceUntilIdle()
+
+        coVerify { syncModes() }
     }
 }

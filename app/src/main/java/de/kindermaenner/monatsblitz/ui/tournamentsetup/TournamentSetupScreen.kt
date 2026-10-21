@@ -142,6 +142,37 @@ fun TournamentSetupScreen(
         onDismiss = { viewModel.onShowAddPlayerDialog(false) }
     )
 
+    AddModeDialog(
+        show = state.showAddModeDialog,
+        modeName = state.newModeName,
+        isPermanent = state.newModePermanent,
+        error = state.addModeError,
+        onModeNameChanged = viewModel::onNewModeNameChanged,
+        onPermanentChanged = viewModel::onNewModePermanentChanged,
+        onConfirm = viewModel::onConfirmAddMode,
+        onDismiss = { viewModel.onShowAddModeDialog(false) }
+    )
+
+    if (state.showConfirmAddModeDialog) {
+        AlertDialog(
+            onDismissRequest = viewModel::onDismissConfirmAddMode,
+            title = { Text("Modus anlegen") },
+            text = {
+                Text("Soll der Modus '${state.newModeName.trim()}' neu angelegt und mit dem Server synchronisiert werden?")
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.executeAddMode(permanent = true) }) {
+                    Text("Ja, anlegen")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = viewModel::onDismissConfirmAddMode) {
+                    Text("Abbrechen")
+                }
+            }
+        )
+    }
+
     state.remoteOpenTournament?.let { t ->
         val roundsText = if (t.roundCount == 2) "Doppelrunde" else "1 Runde"
         val playerText = if (t.playerCount == 1) "1 Teilnehmer" else "${t.playerCount} Teilnehmer"
@@ -213,9 +244,11 @@ fun TournamentSetupScreen(
                 onToggleExpanded = { isSettingsExpanded = !isSettingsExpanded },
                 selectedDate = state.selectedDate,
                 selectedMode = state.selectedMode,
+                availableModes = state.availableModes,
                 doubleRound = state.doubleRound,
                 onDateChanged = viewModel::onDateChanged,
                 onModeChanged = viewModel::onModeChanged,
+                onAddNewMode = { viewModel.onShowAddModeDialog(true) },
                 onDoubleRoundChanged = viewModel::onDoubleRoundChanged
             )
 
@@ -304,6 +337,87 @@ private fun AddPlayerDialog(
     )
 }
 
+@Composable
+private fun AddModeDialog(
+    show: Boolean,
+    modeName: String,
+    isPermanent: Boolean,
+    error: String?,
+    onModeNameChanged: (String) -> Unit,
+    onPermanentChanged: (Boolean) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (!show) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Neuen Modus anlegen") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = modeName,
+                    onValueChange = onModeNameChanged,
+                    label = { Text("Name des Modus") },
+                    placeholder = { Text("z. B. 10+0 oder Jubiläumsblitz") },
+                    isError = error != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        capitalization = KeyboardCapitalization.Words
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onPermanentChanged(!isPermanent) }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = isPermanent,
+                        onCheckedChange = onPermanentChanged
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "Dauerhaft in Auswahlliste speichern",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = if (isPermanent) "Wird auf dem Server gesichert und bleibt für zukünftige Turniere erhalten" else "Nur einmalig (One-Shot) für dieses Turnier nutzen",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                error?.let { err ->
+                    Text(
+                        text = err,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = modeName.isNotBlank()
+            ) {
+                Text(if (isPermanent) "Weiter" else "Anlegen")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TournamentSetupTopBar(
@@ -374,9 +488,11 @@ internal fun TournamentSettingsCard(
     onToggleExpanded: () -> Unit,
     selectedDate: LocalDate,
     selectedMode: GameMode?,
+    availableModes: List<GameMode> = GameMode.DEFAULT_MODES,
     doubleRound: Boolean,
     onDateChanged: (LocalDate) -> Unit,
     onModeChanged: (GameMode) -> Unit,
+    onAddNewMode: (() -> Unit)? = null,
     onDoubleRoundChanged: (Boolean) -> Unit
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
@@ -481,7 +597,9 @@ internal fun TournamentSettingsCard(
 
                 GameModeDropdownSelector(
                     selectedMode = selectedMode,
-                    onModeSelected = onModeChanged
+                    availableModes = availableModes,
+                    onModeSelected = onModeChanged,
+                    onAddNewMode = onAddNewMode
                 )
 
                 Row(

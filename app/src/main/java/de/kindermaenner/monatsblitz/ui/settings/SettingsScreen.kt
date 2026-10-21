@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -59,6 +60,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.usecase.ConnectionTestResult
@@ -81,6 +83,10 @@ fun SettingsScreen(
     val playerSortOrder by viewModel.playerSortOrder.collectAsStateWithLifecycle()
     val useShortPlayerNames by viewModel.useShortPlayerNames.collectAsStateWithLifecycle()
     val autoAdoptOpenTournament by viewModel.autoAdoptOpenTournament.collectAsStateWithLifecycle()
+    val modePreselectionType by viewModel.modePreselectionType.collectAsStateWithLifecycle()
+    val fixedMode by viewModel.fixedMode.collectAsStateWithLifecycle()
+    val rotationModes by viewModel.rotationModes.collectAsStateWithLifecycle()
+    val availableModes by viewModel.availableModes.collectAsStateWithLifecycle()
 
     var isPasswordVisible by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -423,6 +429,85 @@ fun SettingsScreen(
                     },
                     modifier = Modifier.padding(start = 16.dp)
                 )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            Text(
+                text = "Modus-Vorabauswahl",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Text(
+                text = "Legt fest, welcher Spielmodus beim Erstellen eines neuen Turniers vorgeschlagen wird.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ModePreselectionType.entries.forEach { type ->
+                    FilterChip(
+                        selected = modePreselectionType == type,
+                        onClick = { viewModel.setModePreselectionType(type) },
+                        label = { Text(type.displayName) }
+                    )
+                }
+            }
+
+            if (modePreselectionType == ModePreselectionType.FIXED) {
+                Text(
+                    text = "Fester Standard-Modus:",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    availableModes.forEach { mode ->
+                        FilterChip(
+                            selected = fixedMode.equals(mode.name, ignoreCase = true),
+                            onClick = { viewModel.setFixedMode(mode.name) },
+                            label = { Text(mode.displayName) }
+                        )
+                    }
+                }
+            } else if (modePreselectionType == ModePreselectionType.ROTATION) {
+                Text(
+                    text = "Beteiligte Modi für die Rotation:",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = "Turniere auf dem Server bestimmen den nächsten Modus in der Reihe.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    availableModes.forEach { mode ->
+                        val index = rotationModes.indexOfFirst { it.equals(mode.name, ignoreCase = true) }
+                        val isSelected = index != -1
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.toggleRotationMode(mode.name) }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { viewModel.toggleRotationMode(mode.name) }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isSelected) "${mode.displayName} (Nr. ${index + 1} in der Rotation)" else mode.displayName,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))

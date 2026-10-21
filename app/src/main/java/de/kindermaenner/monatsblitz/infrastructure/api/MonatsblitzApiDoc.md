@@ -138,3 +138,20 @@ Finalization
         Template placeholders are replaced.
         If round_count = 1, {{table}} contains the classic cross table including points and rank.
         If round_count > 1, {{table}} contains one cross table per round (without points/rank), followed by an overall table with player name, total points, and rank.
+
+
+Modes
+
+    * GET /modes
+        * Returns all available modes in the catalog.
+        * Response (JSON):
+            Array of objects with id, name
+
+    * POST /mode
+        * Creates a new mode in the catalog (or returns existing ID if it already exists).
+        * Body (JSON):
+            name: name of the mode (max 50 chars)
+        * Response (JSON):
+            success: true
+            id: mode ID
+            name: mode name

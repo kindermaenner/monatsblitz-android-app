@@ -3,6 +3,7 @@ package de.kindermaenner.monatsblitz.app
 import android.content.Context
 import android.net.ConnectivityManager
 import androidx.datastore.preferences.preferencesDataStore
+import de.kindermaenner.monatsblitz.domain.repository.ModeRepository
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
@@ -15,13 +16,16 @@ import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncGameResultsUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.SyncModesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncTournamentUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.TestBackendConnectionUseCase
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
+import de.kindermaenner.monatsblitz.infrastructure.api.ModeRemoteDataSource
 import de.kindermaenner.monatsblitz.infrastructure.api.PlayerRemoteDataSource
 import de.kindermaenner.monatsblitz.infrastructure.api.client.RetrofitClient
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
+import de.kindermaenner.monatsblitz.infrastructure.repository.ModeRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.repository.PlayerRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.repository.TournamentRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.settings.AppSettingsStorage
@@ -47,12 +51,23 @@ class AppContainer(context: Context) {
         apiKeyProvider = { appSettingsInternal.getApiKeySync() }
     )
     val playerRemoteDataSource = PlayerRemoteDataSource(api)
+    val modeRemoteDataSource = ModeRemoteDataSource(api)
 
     val playerRepository: PlayerRepository =
         PlayerRepositoryImpl(
             playerDao = database.playerDao(),
             remoteDataSource = playerRemoteDataSource
         )
+
+    val modeRepository: ModeRepository =
+        ModeRepositoryImpl(
+            modeDao = database.modeDao(),
+            remoteDataSource = modeRemoteDataSource
+        )
+
+    val syncModesUseCase = SyncModesUseCase(
+        modeRepository = modeRepository
+    )
 
     val tournamentStorage = TournamentStorage(context.tournamentDataStore)
     val tournamentRepository: TournamentRepository = TournamentRepositoryImpl(
@@ -121,12 +136,14 @@ class AppContainer(context: Context) {
 
     val tournamentSetupViewModelFactory =
         TournamentSetupViewModelFactory(
-            playerRepository,
-            createTournamentUseCase,
-            addPlayerUseCase,
-            syncPlayersUseCase,
-            appSettingsStorage,
-            tournamentRepository
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            syncPlayersUseCase = syncPlayersUseCase,
+            settingsRepository = appSettingsStorage,
+            tournamentRepository = tournamentRepository,
+            modeRepository = modeRepository,
+            syncModesUseCase = syncModesUseCase
         )
 
     fun crosstableViewModelFactory(tournamentId: Long) =
@@ -159,6 +176,8 @@ class AppContainer(context: Context) {
         SettingsViewModelFactory(
             settingsRepository = appSettingsStorage,
             testBackendConnectionUseCase = testBackendConnectionUseCase,
-            syncPlayersUseCase = syncPlayersUseCase
+            syncPlayersUseCase = syncPlayersUseCase,
+            syncModesUseCase = syncModesUseCase,
+            modeRepository = modeRepository
         )
 }

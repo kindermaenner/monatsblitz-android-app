@@ -3,14 +3,17 @@ package de.kindermaenner.monatsblitz.ui.tournamentsetup
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
+import de.kindermaenner.monatsblitz.domain.repository.ModeRepository
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.SyncModesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,13 +25,26 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
+fun determineNextRotationMode(rotationModes: List<String>, recentModes: List<String>): String {
+    if (rotationModes.isEmpty()) return ""
+    val lastRotationMode = recentModes.firstOrNull { recent ->
+        rotationModes.any { it.equals(recent, ignoreCase = true) }
+    } ?: return rotationModes.first()
+
+    val lastIndex = rotationModes.indexOfFirst { it.equals(lastRotationMode, ignoreCase = true) }
+    if (lastIndex == -1) return rotationModes.first()
+    return rotationModes[(lastIndex + 1) % rotationModes.size]
+}
+
 class TournamentSetupViewModel(
     private val playerRepository: PlayerRepository,
     private val createTournamentUseCase: CreateTournamentUseCase,
     private val addPlayerUseCase: AddPlayerUseCase,
     private val syncPlayersUseCase: SyncPlayersUseCase? = null,
     private val settingsRepository: SettingsRepository? = null,
-    private val tournamentRepository: TournamentRepository? = null
+    private val tournamentRepository: TournamentRepository? = null,
+    private val modeRepository: ModeRepository? = null,
+    private val syncModesUseCase: SyncModesUseCase? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TournamentSetupUiState(isLoading = true))
@@ -36,6 +52,8 @@ class TournamentSetupViewModel(
 
     private val _navigationEffect = MutableSharedFlow<Long>()
     val navigationEffect = _navigationEffect.asSharedFlow()
+
+    private var hasPreselectedMode = false
 
     init {
         viewModelScope.launch {
@@ -48,6 +66,18 @@ class TournamentSetupViewModel(
                 }
             }
         }
+
+        if (modeRepository != null) {
+            viewModelScope.launch {
+                modeRepository.observeModes().collect { modes ->
+                    _uiState.update { it.copy(availableModes = modes) }
+                    if (!hasPreselectedMode) {
+                        resolvePreselectedMode(modes)
+                    }
+                }
+            }
+        }
+
         if (settingsRepository != null) {
             viewModelScope.launch {
                 settingsRepository.showDetailedSyncIndicators.collect { showIndicators ->
@@ -75,10 +105,58 @@ class TournamentSetupViewModel(
                 }
             }
         }
+
         if (tournamentRepository != null) {
             viewModelScope.launch {
                 checkForRemoteOpenTournament()
             }
+        }
+
+        if (syncModesUseCase != null) {
+            viewModelScope.launch {
+                runCatching { syncModesUseCase() }
+            }
+        }
+
+        // If modeRepository is not supplied (e.g. in some tests), still resolve preselection if needed
+        if (modeRepository == null && settingsRepository != null) {
+            viewModelScope.launch {
+                resolvePreselectedMode(_uiState.value.availableModes)
+            }
+        }
+    }
+
+    private suspend fun resolvePreselectedMode(availableModes: List<GameMode>) {
+        if (hasPreselectedMode || _uiState.value.selectedMode != null) return
+        val settings = settingsRepository ?: return
+
+        try {
+            val type = settings.modePreselectionType.first()
+            when (type) {
+                ModePreselectionType.NONE -> {
+                    hasPreselectedMode = true
+                }
+                ModePreselectionType.FIXED -> {
+                    val fixed = settings.fixedMode.first()
+                    val matching = availableModes.firstOrNull { it.name.equals(fixed, ignoreCase = true) }
+                        ?: GameMode(name = fixed)
+                    _uiState.update { it.copy(selectedMode = matching) }
+                    hasPreselectedMode = true
+                }
+                ModePreselectionType.ROTATION -> {
+                    val rotationList = settings.rotationModes.first()
+                    if (rotationList.isNotEmpty()) {
+                        val recentModes = tournamentRepository?.getRecentTournamentModes() ?: emptyList()
+                        val nextModeName = determineNextRotationMode(rotationList, recentModes)
+                        val matching = availableModes.firstOrNull { it.name.equals(nextModeName, ignoreCase = true) }
+                            ?: GameMode(name = nextModeName)
+                        _uiState.update { it.copy(selectedMode = matching) }
+                    }
+                    hasPreselectedMode = true
+                }
+            }
+        } catch (_: Exception) {
+            hasPreselectedMode = true
         }
     }
 
@@ -235,7 +313,6 @@ class TournamentSetupViewModel(
         viewModelScope.launch {
             try {
                 val newPlayer = addPlayerUseCase(vorname, name)
-                // Automatisches Auswählen des neuen Spielers
                 onPlayerChecked(newPlayer.id, true)
                 onShowAddPlayerDialog(false)
                 onNewPlayerNameChanged("", "")
@@ -243,6 +320,75 @@ class TournamentSetupViewModel(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(addPlayerError = e.message ?: "Fehler beim Anlegen des Spielers.")
+                }
+            }
+        }
+    }
+
+    fun onShowAddModeDialog(show: Boolean) {
+        _uiState.update {
+            it.copy(
+                showAddModeDialog = show,
+                showConfirmAddModeDialog = false,
+                newModeName = "",
+                newModePermanent = true,
+                addModeError = null
+            )
+        }
+    }
+
+    fun onNewModeNameChanged(name: String) {
+        _uiState.update { it.copy(newModeName = name, addModeError = null) }
+    }
+
+    fun onNewModePermanentChanged(permanent: Boolean) {
+        _uiState.update { it.copy(newModePermanent = permanent) }
+    }
+
+    fun onConfirmAddMode() {
+        val state = uiState.value
+        val trimmed = state.newModeName.trim()
+        if (trimmed.isBlank()) return
+
+        if (state.newModePermanent) {
+            _uiState.update { it.copy(showConfirmAddModeDialog = true) }
+        } else {
+            executeAddMode(permanent = false)
+        }
+    }
+
+    fun onDismissConfirmAddMode() {
+        _uiState.update { it.copy(showConfirmAddModeDialog = false) }
+    }
+
+    fun executeAddMode(permanent: Boolean) {
+        val state = uiState.value
+        val trimmed = state.newModeName.trim()
+        if (trimmed.isBlank()) return
+
+        viewModelScope.launch {
+            try {
+                val createdMode = if (permanent && modeRepository != null) {
+                    modeRepository.createMode(trimmed, permanent = true)
+                } else {
+                    GameMode(name = trimmed)
+                }
+                _uiState.update {
+                    it.copy(
+                        selectedMode = createdMode,
+                        showAddModeDialog = false,
+                        showConfirmAddModeDialog = false,
+                        newModeName = "",
+                        newModePermanent = true,
+                        addModeError = null
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        addModeError = e.message ?: "Fehler beim Anlegen des Modus.",
+                        showConfirmAddModeDialog = false
+                    )
                 }
             }
         }
@@ -256,6 +402,7 @@ class TournamentSetupViewModel(
             _uiState.update { it.copy(isSyncingPlayers = true) }
             try {
                 runCatching { syncUseCase() }
+                runCatching { syncModesUseCase?.invoke() }
             } finally {
                 _uiState.update { it.copy(isSyncingPlayers = false) }
             }

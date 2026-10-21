@@ -1,11 +1,16 @@
 package de.kindermaenner.monatsblitz.ui.tournamentsetup.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,9 +25,22 @@ import de.kindermaenner.monatsblitz.domain.model.GameMode
 @Composable
 fun GameModeDropdownSelector(
     selectedMode: GameMode?,
-    onModeSelected: (GameMode) -> Unit
+    availableModes: List<GameMode> = GameMode.DEFAULT_MODES,
+    onModeSelected: (GameMode) -> Unit,
+    onAddNewMode: (() -> Unit)? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
+
+    val displayModes = remember(availableModes, selectedMode) {
+        val list = availableModes.toMutableList()
+        if (list.isEmpty()) {
+            list.addAll(GameMode.DEFAULT_MODES)
+        }
+        if (selectedMode != null && list.none { it.name.equals(selectedMode.name, ignoreCase = true) }) {
+            list.add(0, selectedMode)
+        }
+        list
+    }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -56,12 +74,35 @@ fun GameModeDropdownSelector(
                 expanded = false
             }
         ) {
-            GameMode.entries.forEach { mode ->
+            displayModes.forEach { mode ->
                 DropdownMenuItem(
                     text = { Text(mode.displayName) },
                     onClick = {
                         onModeSelected(mode)
                         expanded = false
+                    }
+                )
+            }
+
+            if (onAddNewMode != null) {
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "+ Neuer Modus...",
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onAddNewMode()
                     }
                 )
             }

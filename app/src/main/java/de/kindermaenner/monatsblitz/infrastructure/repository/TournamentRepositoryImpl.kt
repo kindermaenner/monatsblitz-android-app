@@ -355,7 +355,7 @@ class TournamentRepositoryImpl(
         }
 
         val domainPlayers = localPlayers.map { it.toDomain() }
-        val mode = GameMode.fromDisplayName(remoteTournament.mode) ?: GameMode.BLITZ_3_2
+        val mode = GameMode.fromString(remoteTournament.mode)
         val rounds = maxOf(1, remoteTournament.roundCount)
         val parsedDate = runCatching { LocalDate.parse(remoteTournament.date) }.getOrElse { LocalDate.now() }
 
@@ -482,6 +482,26 @@ class TournamentRepositoryImpl(
         }
 
         return localTournamentId
+    }
+
+    override suspend fun getRecentTournamentModes(): List<String> {
+        val api = monatsblitzApi
+        if (api != null) {
+            try {
+                val remoteTournaments = api.getTournaments()
+                if (remoteTournaments.isNotEmpty()) {
+                    return remoteTournaments.map { it.mode }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "getRecentTournamentModes: failed to fetch remote tournaments: ${e.message}")
+            }
+        }
+        return try {
+            val local = tournamentDao.observeTournaments().first()
+            local.sortedByDescending { it.tournament.date }.map { it.tournament.mode.name }
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     private fun requireApi(): MonatsblitzApi =

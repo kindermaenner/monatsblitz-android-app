@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
@@ -22,6 +23,10 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     private val playerSortOrderKey = stringPreferencesKey("player_sort_order")
     private val useShortPlayerNamesKey = booleanPreferencesKey("use_short_player_names")
     private val autoAdoptOpenTournamentKey = booleanPreferencesKey("auto_adopt_open_tournament")
+
+    private val modePreselectionTypeKey = stringPreferencesKey("mode_preselection_type")
+    private val fixedModeKey = stringPreferencesKey("fixed_mode")
+    private val rotationModesKey = stringPreferencesKey("rotation_modes")
 
     @Volatile
     private var cachedServerUrl: String? = null
@@ -61,6 +66,25 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
 
     override val autoAdoptOpenTournament: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[autoAdoptOpenTournamentKey] ?: false
+    }
+
+    override val modePreselectionType: Flow<ModePreselectionType> = dataStore.data.map { preferences ->
+        val raw = preferences[modePreselectionTypeKey]
+        raw?.let { runCatching { ModePreselectionType.valueOf(it) }.getOrNull() } ?: ModePreselectionType.NONE
+    }
+
+    override val fixedMode: Flow<String> = dataStore.data.map { preferences ->
+        preferences[fixedModeKey] ?: "3+2"
+    }
+
+    override val rotationModes: Flow<List<String>> = dataStore.data.map { preferences ->
+        val raw = preferences[rotationModesKey]
+        if (raw.isNullOrBlank()) {
+            listOf("3+2", "5+0")
+        } else {
+            val list = raw.split(";").map { it.trim() }.filter { it.isNotEmpty() }
+            if (list.isEmpty()) listOf("3+2", "5+0") else list
+        }
     }
 
     override suspend fun setShowDetailedSyncIndicators(enabled: Boolean) {
@@ -104,6 +128,24 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     override suspend fun setAutoAdoptOpenTournament(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[autoAdoptOpenTournamentKey] = enabled
+        }
+    }
+
+    override suspend fun setModePreselectionType(type: ModePreselectionType) {
+        dataStore.edit { preferences ->
+            preferences[modePreselectionTypeKey] = type.name
+        }
+    }
+
+    override suspend fun setFixedMode(mode: String) {
+        dataStore.edit { preferences ->
+            preferences[fixedModeKey] = mode
+        }
+    }
+
+    override suspend fun setRotationModes(modes: List<String>) {
+        dataStore.edit { preferences ->
+            preferences[rotationModesKey] = modes.joinToString(";")
         }
     }
 

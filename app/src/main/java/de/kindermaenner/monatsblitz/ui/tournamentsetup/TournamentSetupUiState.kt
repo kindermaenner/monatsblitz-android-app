@@ -17,6 +17,7 @@ data class TournamentSetupUiState(
 
     val selectedDate: LocalDate = LocalDate.now(),
     val selectedMode: GameMode? = null,
+    val availableModes: List<GameMode> = GameMode.DEFAULT_MODES,
     val doubleRound: Boolean = false,
 
     val showAddPlayerDialog: Boolean = false,
@@ -24,10 +25,17 @@ data class TournamentSetupUiState(
     val newPlayerName: String = "",
     val addPlayerError: String? = null,
 
+    val showAddModeDialog: Boolean = false,
+    val showConfirmAddModeDialog: Boolean = false,
+    val newModeName: String = "",
+    val newModePermanent: Boolean = true,
+    val addModeError: String? = null,
+
     val remoteOpenTournament: RemoteOpenTournamentInfo? = null,
     val adoptError: String? = null,
 
     val isLoading: Boolean = false,
     val isSyncingPlayers: Boolean = false,
+    val isSyncingModes: Boolean = false,
     val showDetailedSyncIndicators: Boolean = true
 )

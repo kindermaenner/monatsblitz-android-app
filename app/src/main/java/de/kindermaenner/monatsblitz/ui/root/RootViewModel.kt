@@ -8,6 +8,7 @@ import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.ui.navigation.AppRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class RootViewModel(
@@ -31,6 +32,24 @@ class RootViewModel(
             }
 
             safeSyncPlayers()
+
+            val autoAdopt = try {
+                settingsRepository.autoAdoptOpenTournament.first()
+            } catch (_: Exception) {
+                false
+            }
+            if (autoAdopt) {
+                try {
+                    val remoteOpen = tournamentRepository.getRemoteOpenTournament()
+                    if (remoteOpen != null) {
+                        val localId = tournamentRepository.adoptRemoteTournament(remoteOpen.id)
+                        _initialRoute.value = AppRoute.Crosstable(localId)
+                        return@launch
+                    }
+                } catch (_: Exception) {
+                    // Offline-First: Weiter mit lokalem Zustand
+                }
+            }
 
             val activeOpenTournamentId = tournamentRepository.getActiveOpenTournamentId()
             _initialRoute.value = if (activeOpenTournamentId == null) {

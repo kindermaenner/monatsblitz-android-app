@@ -380,5 +380,71 @@ class TournamentRepositoryImplTest {
         org.junit.Assert.assertNull(result)
         coVerify { tournamentStorage.finalizeTournament() }
     }
+
+    @Test
+    fun `getRemoteOpenTournament returns open tournament info when none active locally`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        coEvery { api.getTournaments() } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(id = 1, date = "2026-10-10", mode = "3+2", roundCount = 1, status = "finalized"),
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(id = 2, date = "2026-10-21", mode = "3+2", roundCount = 1, status = "open", playerIds = listOf(10L, 20L))
+        )
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(null)
+
+        val result = repo.getRemoteOpenTournament()
+        org.junit.Assert.assertNotNull(result)
+        org.junit.Assert.assertEquals(2, result!!.id)
+        org.junit.Assert.assertEquals("2026-10-21", result.date)
+        org.junit.Assert.assertEquals(2, result.playerCount)
+    }
+
+    @Test
+    fun `adoptRemoteTournament downloads players and games and sets local active state`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>()
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDaoMock,
+            monatsblitzApi = api
+        )
+
+        coEvery { api.getTournament(50) } returns de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(
+            id = 50, date = "2026-10-21", mode = "3+2", roundCount = 1, status = "open", playerIds = listOf(101L, 102L)
+        )
+        coEvery { api.getGames(50) } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto(id = 501, tournamentId = 50, leg = 1, player1Id = 101, player2Id = 102, result = "1:0")
+        )
+
+        val p1 = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1L, name = "Meier", vorname = "Alice", remoteId = 101L)
+        val p2 = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 2L, name = "Schulze", vorname = "Bob", remoteId = 102L)
+        coEvery { playerDaoMock.getPlayerByRemoteId(101L) } returns p1
+        coEvery { playerDaoMock.getPlayerByRemoteId(102L) } returns p2
+
+        coEvery { tournamentDao.getTournamentByRemoteId(50) } returns null
+        coEvery { tournamentDao.insert(any()) } returns 77L
+        coEvery { tournamentPlayerDao.deleteForTournament(77L) } returns Unit
+        coEvery { tournamentPlayerDao.insertAll(any()) } returns Unit
+        coEvery { gameDao.deleteForTournament(77L) } returns Unit
+        coEvery { gameDao.insertAll(any()) } returns listOf(1L)
+        coEvery { tournamentPlayerDao.upsertAll(any()) } returns Unit
+        coEvery { tournamentStorage.saveTournamentState(77L, false) } returns Unit
+
+        val localId = repo.adoptRemoteTournament(50)
+        org.junit.Assert.assertEquals(77L, localId)
+
+        coVerify { tournamentStorage.saveTournamentState(77L, false) }
+        coVerify { gameDao.insertAll(match { it.size == 1 && it.first().result == de.kindermaenner.monatsblitz.domain.model.GameResult.Win }) }
+    }
 }
 

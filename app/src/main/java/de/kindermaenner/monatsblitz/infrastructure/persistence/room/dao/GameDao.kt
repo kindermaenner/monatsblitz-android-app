@@ -98,4 +98,7 @@ interface GameDao {
       AND p2.remoteId IS NOT NULL
 """)
     suspend fun getGamesForSync(): List<GameSyncData>
+
+    @Query("DELETE FROM games WHERE tournamentId = :tournamentId")
+    suspend fun deleteForTournament(tournamentId: Long)
 }

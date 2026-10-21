@@ -125,7 +125,8 @@ class AppContainer(context: Context) {
             createTournamentUseCase,
             addPlayerUseCase,
             syncPlayersUseCase,
-            appSettingsStorage
+            appSettingsStorage,
+            tournamentRepository
         )
 
     fun crosstableViewModelFactory(tournamentId: Long) =

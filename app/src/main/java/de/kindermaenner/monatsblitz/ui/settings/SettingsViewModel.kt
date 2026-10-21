@@ -203,4 +203,18 @@ class SettingsViewModel(
             settingsRepository.setUseShortPlayerNames(enabled)
         }
     }
+
+    val autoAdoptOpenTournament: StateFlow<Boolean> =
+        settingsRepository.autoAdoptOpenTournament
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = false
+            )
+
+    fun setAutoAdoptOpenTournament(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAutoAdoptOpenTournament(enabled)
+        }
+    }
 }

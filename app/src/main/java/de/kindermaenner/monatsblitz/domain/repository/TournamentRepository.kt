@@ -35,4 +35,16 @@ interface TournamentRepository {
     suspend fun submitResultsAndFinalize(tournamentId: Long)
 
     suspend fun getActiveOpenTournamentId(): Long?
+
+    suspend fun getRemoteOpenTournament(): RemoteOpenTournamentInfo?
+
+    suspend fun adoptRemoteTournament(remoteTournamentId: Int): Long
 }
+
+data class RemoteOpenTournamentInfo(
+    val id: Int,
+    val date: String,
+    val mode: String,
+    val roundCount: Int,
+    val playerCount: Int
+)

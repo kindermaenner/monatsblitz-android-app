@@ -7,6 +7,8 @@ import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
+import de.kindermaenner.monatsblitz.domain.repository.RemoteOpenTournamentInfo
+import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import de.kindermaenner.monatsblitz.util.MainDispatcherRule
@@ -14,6 +16,8 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
@@ -24,6 +28,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
+@kotlinx.coroutines.ExperimentalCoroutinesApi
 class TournamentSetupViewModelTest {
 
     @get:Rule
@@ -345,5 +350,60 @@ class TournamentSetupViewModelTest {
         viewModel.toggleSortOrder()
         assertEquals(listOf(p1, p2), viewModel.uiState.value.players)
         assertEquals(PlayerSortOrder.ASCENDING, viewModel.uiState.value.sortOrder)
+    }
+
+    @Test
+    fun `shows remote open tournament dialog when remote tournament found and autoAdopt disabled`() = runTest {
+        val players = listOf(Player(1, "N", "V"))
+        coEvery { playerRepository.observePlayers() } returns flowOf(players)
+        val tournamentRepo = mockk<TournamentRepository>()
+        val remoteInfo = RemoteOpenTournamentInfo(id = 10, date = "2026-10-21", mode = "3+2", roundCount = 1, playerCount = 6)
+        coEvery { tournamentRepo.getRemoteOpenTournament() } returns remoteInfo
+        coEvery { settingsRepository.autoAdoptOpenTournament } returns flowOf(false)
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository,
+            createTournamentUseCase,
+            addPlayerUseCase,
+            syncPlayersUseCase,
+            settingsRepository,
+            tournamentRepo
+        )
+        advanceUntilIdle()
+
+        assertEquals(remoteInfo, viewModel.uiState.value.remoteOpenTournament)
+
+        viewModel.dismissRemoteTournamentDialog()
+        assertEquals(null, viewModel.uiState.value.remoteOpenTournament)
+    }
+
+    @Test
+    fun `adoptRemoteTournament triggers repository and emits navigation`() = runTest {
+        val players = listOf(Player(1, "N", "V"))
+        coEvery { playerRepository.observePlayers() } returns flowOf(players)
+        val tournamentRepo = mockk<TournamentRepository>()
+        val remoteInfo = RemoteOpenTournamentInfo(id = 10, date = "2026-10-21", mode = "3+2", roundCount = 1, playerCount = 6)
+        coEvery { tournamentRepo.getRemoteOpenTournament() } returns remoteInfo
+        coEvery { tournamentRepo.adoptRemoteTournament(10) } returns 42L
+        coEvery { settingsRepository.autoAdoptOpenTournament } returns flowOf(false)
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository,
+            createTournamentUseCase,
+            addPlayerUseCase,
+            syncPlayersUseCase,
+            settingsRepository,
+            tournamentRepo
+        )
+        advanceUntilIdle()
+
+        var navigatedId: Long? = null
+        backgroundScope.launch(kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.navigationEffect.collect { navigatedId = it }
+        }
+
+        viewModel.adoptRemoteTournament()
+        advanceUntilIdle()
+        assertEquals(42L, navigatedId)
     }
 }

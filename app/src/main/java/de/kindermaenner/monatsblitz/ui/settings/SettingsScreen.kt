@@ -80,6 +80,7 @@ fun SettingsScreen(
     val playerSortField by viewModel.playerSortField.collectAsStateWithLifecycle()
     val playerSortOrder by viewModel.playerSortOrder.collectAsStateWithLifecycle()
     val useShortPlayerNames by viewModel.useShortPlayerNames.collectAsStateWithLifecycle()
+    val autoAdoptOpenTournament by viewModel.autoAdoptOpenTournament.collectAsStateWithLifecycle()
 
     var isPasswordVisible by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -389,6 +390,36 @@ fun SettingsScreen(
                     checked = useShortPlayerNames,
                     onCheckedChange = { checked ->
                         viewModel.setUseShortPlayerNames(checked)
+                    },
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        viewModel.setAutoAdoptOpenTournament(!autoAdoptOpenTournament)
+                    }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Offene Server-Turniere automatisch fortsetzen",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Übernimmt ein offenes Turnier vom Server beim App-Start automatisch ohne Nachfrage.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = autoAdoptOpenTournament,
+                    onCheckedChange = { checked ->
+                        viewModel.setAutoAdoptOpenTournament(checked)
                     },
                     modifier = Modifier.padding(start = 16.dp)
                 )

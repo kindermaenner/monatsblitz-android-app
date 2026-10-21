@@ -4,6 +4,7 @@ import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
+import de.kindermaenner.monatsblitz.domain.repository.RemoteOpenTournamentInfo
 import java.time.LocalDate
 
 data class TournamentSetupUiState(
@@ -22,6 +23,9 @@ data class TournamentSetupUiState(
     val newPlayerVorname: String = "",
     val newPlayerName: String = "",
     val addPlayerError: String? = null,
+
+    val remoteOpenTournament: RemoteOpenTournamentInfo? = null,
+    val adoptError: String? = null,
 
     val isLoading: Boolean = false,
     val isSyncingPlayers: Boolean = false,

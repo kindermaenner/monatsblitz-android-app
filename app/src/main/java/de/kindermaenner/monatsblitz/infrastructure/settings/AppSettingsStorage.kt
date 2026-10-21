@@ -21,6 +21,7 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     private val playerSortFieldKey = stringPreferencesKey("player_sort_field")
     private val playerSortOrderKey = stringPreferencesKey("player_sort_order")
     private val useShortPlayerNamesKey = booleanPreferencesKey("use_short_player_names")
+    private val autoAdoptOpenTournamentKey = booleanPreferencesKey("auto_adopt_open_tournament")
 
     @Volatile
     private var cachedServerUrl: String? = null
@@ -58,6 +59,10 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
         preferences[useShortPlayerNamesKey] ?: true
     }
 
+    override val autoAdoptOpenTournament: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[autoAdoptOpenTournamentKey] ?: false
+    }
+
     override suspend fun setShowDetailedSyncIndicators(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[showDetailedSyncIndicatorsKey] = enabled
@@ -93,6 +98,12 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     override suspend fun setUseShortPlayerNames(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[useShortPlayerNamesKey] = enabled
+        }
+    }
+
+    override suspend fun setAutoAdoptOpenTournament(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[autoAdoptOpenTournamentKey] = enabled
         }
     }
 

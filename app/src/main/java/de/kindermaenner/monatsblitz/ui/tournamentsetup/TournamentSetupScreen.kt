@@ -56,6 +56,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -140,6 +141,47 @@ fun TournamentSetupScreen(
         onConfirm = viewModel::addNewPlayer,
         onDismiss = { viewModel.onShowAddPlayerDialog(false) }
     )
+
+    state.remoteOpenTournament?.let { t ->
+        val roundsText = if (t.roundCount == 2) "Doppelrunde" else "1 Runde"
+        val playerText = if (t.playerCount == 1) "1 Teilnehmer" else "${t.playerCount} Teilnehmer"
+        AlertDialog(
+            onDismissRequest = viewModel::dismissRemoteTournamentDialog,
+            title = { Text("Offenes Turnier gefunden") },
+            text = {
+                Text(
+                    "Auf dem Server wurde ein offenes Turnier gefunden:\n\n" +
+                    "• Datum: ${t.date}\n" +
+                    "• Modus: ${t.mode} ($roundsText)\n" +
+                    "• Teilnehmer: $playerText\n\n" +
+                    "Möchtest du dieses Turnier auf diesem Gerät fortsetzen?"
+                )
+            },
+            confirmButton = {
+                Button(onClick = viewModel::adoptRemoteTournament) {
+                    Text("Fortsetzen")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = viewModel::dismissRemoteTournamentDialog) {
+                    Text("Neues Turnier")
+                }
+            }
+        )
+    }
+
+    state.adoptError?.let { err ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissRemoteTournamentDialog,
+            title = { Text("Fehler") },
+            text = { Text(err) },
+            confirmButton = {
+                Button(onClick = viewModel::dismissRemoteTournamentDialog) {
+                    Text("OK")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {

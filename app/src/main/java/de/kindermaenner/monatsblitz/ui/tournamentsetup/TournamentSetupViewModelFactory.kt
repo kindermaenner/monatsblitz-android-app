@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
+import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
@@ -13,7 +14,8 @@ class TournamentSetupViewModelFactory(
     private val createTournamentUseCase: CreateTournamentUseCase,
     private val addPlayerUseCase: AddPlayerUseCase,
     private val syncPlayersUseCase: SyncPlayersUseCase? = null,
-    private val settingsRepository: SettingsRepository? = null
+    private val settingsRepository: SettingsRepository? = null,
+    private val tournamentRepository: TournamentRepository? = null
 ) : ViewModelProvider.Factory {
 
 
@@ -29,7 +31,8 @@ class TournamentSetupViewModelFactory(
                 createTournamentUseCase,
                 addPlayerUseCase,
                 syncPlayersUseCase,
-                settingsRepository
+                settingsRepository,
+                tournamentRepository
             ) as T
         }
 

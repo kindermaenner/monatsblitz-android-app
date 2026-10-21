@@ -8,6 +8,7 @@ import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
+import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -25,7 +27,8 @@ class TournamentSetupViewModel(
     private val createTournamentUseCase: CreateTournamentUseCase,
     private val addPlayerUseCase: AddPlayerUseCase,
     private val syncPlayersUseCase: SyncPlayersUseCase? = null,
-    private val settingsRepository: SettingsRepository? = null
+    private val settingsRepository: SettingsRepository? = null,
+    private val tournamentRepository: TournamentRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TournamentSetupUiState(isLoading = true))
@@ -70,6 +73,11 @@ class TournamentSetupViewModel(
                         )
                     }
                 }
+            }
+        }
+        if (tournamentRepository != null) {
+            viewModelScope.launch {
+                checkForRemoteOpenTournament()
             }
         }
     }
@@ -252,5 +260,39 @@ class TournamentSetupViewModel(
                 _uiState.update { it.copy(isSyncingPlayers = false) }
             }
         }
+    }
+
+    suspend fun checkForRemoteOpenTournament() {
+        val repo = tournamentRepository ?: return
+        try {
+            val openInfo = repo.getRemoteOpenTournament() ?: return
+            val autoAdopt = settingsRepository?.autoAdoptOpenTournament?.first() ?: false
+            if (autoAdopt) {
+                val localId = repo.adoptRemoteTournament(openInfo.id)
+                _navigationEffect.emit(localId)
+            } else {
+                _uiState.update { it.copy(remoteOpenTournament = openInfo) }
+            }
+        } catch (_: Exception) {
+            // Offline-First
+        }
+    }
+
+    fun adoptRemoteTournament() {
+        val info = _uiState.value.remoteOpenTournament ?: return
+        val repo = tournamentRepository ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, remoteOpenTournament = null, adoptError = null) }
+            try {
+                val localId = repo.adoptRemoteTournament(info.id)
+                _navigationEffect.emit(localId)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, adoptError = e.message ?: "Fehler beim Laden des Turniers") }
+            }
+        }
+    }
+
+    fun dismissRemoteTournamentDialog() {
+        _uiState.update { it.copy(remoteOpenTournament = null) }
     }
 }

@@ -17,6 +17,8 @@ import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerBatchItemDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerBatchResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.RecreatePostsDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.ResultBatchItemDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.ResultBatchResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.ResultDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.UpdateGameDto
@@ -95,12 +97,12 @@ interface MonatsblitzApi {
     @POST(value = "result")
     suspend fun createResult(
         @Body request: CreateResultDto
-    ): ResultDto
+    ): ResultBatchItemDto
 
     @POST(value = "result")
     suspend fun createResults(
         @Body request: CreateResultsDto
-    ): BatchResponseDto<ResultDto>
+    ): ResultBatchResponseDto
 
 
     // Finalizeation Interface

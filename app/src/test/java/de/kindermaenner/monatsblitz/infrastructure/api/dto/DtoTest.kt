@@ -147,6 +147,14 @@ class DtoTest {
         assertEquals(crs1, crs2)
         assertEquals(crs1.hashCode(), crs2.hashCode())
         assertTrue(crs1.toString().contains("CreateResultsDto"))
+
+        val rbi1 = ResultBatchItemDto(success = true, resultId = 10, playerId = 1, points = 3.5, rank = 2, message = "ok")
+        val rbi2 = rbi1.copy()
+        val rbi3 = rbi1.copy(rank = 3)
+        assertEquals(rbi1, rbi2)
+        assertEquals(rbi1.hashCode(), rbi2.hashCode())
+        assertNotEquals(rbi1, rbi3)
+        assertTrue(rbi1.toString().contains("ResultBatchItemDto"))
     }
 
     @Test

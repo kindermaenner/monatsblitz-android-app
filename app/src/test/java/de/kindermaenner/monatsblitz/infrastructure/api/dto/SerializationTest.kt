@@ -155,6 +155,47 @@ class SerializationTest {
     }
 
     @Test
+    fun `ResultBatchResponseDto deserializes correctly with minimal and enriched items`() {
+        // Minimal item as previously returned by WP plugin
+        val jsonMinimal = """
+            {
+              "success": true,
+              "count": 1,
+              "items": [
+                { "success": true, "result_id": 42 }
+              ]
+            }
+        """.trimIndent()
+        val decodedMinimal = json.decodeFromString<ResultBatchResponseDto>(jsonMinimal)
+        org.junit.Assert.assertTrue(decodedMinimal.success)
+        org.junit.Assert.assertEquals(1, decodedMinimal.count)
+        org.junit.Assert.assertEquals(42, decodedMinimal.items[0].resultId)
+        org.junit.Assert.assertNull(decodedMinimal.items[0].playerId)
+        org.junit.Assert.assertNull(decodedMinimal.items[0].points)
+        org.junit.Assert.assertNull(decodedMinimal.items[0].rank)
+
+        // Enriched item as now returned by WP plugin
+        val jsonEnriched = """
+            {
+              "success": true,
+              "count": 2,
+              "items": [
+                { "success": true, "result_id": 101, "player_id": 5, "points": 4.5, "rank": 1 },
+                { "success": true, "result_id": 102, "player_id": 8, "points": 3.0, "rank": 2, "message": "Ergebnis aktualisiert" }
+              ]
+            }
+        """.trimIndent()
+        val decodedEnriched = json.decodeFromString<ResultBatchResponseDto>(jsonEnriched)
+        org.junit.Assert.assertTrue(decodedEnriched.success)
+        org.junit.Assert.assertEquals(2, decodedEnriched.count)
+        org.junit.Assert.assertEquals(101, decodedEnriched.items[0].resultId)
+        org.junit.Assert.assertEquals(5, decodedEnriched.items[0].playerId)
+        org.junit.Assert.assertEquals(4.5, decodedEnriched.items[0].points)
+        org.junit.Assert.assertEquals(1, decodedEnriched.items[0].rank)
+        org.junit.Assert.assertEquals("Ergebnis aktualisiert", decodedEnriched.items[1].message)
+    }
+
+    @Test
     fun `CreateYearPageDto and RecreatePostsDto serialize and deserialize correctly`() {
         val yearPage = CreateYearPageDto(year = 2026)
         val yearJson = json.encodeToString(yearPage)

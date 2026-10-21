@@ -90,6 +90,19 @@ class TournamentSetupViewModel(
         }
     }
 
+    fun setSortOrder(newOrder: PlayerSortOrder) {
+        if (_uiState.value.sortOrder == newOrder) return
+        _uiState.update { state ->
+            state.copy(
+                sortOrder = newOrder,
+                players = sortPlayers(state.players, state.sortField, newOrder)
+            )
+        }
+        viewModelScope.launch {
+            settingsRepository?.setPlayerSortOrder(newOrder)
+        }
+    }
+
     fun toggleSortOrder() {
         val newOrder = if (_uiState.value.sortOrder == PlayerSortOrder.ASCENDING) {
             PlayerSortOrder.DESCENDING
@@ -186,9 +199,10 @@ class TournamentSetupViewModel(
             val players = state.players.filter {
                 it.id in state.selectedPlayerIds
             }
+            val mode = state.selectedMode ?: return@launch
             val tournament = createTournamentUseCase.invoke(
                 players = players,
-                mode = state.selectedMode,
+                mode = mode,
                 date = state.selectedDate,
                 rounds = if (state.doubleRound) 2 else 1
             )

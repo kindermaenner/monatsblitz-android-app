@@ -19,7 +19,7 @@ import de.kindermaenner.monatsblitz.domain.model.GameMode
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameModeDropdownSelector(
-    selectedMode: GameMode,
+    selectedMode: GameMode?,
     onModeSelected: (GameMode) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -32,7 +32,8 @@ fun GameModeDropdownSelector(
     ) {
 
         OutlinedTextField(
-            value = selectedMode.displayName,
+            value = selectedMode?.displayName ?: "",
+            placeholder = { Text("Modus auswählen...") },
             onValueChange = {},
             readOnly = true,
             label = { Text("Modus") },

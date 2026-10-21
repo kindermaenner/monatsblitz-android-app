@@ -61,8 +61,11 @@ android {
         buildConfig = true
     }
 
-    testOptions {
-        unitTests.isReturnDefaultValues = true
+        testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+            isIncludeAndroidResources = true
+        }
     }
 }
 
@@ -117,7 +120,11 @@ dependencies {
 
     ksp(libs.androidx.room.compiler)
 
-    testImplementation(libs.junit)
+        testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.junit)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.navigation.testing)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
 

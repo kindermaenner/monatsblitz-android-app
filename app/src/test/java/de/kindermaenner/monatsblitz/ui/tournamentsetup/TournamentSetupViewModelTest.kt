@@ -136,6 +136,7 @@ class TournamentSetupViewModelTest {
 
         val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
         viewModel.togglePlayer(1L)
+        viewModel.onModeChanged(GameMode.BLITZ_5_0)
 
         val customDate = LocalDate.of(2025, 11, 15)
         viewModel.onDateChanged(customDate)

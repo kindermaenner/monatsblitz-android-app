@@ -2,13 +2,11 @@ package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasScrollToNodeAction
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollToNode
+import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
@@ -52,6 +50,11 @@ class TournamentSetupScreenTest {
         }
 
         composeTestRule.onNodeWithText("Neues Turnier").assertExists()
+        // No mode selected initially
+        composeTestRule.onNodeWithText("Bitte Spielmodus auswählen").assertExists().assertIsNotEnabled()
+
+        // Select mode
+        viewModel.onModeChanged(GameMode.BLITZ_5_0)
         composeTestRule.onNodeWithText("Mindestens 2 Spieler auswählen").assertExists().assertIsNotEnabled()
 
         // Select first player
@@ -59,7 +62,6 @@ class TournamentSetupScreenTest {
         composeTestRule.onNodeWithText("Mindestens 2 Spieler auswählen").assertExists().assertIsNotEnabled()
 
         // Select second player -> Start button becomes active
-        composeTestRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Mueller, Bob"))
         composeTestRule.onNodeWithText("Mueller, Bob").assertExists().performClick()
         composeTestRule.onNodeWithText("Turnier starten (2 Spieler)").assertExists().assertIsEnabled()
     }
@@ -73,7 +75,7 @@ class TournamentSetupScreenTest {
                 isExpanded = isExpanded.value,
                 onToggleExpanded = { isExpanded.value = !isExpanded.value },
                 selectedDate = java.time.LocalDate.now(),
-                selectedMode = de.kindermaenner.monatsblitz.domain.model.GameMode.BLITZ_3_2,
+                selectedMode = GameMode.BLITZ_3_2,
                 doubleRound = false,
                 onDateChanged = {},
                 onModeChanged = {},

@@ -21,12 +21,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.rememberDatePickerState
@@ -48,6 +48,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -114,7 +116,7 @@ fun TournamentSetupScreen(
     onNavigateToCrosstable: (Long) -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val canStartTournament = state.selectedPlayerIds.size >= 2
+    val canStartTournament = state.selectedPlayerIds.size >= 2 && state.selectedMode != null
     var isSettingsExpanded by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
@@ -150,6 +152,7 @@ fun TournamentSetupScreen(
         bottomBar = {
             TournamentSetupBottomBar(
                 selectedCount = state.selectedPlayerIds.size,
+                hasSelectedMode = state.selectedMode != null,
                 canStartTournament = canStartTournament,
                 onStartTournament = viewModel::createTournament
             )
@@ -180,10 +183,14 @@ fun TournamentSetupScreen(
                 onSearchQueryChanged = viewModel::onSearchQueryChanged,
                 onSearchFocused = { isSettingsExpanded = false },
                 onShowOnlySelectedChanged = viewModel::onShowOnlySelectedChanged,
-                onToggleSortOrder = viewModel::toggleSortOrder,
-                onToggleSortField = viewModel::toggleSortField,
+                onSelectSortOrder = viewModel::setSortOrder,
                 onClearSelectedPlayers = viewModel::clearSelectedPlayers,
-                onPlayerChecked = viewModel::onPlayerChecked,
+                onPlayerChecked = { playerId, checked ->
+                    if (checked && state.selectedPlayerIds.isEmpty()) {
+                        isSettingsExpanded = false
+                    }
+                    viewModel.onPlayerChecked(playerId, checked)
+                },
                 modifier = Modifier.weight(1f)
             )
         }
@@ -295,6 +302,7 @@ private fun TournamentSetupTopBar(
 @Composable
 private fun TournamentSetupBottomBar(
     selectedCount: Int,
+    hasSelectedMode: Boolean,
     canStartTournament: Boolean,
     onStartTournament: () -> Unit
 ) {
@@ -308,10 +316,12 @@ private fun TournamentSetupBottomBar(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         ) {
-            Text(
-                if (canStartTournament) "Turnier starten ($selectedCount Spieler)"
-                else "Mindestens 2 Spieler auswählen"
-            )
+            val label = when {
+                !hasSelectedMode -> "Bitte Spielmodus auswählen"
+                selectedCount < 2 -> "Mindestens 2 Spieler auswählen"
+                else -> "Turnier starten ($selectedCount Spieler)"
+            }
+            Text(label)
         }
     }
 }
@@ -321,7 +331,7 @@ internal fun TournamentSettingsCard(
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
     selectedDate: LocalDate,
-    selectedMode: GameMode,
+    selectedMode: GameMode?,
     doubleRound: Boolean,
     onDateChanged: (LocalDate) -> Unit,
     onModeChanged: (GameMode) -> Unit,
@@ -347,6 +357,7 @@ internal fun TournamentSettingsCard(
         val formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
         val dateLabel = if (isToday) "Heute ($formattedDate)" else formattedDate
         val roundLabel = if (doubleRound) "Doppelrunde" else "Einfachrunde"
+        val modeLabel = selectedMode?.displayName ?: "Kein Modus"
 
         if (!isExpanded) {
             Row(
@@ -368,7 +379,7 @@ internal fun TournamentSettingsCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "(${if (isToday) "Heute" else formattedDate} • ${selectedMode.displayName} • $roundLabel)",
+                        text = "(${if (isToday) "Heute" else formattedDate} • $modeLabel • $roundLabel)",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -491,8 +502,7 @@ private fun TournamentPlayerList(
     onSearchQueryChanged: (String) -> Unit,
     onSearchFocused: () -> Unit,
     onShowOnlySelectedChanged: (Boolean) -> Unit,
-    onToggleSortOrder: () -> Unit,
-    onToggleSortField: () -> Unit,
+    onSelectSortOrder: (PlayerSortOrder) -> Unit,
     onClearSelectedPlayers: () -> Unit,
     onPlayerChecked: (Long, Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -504,7 +514,6 @@ private fun TournamentPlayerList(
         state.players.filter { matchesPlayerSearch(it, query) }
     }
     val selectedMatching = matchingPlayers.filter { it.id in state.selectedPlayerIds }
-    val unselectedMatching = matchingPlayers.filter { it.id !in state.selectedPlayerIds }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -526,11 +535,9 @@ private fun TournamentPlayerList(
             showOnlySelected = state.showOnlySelected,
             totalCount = state.players.size,
             selectedCount = state.selectedPlayerIds.size,
-            sortField = state.sortField,
             sortOrder = state.sortOrder,
             onShowOnlySelectedChanged = onShowOnlySelectedChanged,
-            onToggleSortOrder = onToggleSortOrder,
-            onToggleSortField = onToggleSortField,
+            onSelectSortOrder = onSelectSortOrder,
             onClearSelectedPlayers = onClearSelectedPlayers
         )
 
@@ -538,8 +545,8 @@ private fun TournamentPlayerList(
 
         TournamentPlayerListContent(
             state = state,
+            matchingPlayers = matchingPlayers,
             selectedMatching = selectedMatching,
-            unselectedMatching = unselectedMatching,
             query = query,
             onPlayerChecked = onPlayerChecked,
             modifier = Modifier.weight(1f)
@@ -620,13 +627,13 @@ private fun TournamentPlayerFilterRow(
     showOnlySelected: Boolean,
     totalCount: Int,
     selectedCount: Int,
-    sortField: PlayerSortField,
     sortOrder: PlayerSortOrder,
     onShowOnlySelectedChanged: (Boolean) -> Unit,
-    onToggleSortOrder: () -> Unit,
-    onToggleSortField: () -> Unit,
+    onSelectSortOrder: (PlayerSortOrder) -> Unit,
     onClearSelectedPlayers: () -> Unit
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -646,43 +653,66 @@ private fun TournamentPlayerFilterRow(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        AssistChip(
-            onClick = onToggleSortField,
-            label = {
-                Text(
-                    text = if (sortField == PlayerSortField.LAST_NAME) "Nachname" else "Vorname",
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
-        )
-
-        AssistChip(
-            onClick = onToggleSortOrder,
-            label = {
-                Text(
-                    text = if (sortOrder == PlayerSortOrder.ASCENDING) "A➔Z" else "Z➔A",
-                    style = MaterialTheme.typography.labelSmall
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = if (sortOrder == PlayerSortOrder.ASCENDING) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                    contentDescription = "Reihenfolge ändern",
-                    modifier = Modifier.size(14.dp)
-                )
-            }
-        )
-
-        if (selectedCount > 0) {
-            TextButton(
-                onClick = onClearSelectedPlayers,
-                contentPadding = PaddingValues(horizontal = 4.dp)
+        Box {
+            IconButton(
+                onClick = { menuExpanded = true }
             ) {
-                Text(
-                    text = "Alle abwählen",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Weitere Optionen"
                 )
+            }
+
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Sortierung A➔Z") },
+                    leadingIcon = {
+                        if (sortOrder == PlayerSortOrder.ASCENDING) {
+                            Icon(Icons.Default.Check, contentDescription = null)
+                        }
+                    },
+                    onClick = {
+                        onSelectSortOrder(PlayerSortOrder.ASCENDING)
+                        menuExpanded = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Sortierung Z➔A") },
+                    leadingIcon = {
+                        if (sortOrder == PlayerSortOrder.DESCENDING) {
+                            Icon(Icons.Default.Check, contentDescription = null)
+                        }
+                    },
+                    onClick = {
+                        onSelectSortOrder(PlayerSortOrder.DESCENDING)
+                        menuExpanded = false
+                    }
+                )
+                if (selectedCount > 0) {
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Alle abwählen",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        onClick = {
+                            onClearSelectedPlayers()
+                            menuExpanded = false
+                        }
+                    )
+                }
             }
         }
     }
@@ -691,8 +721,8 @@ private fun TournamentPlayerFilterRow(
 @Composable
 private fun TournamentPlayerListContent(
     state: TournamentSetupUiState,
+    matchingPlayers: List<Player>,
     selectedMatching: List<Player>,
-    unselectedMatching: List<Player>,
     query: String,
     onPlayerChecked: (Long, Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -719,8 +749,8 @@ private fun TournamentPlayerListContent(
                 )
             } else {
                 renderAllPlayers(
-                    selectedMatching = selectedMatching,
-                    unselectedMatching = unselectedMatching,
+                    players = matchingPlayers,
+                    selectedPlayerIds = state.selectedPlayerIds,
                     query = query,
                     showDetailedSyncIndicators = state.showDetailedSyncIndicators,
                     sortField = state.sortField,
@@ -768,14 +798,14 @@ private fun LazyListScope.renderSelectedOnlyPlayers(
 }
 
 private fun LazyListScope.renderAllPlayers(
-    selectedMatching: List<Player>,
-    unselectedMatching: List<Player>,
+    players: List<Player>,
+    selectedPlayerIds: Set<Long>,
     query: String,
     showDetailedSyncIndicators: Boolean,
     sortField: PlayerSortField,
     onPlayerChecked: (Long, Boolean) -> Unit
 ) {
-    if (selectedMatching.isEmpty() && unselectedMatching.isEmpty()) {
+    if (players.isEmpty()) {
         item {
             Box(
                 modifier = Modifier
@@ -790,49 +820,14 @@ private fun LazyListScope.renderAllPlayers(
             }
         }
     } else {
-        if (selectedMatching.isNotEmpty()) {
-            item {
-                Text(
-                    text = "AUSGEWÄHLT (${selectedMatching.size})",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
-                )
-            }
-            items(selectedMatching, key = { it.id }) { player ->
-                PlayerRow(
-                    player = player,
-                    selected = true,
-                    showDirtyIndicator = showDetailedSyncIndicators,
-                    sortField = sortField,
-                    onCheckedChange = { checked -> onPlayerChecked(player.id, checked) }
-                )
-            }
-        }
-
-        if (unselectedMatching.isNotEmpty()) {
-            if (selectedMatching.isNotEmpty()) {
-                item {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "WEITERE SPIELER (${unselectedMatching.size})",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
-                    )
-                }
-            }
-            items(unselectedMatching, key = { it.id }) { player ->
-                PlayerRow(
-                    player = player,
-                    selected = false,
-                    showDirtyIndicator = showDetailedSyncIndicators,
-                    sortField = sortField,
-                    onCheckedChange = { checked -> onPlayerChecked(player.id, checked) }
-                )
-            }
+        items(players, key = { it.id }) { player ->
+            PlayerRow(
+                player = player,
+                selected = player.id in selectedPlayerIds,
+                showDirtyIndicator = showDetailedSyncIndicators,
+                sortField = sortField,
+                onCheckedChange = { checked -> onPlayerChecked(player.id, checked) }
+            )
         }
     }
 }

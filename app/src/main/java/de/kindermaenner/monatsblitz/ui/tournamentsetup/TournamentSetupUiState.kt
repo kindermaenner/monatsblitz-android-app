@@ -15,7 +15,7 @@ data class TournamentSetupUiState(
     val sortOrder: PlayerSortOrder = PlayerSortOrder.ASCENDING,
 
     val selectedDate: LocalDate = LocalDate.now(),
-    val selectedMode: GameMode = GameMode.BLITZ_5_0,
+    val selectedMode: GameMode? = null,
     val doubleRound: Boolean = false,
 
     val showAddPlayerDialog: Boolean = false,

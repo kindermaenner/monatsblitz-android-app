@@ -20,6 +20,22 @@ Das Modell für Spieler unterstützt die Identifikation und Synchronisation mit 
     *   In der lokalen Room-Datenbank wird ein `Index(value = ["firstName", "lastName"], unique = true)` geführt.
     *   Sowohl im UI-Layer (`AddPlayerViewModel`) als auch im Use Case (`CreatePlayerUseCase`) wird vor dem Einfügen geprüft, ob bereits ein Spieler mit identischem Vor- und Nachnamen existiert. Bei Duplikaten wird die Operation abgewiesen.
 
+## 2.1b Domain-Modell: GameMode & Modus-Katalog
+Turniermodi werden über ein zweigeteiltes Prinzip verwaltet:
+1. **Katalog (`modes`-Tabelle in Room und WordPress):** Dient als Auswahlliste und Vorrat dauerhaft angebotener Modi.
+2. **Snapshot im Turnier (`tournaments.mode`):** Turniere speichern den Modus als unveränderliche Zeichenkette (z. B. `"3+2"`, `"5+0"` oder einen One-Shot-Namen wie `"Jubiläumsblitz"`).
+
+| Feld | Typ | Beschreibung |
+| :--- | :--- | :--- |
+| `id` | Long | Lokale Room-ID (PK). |
+| `remoteId` | Long? | ID in der WordPress-Tabelle `wp_monatsblitz_modes`. |
+| `name` | String | Eindeutiger Name des Modus (z. B. `3+2`, `5+0`, `10+0`). |
+| `dirty` | Boolean | Gibt an, ob der Modus noch an den Server übertragen werden muss. |
+
+* **Katalog vs. One-Shot:**
+  * Wird ein Modus als **dauerhaft** angelegt, wird er in Room persistiert und an `POST /mode` übertragen.
+  * Wird ein Modus als **One-Shot** markiert, wird er nicht in der Modus-Tabelle abgelegt, sondern lediglich temporär dem aktuellen Turnier zugewiesen.
+
 ## 2.2 Zustandsmodell der App
 Der Turnier-Lifecycle wird über Zustände gesteuert, die im `TournamentStorage` (DataStore) und in der Datenbank persistiert werden.
 
@@ -75,6 +91,9 @@ Anforderungen an die REST-API zur Unterstützung der Multi-Device-Synchronisatio
     *   `POST /game`: Erstellt oder aktualisiert Spiele/Ergebnisse. Unterstützt das Überschreiben bestehender Ergebnisse (für reguläre Updates sowie Force-Write).
     *   `POST /player`: Erstellt neue Spieler. Lehnt Duplikate (gleicher Vor- und Nachname) mit HTTP 400/409 ab.
     *   `POST /finalize`: Setzt den Turnierstatus serverseitig auf `finalized`. Weitere Schreibzugriffe für dieses Turnier werden danach mit HTTP 403 / 409 abgewiesen.
+*   **Modus-Endpunkte:**
+    *   `GET /modes`: Liefert alle im Katalog hinterlegten Modi (`id`, `name`).
+    *   `POST /mode`: Legt einen neuen Modus an (oder liefert die bestehende ID zurück).
 
 ## 2.5 Datenfluss, Dirty-Flags & Live-Synchronisation
 Änderungen an Partien werden in Room sofort mit einem `dirty`-Flag (`dirty = 1`) versehen. Der Abgleich mit dem WordPress-Backend folgt einem nicht-blockierenden Hintergrund-Konzept:
@@ -98,3 +117,20 @@ Anforderungen an die REST-API zur Unterstützung der Multi-Device-Synchronisatio
 6.  **Zellen-Indikatoren & Präferenzen:**
     *   Ungesyncte Zellen können durch einen dezenten Punkt visualisiert werden.
     *   Diese Anzeige ist über `AppSettingsStorage` (DataStore) in den App-Einstellungen konfigurierbar (Standard: aktiviert).
+
+
+## 2.6 Modus-Vorabauswahl & Rotations-Algorithmus
+Die App unterstützt die automatische Vorauswahl des Spielmodus im `TournamentSetupScreen`:
+
+### 2.6.1 Vorabauswahl-Typen (`ModePreselectionType`)
+* `NONE`: Das Modus-Dropdown startet leer; der Benutzer muss manuell wählen.
+* `FIXED`: Immer derselbe in den Einstellungen gewählte Modus (z. B. `3+2`) ist vorausgewählt.
+* `ROTATION`: Zyklischer Wechsel durch eine geordnete Liste von $N$ Modi (z. B. `["3+2", "5+0"]`).
+
+### 2.6.2 Rotations-Algorithmus (Server als Single Source of Truth)
+Zur zuverlässigen Funktion auch bei Gerätewechseln (Multi-Device) ermittelt die App den nächsten Rotationsmodus anhand der tatsächlichen Turnierhistorie:
+1. **Server-Abfrage:** Beim Öffnen des Setup-Screens ruft die App die letzten Turniere vom Server ab (`GET /tournaments`). Bei Offline-Zustand wird auf die lokalen Room-Turniere zurückgegriffen.
+2. **One-Shot-Filterung:** Die Liste der jüngsten Turniere wird chronologisch rückwärts nach dem ersten Turnier durchsucht, dessen Modus in der konfigurierten `rotationModes`-Liste vorkommt. One-Shot-Sonderturniere (z. B. *"Jubiläumsblitz"*) werden automatisch ignoriert.
+3. **Zyklischer Vorschub:**
+   $$index_{next} = (index_{letzter} + 1) \pmod N$$
+   Wurde kein passendes Turnier gefunden (z. B. Neuinstallation), startet die Rotation beim ersten Eintrag der Liste ($index = 0$).

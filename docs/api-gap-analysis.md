@@ -69,6 +69,21 @@ Auf Basis der Abstimmung für Release 1 ergibt sich folgendes Bild:
 
 ---
 
+### 2.4 Turniermodi & Dynamischer Modus-Katalog
+
+* **Referenz App-Spezifikation:** [01-FunctionalRequirements.md §1.2](./specs/01-FunctionalRequirements.md), [02-TechnicalRequirements.md §2.1b & §2.6](./specs/02-TechnicalRequirements.md)
+* **Status im WP-Plugin:** **Vollständig umgesetzt**.
+
+#### Umgesetzte Anpassungen:
+* **Datenbankschema:** Neue Tabelle `wp_monatsblitz_modes (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, name VARCHAR(50) NOT NULL UNIQUE)`. Initiales Seeding mit `'3+2'`, `'5+0'` sowie bestehenden Turniermodi.
+* **REST-Endpunkte:**
+  * `GET /monatsblitz/v1/modes`: Liefert alle im Katalog hinterlegten Modi als Array `{ id, name }`.
+  * `POST /monatsblitz/v1/mode`: Legt neue Modi an (mit Validierung und Duplikatsprüfung).
+* **Snapshot-Prinzip:** `wp_monatsblitz_tournaments.mode` bleibt unverändert `VARCHAR(30) NOT NULL`, um historische Berichte stabil zu halten und One-Shot-Turniere ohne Katalogeintrag zu ermöglichen.
+* **Admin-Bereich:** Bearbeitungs- und Löschmöglichkeit unter *Monatsblitz → Einstellungen*.
+
+---
+
 ### 2.4 Spielerverwaltung & Namenseindeutigkeit
 
 * **Referenz App-Spezifikation:** [01-FunctionalRequirements.md §1.2 Phase 1](./specs/01-FunctionalRequirements.md#phase-1-turniervorbereitung-setup), [02-TechnicalRequirements.md §2.1](./specs/02-TechnicalRequirements.md#21-domain-modell-player)

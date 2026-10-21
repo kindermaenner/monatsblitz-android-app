@@ -7,5 +7,6 @@ Im Projekt werden wichtige Architekturentscheidungen als ADR (Architecture Decis
 *   **[ADR 003: Einführung Jetpack Navigation Component & Splash Screen API](adr/ADR-003-jetpack-navigation.md):** Umstellung auf standardkonforme Navigation und flackerfreien Start.
 *   **[ADR 004: Konsequente Nutzung von Material 3 als Design-Standard](adr/ADR-004-material3-design-system.md):** Verbindliche Festlegung auf M3 für alle UI-Komponenten.
 *   **[ADR 005: Hintergrund-Synchronisation und Live-Status für Turnierpartien](adr/ADR-005-background-sync-and-live-status.md):** Nicht-blockierender Auto-Sync mit Mutex-Batching, serverseitigem Upsert und adaptivem UI-Feedback.
-*   **ADR 006: Manuelle Dependency Injection:** Entscheidung gegen Hilt, um volle Kontrolle über den Objektgraph zu behalten.
-*   **ADR 007: Room für Persistenz:** Nutzung von Room als typsichere Abstraktion über SQLite.
+*   **[ADR 006: Modus-Katalog, Snapshot-Prinzip und automatisierte Vorabauswahl (Rotation)](adr/ADR-006-mode-catalog-and-preselection-rotation.md):** Dynamischer Modus-Katalog, One-Shot-Turniere und serverbasierte Rotationsermittlung.
+*   **ADR 007: Manuelle Dependency Injection:** Entscheidung gegen Hilt, um volle Kontrolle über den Objektgraph zu behalten.
+*   **ADR 008: Room für Persistenz:** Nutzung von Room als typsichere Abstraktion über SQLite.

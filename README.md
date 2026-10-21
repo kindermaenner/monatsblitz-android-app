@@ -15,7 +15,11 @@ The motivation and overall project context are documented in the [Monatsblitz Wo
 
 ## Key Features
 *   **Player Management:** Browse and select participants from a player list synchronized via the WordPress REST API.
-*   **Flexible Tournament Setup:** Support for various blitz modes (e.g., 3+2 minutes, 5+0 minutes) and tournament formats (single or double round-robin).
+*   **Flexible Tournament Setup & Dynamic Modes:**
+    *   Dynamic game mode catalog synchronized with WordPress (`wp_monatsblitz_modes`).
+    *   Add new modes directly from the app, either permanently with server synchronization or as a one-shot tournament (e.g., club anniversary blitz).
+    *   Automated mode pre-selection: None, Fixed mode, or cyclic Rotation (e.g., alternating 3+2 and 5+0) backed by recent server tournaments as the Single Source of Truth.
+    *   Support for single and double round-robin formats.
 *   **Interactive Crosstable:** A central matrix view for entering game results (Win, Loss, Draw) with immediate local persistence.
 *   **Real-time Rankings:** Automatic calculation of tournament standings based on entered results.
 *   **Offline-First Approach:** Full offline capability ensures tournaments can be conducted without reliable internet access. The local Room database serves as the Single Source of Truth (SSoT).

@@ -12,7 +12,7 @@ Das Projekt nutzt kein DI-Framework wie Hilt oder Dagger. Stattdessen wird ein m
 
 ### 8.3 Persistenz-Konzept
 Die App nutzt zwei unterschiedliche Persistenz-Technologien je nach Anwendungsfall:
-*   **Room (SQLite):** Wird für strukturierte, relationale Daten verwendet (Spieler, Turniere, Games, Rankings). Dies bildet die fachliche SSoT. Partien (`games`) werden kanonisch gespeichert (1 Datensatz pro Paarung und `leg` mit `player1Id < player2Id`).
+*   **Room (SQLite):** Wird für strukturierte, relationale Daten verwendet (Spieler, Turniere, Games, Rankings, Modus-Katalog). Dies bildet die fachliche SSoT. Partien (`games`) werden kanonisch gespeichert (1 Datensatz pro Paarung und `leg` mit `player1Id < player2Id`).
 *   **Jetpack DataStore (Preferences):** Wird für einfache Schlüssel-Wert-Paare verwendet und ist physisch nach Lebenszyklus in zwei getrennte DataStore-Dateien unterteilt:
     *   `tournament_state` (`TournamentStorage`): Speichert den kurzlebigen Zustand der aktuellen Turniersitzung (`tournament_id`, `finalized`) für die nahtlose Fortführung nach App-Neustarts. Beim Zurücksetzen (`resetAll()`) werden gezielt nur diese beiden Schlüssel entfernt.
     *   `app_settings` (`AppSettingsStorage`): Speichert dauerhafte Benutzereinstellungen (z. B. `show_detailed_sync_status`) unabhängig vom Turnier-Lebenszyklus.
@@ -69,3 +69,18 @@ Um eine optimale User Experience ohne störende Wartezeiten und gleichzeitig ein
      * An Zellen mit ungespeichertem Status (`dirty = true`) wird in der oberen Ecke ein kleiner Punkt angezeigt. Sobald der Server den Empfang bestätigt, verschwindet der Punkt.
      * **Konfigurierbar:** Über `AppSettingsStorage` (DataStore) und den Einstellungsbildschirm (`SettingsScreen`) kann dieser Detail-Indikator vom Benutzer ein- oder ausgeschaltet werden (Standard: aktiviert).
 
+
+
+### 8.7 Modus-Verwaltung, Snapshot-Prinzip & Vorabauswahl (Rotation)
+Für die Turniermodi setzt die Architektur auf ein zweistufiges Konzept:
+1. **Katalog (`modes`) vs. Snapshot im Turnier (`tournaments.mode`):**
+   * Die Tabelle `modes` fungiert als dynamischer Vorrat für die Auswahlliste.
+   * Das Turnier speichert den tatsächlichen Modusnamen als Snapshot-String (`VARCHAR(30)`). Dies schützt die unveränderliche Historie und verhindert, dass spätere Modus-Löschungen oder Namenskorrekturen historische Auswertungen beeinflussen.
+2. **Dynamische Neuanlage & One-Shot-Turniere:**
+   * Neue Modi können direkt aus der App im `TournamentSetupScreen` angelegt werden.
+   * Bei gesetzter Option *"Dauerhaft speichern"* wird nach einer Bestätigungsabfrage der Modus in Room persistiert und an `POST /mode` übertragen.
+   * Für Sonderturniere (z. B. *"Jubiläumsblitz"*) kann der Modus als One-Shot genutzt werden: Er wird nur für das aktuelle Turnier gesetzt, ohne den Katalog zu verunreinigen.
+3. **Automatisierte Vorabauswahl & Rotation:**
+   * Über `SettingsScreen` konfigurierbar: `Keine`, `Fester Modus` oder `Rotation`.
+   * Bei der Rotation ermittelt die App den nächsten Zyklusschritt anhand der jüngsten Turniere auf dem WordPress-Server (`GET /tournaments`). Hierdurch ist die Rotation absolut multi-device-fest.
+   * One-Shot-Turniere werden bei der Bestimmung des letzten Modus automatisch ignoriert.

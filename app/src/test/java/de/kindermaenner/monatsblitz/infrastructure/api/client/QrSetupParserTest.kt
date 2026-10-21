@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.infrastructure.api.client
 
+import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -15,6 +16,57 @@ class QrSetupParserTest {
         assertNotNull(config)
         assertEquals("https://sg-koenigslutter.de", config?.serverUrl)
         assertEquals("secret-key-123", config?.apiKey)
+        assertNull(config?.modePreselectionType)
+        assertNull(config?.fixedMode)
+        assertNull(config?.rotationModes)
+    }
+
+    @Test
+    fun `parses json setup payload with fixed mode preselection`() {
+        val json = """{
+            "url": "https://sg-koenigslutter.de",
+            "key": "secret-key-123",
+            "mode_type": "fixed",
+            "fixed_mode": "3+2"
+        }"""
+        val config = QrSetupParser.parse(json)
+
+        assertNotNull(config)
+        assertEquals("https://sg-koenigslutter.de", config?.serverUrl)
+        assertEquals("secret-key-123", config?.apiKey)
+        assertEquals(ModePreselectionType.FIXED, config?.modePreselectionType)
+        assertEquals("3+2", config?.fixedMode)
+        assertNull(config?.rotationModes)
+    }
+
+    @Test
+    fun `parses json setup payload with rotation mode preselection`() {
+        val json = """{
+            "url": "https://sg-koenigslutter.de",
+            "key": "secret-key-123",
+            "mode_type": "rotation",
+            "rotation_modes": ["3+2", "5+0"]
+        }"""
+        val config = QrSetupParser.parse(json)
+
+        assertNotNull(config)
+        assertEquals("https://sg-koenigslutter.de", config?.serverUrl)
+        assertEquals("secret-key-123", config?.apiKey)
+        assertEquals(ModePreselectionType.ROTATION, config?.modePreselectionType)
+        assertEquals(listOf("3+2", "5+0"), config?.rotationModes)
+        assertNull(config?.fixedMode)
+    }
+
+    @Test
+    fun `parses uri setup payload with mode preselection`() {
+        val uri = "monatsblitz://setup?url=https%3A%2F%2Fsg-koenigslutter.de&key=secret-key-123&mode_type=rotation&rotation_modes=3%2B2%2C5%2B0"
+        val config = QrSetupParser.parse(uri)
+
+        assertNotNull(config)
+        assertEquals("https://sg-koenigslutter.de", config?.serverUrl)
+        assertEquals("secret-key-123", config?.apiKey)
+        assertEquals(ModePreselectionType.ROTATION, config?.modePreselectionType)
+        assertEquals(listOf("3+2", "5+0"), config?.rotationModes)
     }
 
     @Test

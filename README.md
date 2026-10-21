@@ -23,6 +23,7 @@ The motivation and overall project context are documented in the [Monatsblitz Wo
 *   **Interactive Crosstable:** A central matrix view for entering game results (Win, Loss, Draw) with immediate local persistence.
 *   **Real-time Rankings:** Automatic calculation of tournament standings based on entered results.
 *   **Offline-First Approach:** Full offline capability ensures tournaments can be conducted without reliable internet access. The local Room database serves as the Single Source of Truth (SSoT).
+*   **QR Code Setup:** Instant configuration of server URL, API key, and club-wide default tournament mode preselection (fixed or rotation) by scanning the QR code in WordPress Admin.
 *   **Automatic Live Sync & Status:** Non-blocking background synchronization after every result change with batched retry, upsert support for score corrections, an interactive TopAppBar status indicator, and configurable cell-level indicators.
 *   **WordPress Integration:** Automatic synchronization of players from the club website and publishing final results back to the WordPress plugin to generate news posts.
 

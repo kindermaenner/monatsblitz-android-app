@@ -130,6 +130,30 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `applyQrConfig applies mode preselection settings when provided`() = runTest {
+        coEvery { testBackendConnectionUseCase("https://sc-example.de", "qr-key") } returns
+            ConnectionTestResult.Success(playerCount = 10)
+
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase, syncPlayersUseCase)
+        advanceUntilIdle()
+
+        viewModel.applyQrConfig(
+            de.kindermaenner.monatsblitz.domain.model.QrSetupConfig(
+                serverUrl = "https://sc-example.de",
+                apiKey = "qr-key",
+                modePreselectionType = de.kindermaenner.monatsblitz.domain.model.ModePreselectionType.ROTATION,
+                fixedMode = "3+2",
+                rotationModes = listOf("3+2", "5+0")
+            )
+        )
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { settingsRepository.setModePreselectionType(de.kindermaenner.monatsblitz.domain.model.ModePreselectionType.ROTATION) }
+        coVerify(exactly = 1) { settingsRepository.setFixedMode("3+2") }
+        coVerify(exactly = 1) { settingsRepository.setRotationModes(listOf("3+2", "5+0")) }
+    }
+
+    @Test
     fun `showDetailedSyncIndicators reflects repository state`() = runTest {
         val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
         backgroundScope.launch { viewModel.showDetailedSyncIndicators.collect() }

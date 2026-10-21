@@ -130,6 +130,15 @@ class SettingsViewModel(
         _apiKeyInput.value = config.apiKey
         _testResult.value = null
         _isSavedMessageVisible.value = false
+        if (config.modePreselectionType != null) {
+            setModePreselectionType(config.modePreselectionType)
+        }
+        if (config.fixedMode != null) {
+            setFixedMode(config.fixedMode)
+        }
+        if (config.rotationModes != null) {
+            setRotationModes(config.rotationModes)
+        }
         saveSettings()
     }
 

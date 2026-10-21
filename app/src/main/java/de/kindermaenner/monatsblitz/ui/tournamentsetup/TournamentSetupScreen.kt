@@ -317,7 +317,7 @@ private fun TournamentSetupBottomBar(
 }
 
 @Composable
-private fun TournamentSettingsCard(
+internal fun TournamentSettingsCard(
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
     selectedDate: LocalDate,
@@ -397,16 +397,14 @@ private fun TournamentSettingsCard(
                             text = "Einstellungen",
                             style = MaterialTheme.typography.titleMedium
                         )
-                        IconButton(
-                            onClick = onToggleExpanded,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowUp,
-                                contentDescription = "Einstellungen einklappen",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowUp,
+                            contentDescription = "Einstellungen einklappen",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .padding(start = 4.dp)
+                                .size(24.dp)
+                        )
                     }
                     AssistChip(
                         onClick = { showDatePicker = true },

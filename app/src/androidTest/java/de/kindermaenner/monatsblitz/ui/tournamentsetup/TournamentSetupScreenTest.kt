@@ -66,10 +66,19 @@ class TournamentSetupScreenTest {
 
     @Test
     fun setupScreen_settingsCardCanBeCollapsedAndExpanded() {
-        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        val isExpanded = androidx.compose.runtime.mutableStateOf(true)
 
         composeTestRule.setContent {
-            TournamentSetupScreen(viewModel = viewModel) {}
+            TournamentSettingsCard(
+                isExpanded = isExpanded.value,
+                onToggleExpanded = { isExpanded.value = !isExpanded.value },
+                selectedDate = java.time.LocalDate.now(),
+                selectedMode = de.kindermaenner.monatsblitz.domain.model.GameMode.BLITZ_3_2,
+                doubleRound = false,
+                onDateChanged = {},
+                onModeChanged = {},
+                onDoubleRoundChanged = {}
+            )
         }
 
         // Initially expanded: "Doppelrundig" switch is visible

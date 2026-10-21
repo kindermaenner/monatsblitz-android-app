@@ -28,6 +28,11 @@ class TournamentSetupScreenTest {
     private val createTournamentUseCase = mockk<CreateTournamentUseCase>(relaxed = true)
     private val addPlayerUseCase = mockk<AddPlayerUseCase>(relaxed = true)
 
+    @org.junit.Before
+    fun setup() {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+    }
+
     @Test
     fun setupScreen_displaysTitleAndTogglingPlayersEnablesStartButton() {
         val players = listOf(

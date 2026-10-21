@@ -81,7 +81,6 @@ abstract class AppDatabase : RoomDatabase() {
                     """.trimIndent()
                 )
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_modes_name` ON `modes` (`name`)")
-                db.execSQL("INSERT OR IGNORE INTO `modes` (`name`, `dirty`) VALUES ('3+2', 0), ('5+0', 0)")
             }
         }
 

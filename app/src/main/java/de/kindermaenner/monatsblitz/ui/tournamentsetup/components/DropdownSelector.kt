@@ -25,7 +25,7 @@ import de.kindermaenner.monatsblitz.domain.model.GameMode
 @Composable
 fun GameModeDropdownSelector(
     selectedMode: GameMode?,
-    availableModes: List<GameMode> = GameMode.DEFAULT_MODES,
+    availableModes: List<GameMode> = emptyList(),
     onModeSelected: (GameMode) -> Unit,
     onAddNewMode: (() -> Unit)? = null
 ) {
@@ -33,9 +33,6 @@ fun GameModeDropdownSelector(
 
     val displayModes = remember(availableModes, selectedMode) {
         val list = availableModes.toMutableList()
-        if (list.isEmpty()) {
-            list.addAll(GameMode.DEFAULT_MODES)
-        }
         if (selectedMode != null && list.none { it.name.equals(selectedMode.name, ignoreCase = true) }) {
             list.add(0, selectedMode)
         }

@@ -17,7 +17,7 @@ data class TournamentSetupUiState(
 
     val selectedDate: LocalDate = LocalDate.now(),
     val selectedMode: GameMode? = null,
-    val availableModes: List<GameMode> = GameMode.DEFAULT_MODES,
+    val availableModes: List<GameMode> = emptyList(),
     val doubleRound: Boolean = false,
 
     val showAddPlayerDialog: Boolean = false,

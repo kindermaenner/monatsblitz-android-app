@@ -23,20 +23,11 @@ class ModeRepositoryImpl(
 
     override fun observeModes(): Flow<List<GameMode>> =
         modeDao.observeModes().map { entities ->
-            if (entities.isEmpty()) {
-                GameMode.DEFAULT_MODES
-            } else {
-                entities.map { it.toDomain() }
-            }
+            entities.map { it.toDomain() }
         }
 
     override suspend fun getAllModes(): List<GameMode> {
-        val entities = modeDao.getAllModes()
-        return if (entities.isEmpty()) {
-            GameMode.DEFAULT_MODES
-        } else {
-            entities.map { it.toDomain() }
-        }
+        return modeDao.getAllModes().map { it.toDomain() }
     }
 
     override suspend fun createMode(name: String, permanent: Boolean): GameMode {

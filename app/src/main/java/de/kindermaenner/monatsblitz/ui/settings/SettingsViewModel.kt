@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -65,11 +66,11 @@ class SettingsViewModel(
             )
 
     val availableModes: StateFlow<List<GameMode>> =
-        (modeRepository?.observeModes() ?: flowOf(GameMode.DEFAULT_MODES))
+        (modeRepository?.observeModes() ?: flowOf(emptyList()))
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
-                initialValue = GameMode.DEFAULT_MODES
+                initialValue = emptyList()
             )
 
     val modePreselectionType: StateFlow<ModePreselectionType> =
@@ -85,7 +86,7 @@ class SettingsViewModel(
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
-                initialValue = "3+2"
+                initialValue = ""
             )
 
     val rotationModes: StateFlow<List<String>> =
@@ -93,7 +94,7 @@ class SettingsViewModel(
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
-                initialValue = listOf("3+2", "5+0")
+                initialValue = emptyList()
             )
 
     private var hasLoadedInitialSettings = false
@@ -279,12 +280,10 @@ class SettingsViewModel(
 
     fun toggleRotationMode(modeName: String) {
         viewModelScope.launch {
-            val current = rotationModes.value.toMutableList()
+            val current = settingsRepository.rotationModes.first().toMutableList()
             if (current.contains(modeName)) {
-                if (current.size > 1) {
-                    current.remove(modeName)
-                    settingsRepository.setRotationModes(current)
-                }
+                current.remove(modeName)
+                settingsRepository.setRotationModes(current)
             } else {
                 current.add(modeName)
                 settingsRepository.setRotationModes(current)

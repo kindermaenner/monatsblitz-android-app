@@ -30,11 +30,11 @@ class ModeRepositoryImplTest {
     )
 
     @Test
-    fun `observeModes returns DEFAULT_MODES when dao has no entities`() = runTest {
+    fun `observeModes returns empty list when dao has no entities`() = runTest {
         coEvery { modeDao.observeModes() } returns flowOf(emptyList())
 
         val modes = repository.observeModes().first()
-        assertEquals(GameMode.DEFAULT_MODES, modes)
+        assertEquals(emptyList<GameMode>(), modes)
     }
 
     @Test

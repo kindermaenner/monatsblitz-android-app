@@ -75,7 +75,7 @@ Auf Basis der Abstimmung für Release 1 ergibt sich folgendes Bild:
 * **Status im WP-Plugin:** **Vollständig umgesetzt**.
 
 #### Umgesetzte Anpassungen:
-* **Datenbankschema:** Neue Tabelle `wp_monatsblitz_modes (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, name VARCHAR(50) NOT NULL UNIQUE)`. Initiales Seeding mit `'3+2'`, `'5+0'` sowie bestehenden Turniermodi.
+* **Datenbankschema:** Neue Tabelle `wp_monatsblitz_modes (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, name VARCHAR(50) NOT NULL UNIQUE)`. Die Tabelle startet initial leer; Modi werden frei über den Admin-Bereich oder die App angelegt.
 * **REST-Endpunkte:**
   * `GET /monatsblitz/v1/modes`: Liefert alle im Katalog hinterlegten Modi als Array `{ id, name }`.
   * `POST /monatsblitz/v1/mode`: Legt neue Modi an (mit Validierung und Duplikatsprüfung).

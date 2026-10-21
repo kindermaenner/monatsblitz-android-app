@@ -74,16 +74,15 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     }
 
     override val fixedMode: Flow<String> = dataStore.data.map { preferences ->
-        preferences[fixedModeKey] ?: "3+2"
+        preferences[fixedModeKey] ?: ""
     }
 
     override val rotationModes: Flow<List<String>> = dataStore.data.map { preferences ->
         val raw = preferences[rotationModesKey]
         if (raw.isNullOrBlank()) {
-            listOf("3+2", "5+0")
+            emptyList()
         } else {
-            val list = raw.split(";").map { it.trim() }.filter { it.isNotEmpty() }
-            if (list.isEmpty()) listOf("3+2", "5+0") else list
+            raw.split(";").map { it.trim() }.filter { it.isNotEmpty() }
         }
     }
 

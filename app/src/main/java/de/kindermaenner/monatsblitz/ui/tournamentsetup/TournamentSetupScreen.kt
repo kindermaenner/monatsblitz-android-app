@@ -488,7 +488,7 @@ internal fun TournamentSettingsCard(
     onToggleExpanded: () -> Unit,
     selectedDate: LocalDate,
     selectedMode: GameMode?,
-    availableModes: List<GameMode> = GameMode.DEFAULT_MODES,
+    availableModes: List<GameMode> = emptyList(),
     doubleRound: Boolean,
     onDateChanged: (LocalDate) -> Unit,
     onModeChanged: (GameMode) -> Unit,

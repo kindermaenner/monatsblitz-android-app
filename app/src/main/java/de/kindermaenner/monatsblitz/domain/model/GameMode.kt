@@ -23,7 +23,7 @@ data class GameMode(
         val BLITZ_5_0 = GameMode(name = "5+0")
         val HANDICAP = GameMode(name = "Handicap")
 
-        val DEFAULT_MODES = listOf(BLITZ_3_2, BLITZ_5_0)
+        val DEFAULT_MODES = emptyList<GameMode>()
 
         fun fromDisplayName(name: String): GameMode? {
             if (name.isBlank()) return null

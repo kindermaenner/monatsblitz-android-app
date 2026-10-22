@@ -482,7 +482,7 @@ class TournamentRepositoryImpl(
 
     private suspend fun reconcileGames(
         tournamentId: Long,
-        baseGames: List<de.kindermaenner.monatsblitz.domain.model.Game>,
+        baseGames: List<de.kindermaenner.monatsblitz.domain.model.NewGame>,
         remoteGames: List<GameDto>,
         resolvedPlayerDao: PlayerDao
     ): List<GameEntity> {

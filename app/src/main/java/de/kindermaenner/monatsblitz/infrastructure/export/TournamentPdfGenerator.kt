@@ -5,7 +5,6 @@ import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
@@ -32,161 +31,13 @@ object TournamentPdfGenerator {
         val pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create()
         val page = document.startPage(pageInfo)
         val canvas = page.canvas
+        val paints = PdfPaints()
 
         var currentY = MARGIN
-
-        // Paints
-        val titlePaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 18f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            isAntiAlias = true
-        }
-
-        val subtitlePaint = Paint().apply {
-            color = Color.DKGRAY
-            textSize = 10f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-            isAntiAlias = true
-        }
-
-        val sectionHeaderPaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 12f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            isAntiAlias = true
-        }
-
-        val textPaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 9f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-            isAntiAlias = true
-        }
-
-        val textBoldPaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 9f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            isAntiAlias = true
-        }
-
-        val linePaint = Paint().apply {
-            color = Color.LTGRAY
-            strokeWidth = 0.8f
-            style = Paint.Style.STROKE
-            isAntiAlias = true
-        }
-
-        val headerBgPaint = Paint().apply {
-            color = Color.rgb(235, 238, 242)
-            style = Paint.Style.FILL
-        }
-
-        val altRowPaint = Paint().apply {
-            color = Color.rgb(248, 249, 250)
-            style = Paint.Style.FILL
-        }
-
-        // 1. Header
-        val title = if (tournament.isLocalOnly) "Schachturnier (Lokal)" else "Monatsblitz Turnier"
-        canvas.drawText(title, MARGIN, currentY + 16f, titlePaint)
-        currentY += 24f
-
-        val formattedDate = tournament.date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-        val roundsText = if (tournament.rounds == 2) "Doppelrunde" else "1 Runde"
-        val subtitle = "Datum: $formattedDate   |   Modus: ${tournament.mode.displayName}   |   Format: $roundsText"
-        canvas.drawText(subtitle, MARGIN, currentY + 10f, subtitlePaint)
-        currentY += 18f
-
-        canvas.drawLine(MARGIN, currentY, PAGE_WIDTH - MARGIN, currentY, linePaint)
-        currentY += 14f
-
-        // 2. Rangliste Table
-        canvas.drawText("Endstand / Rangliste", MARGIN, currentY + 11f, sectionHeaderPaint)
-        currentY += 16f
-
-        val rankColW = 35f
-        val pointsColW = 55f
-        val nameColW = 200f
-        val rankRowH = 16f
-
-        // Header row
-        canvas.drawRect(MARGIN, currentY, MARGIN + rankColW + nameColW + pointsColW, currentY + rankRowH, headerBgPaint)
-        canvas.drawText("Pl.", MARGIN + 6f, currentY + 11f, textBoldPaint)
-        canvas.drawText("Spieler", MARGIN + rankColW + 6f, currentY + 11f, textBoldPaint)
-        canvas.drawText("Punkte", MARGIN + rankColW + nameColW + 6f, currentY + 11f, textBoldPaint)
-        currentY += rankRowH
-
-        rankingRows.forEachIndexed { index, row ->
-            if (index % 2 == 1) {
-                canvas.drawRect(MARGIN, currentY, MARGIN + rankColW + nameColW + pointsColW, currentY + rankRowH, altRowPaint)
-            }
-            canvas.drawText("${row.rank}.", MARGIN + 6f, currentY + 11f, textPaint)
-            canvas.drawText(row.name, MARGIN + rankColW + 6f, currentY + 11f, textPaint)
-            val pointsStr = if (row.points % 1.0 == 0.0) "${row.points.toInt()}" else "${row.points}"
-            canvas.drawText(pointsStr, MARGIN + rankColW + nameColW + 6f, currentY + 11f, textBoldPaint)
-            canvas.drawLine(MARGIN, currentY + rankRowH, MARGIN + rankColW + nameColW + pointsColW, currentY + rankRowH, linePaint)
-            currentY += rankRowH
-        }
-
-        currentY += 18f
-
-        // 3. Crosstable
-        if (crosstableRows.isNotEmpty() && currentY + 60f < PAGE_HEIGHT - MARGIN) {
-            canvas.drawText("Kreuztabelle", MARGIN, currentY + 11f, sectionHeaderPaint)
-            currentY += 16f
-
-            val ctNameColW = 120f
-            val ctPtsColW = 40f
-            val availableW = (PAGE_WIDTH - 2 * MARGIN) - ctNameColW - ctPtsColW
-            val numPlayers = crosstableRows.size
-            val cellW = (availableW / numPlayers).coerceIn(16f, 32f)
-            val totalCtW = ctNameColW + (cellW * numPlayers) + ctPtsColW
-            val ctRowH = 15f
-
-            // CT Header
-            canvas.drawRect(MARGIN, currentY, MARGIN + totalCtW, currentY + ctRowH, headerBgPaint)
-            canvas.drawText("Spieler", MARGIN + 4f, currentY + 11f, textBoldPaint)
-            for (i in 1..numPlayers) {
-                canvas.drawText("$i", MARGIN + ctNameColW + (i - 1) * cellW + 4f, currentY + 11f, textBoldPaint)
-            }
-            canvas.drawText("Pkt.", MARGIN + ctNameColW + numPlayers * cellW + 4f, currentY + 11f, textBoldPaint)
-            currentY += ctRowH
-
-            crosstableRows.forEachIndexed { index, row ->
-                if (index % 2 == 1) {
-                    canvas.drawRect(MARGIN, currentY, MARGIN + totalCtW, currentY + ctRowH, altRowPaint)
-                }
-                val pName = "${index + 1}. ${row.playerName}"
-                val clippedName = if (pName.length > 18) pName.substring(0, 16) + "…" else pName
-                canvas.drawText(clippedName, MARGIN + 4f, currentY + 11f, textPaint)
-
-                row.results.forEachIndexed { colIndex, res ->
-                    canvas.drawText(res, MARGIN + ctNameColW + colIndex * cellW + 4f, currentY + 11f, textPaint)
-                }
-
-                val ptsStr = if (row.totalPoints % 1.0 == 0.0) "${row.totalPoints.toInt()}" else "${row.totalPoints}"
-                canvas.drawText(ptsStr, MARGIN + ctNameColW + numPlayers * cellW + 4f, currentY + 11f, textBoldPaint)
-                canvas.drawLine(MARGIN, currentY + ctRowH, MARGIN + totalCtW, currentY + ctRowH, linePaint)
-                currentY += ctRowH
-            }
-        }
-
-        // Footnote
-        val hasWithdrawn = rankingRows.any { it.name.endsWith("(z)") } || crosstableRows.any { it.isWithdrawn }
-        if (hasWithdrawn) {
-            currentY += 12f
-            canvas.drawText("*(z) = vorzeitig beendet / zurückgetreten*", MARGIN, currentY + 9f, subtitlePaint)
-        }
-
-        // Footer at bottom
-        val footerPaint = Paint().apply {
-            color = Color.GRAY
-            textSize = 8f
-            isAntiAlias = true
-        }
-        canvas.drawText("Erstellt mit Monatsblitz Android App", MARGIN, PAGE_HEIGHT - MARGIN + 10f, footerPaint)
+        currentY = drawHeader(canvas, tournament, currentY, paints)
+        currentY = drawRankingTable(canvas, rankingRows, currentY, paints)
+        currentY = drawCrosstable(canvas, crosstableRows, currentY, paints)
+        drawFooters(canvas, rankingRows, crosstableRows, currentY, paints)
 
         document.finishPage(page)
 
@@ -198,6 +49,185 @@ object TournamentPdfGenerator {
         }
         document.close()
         return file
+    }
+
+    private fun drawHeader(
+        canvas: Canvas,
+        tournament: Tournament,
+        startY: Float,
+        paints: PdfPaints
+    ): Float {
+        var currentY = startY
+        val title = if (tournament.isLocalOnly) "Schachturnier (Lokal)" else "Monatsblitz Turnier"
+        canvas.drawText(title, MARGIN, currentY + 16f, paints.titlePaint)
+        currentY += 24f
+
+        val formattedDate = tournament.date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+        val roundsText = if (tournament.rounds == 2) "Doppelrunde" else "1 Runde"
+        val subtitle = "Datum: $formattedDate   |   Modus: ${tournament.mode.displayName}   |   Format: $roundsText"
+        canvas.drawText(subtitle, MARGIN, currentY + 10f, paints.subtitlePaint)
+        currentY += 18f
+
+        canvas.drawLine(MARGIN, currentY, PAGE_WIDTH - MARGIN, currentY, paints.linePaint)
+        return currentY + 14f
+    }
+
+    private fun drawRankingTable(
+        canvas: Canvas,
+        rankingRows: List<RankingRowData>,
+        startY: Float,
+        paints: PdfPaints
+    ): Float {
+        var currentY = startY
+        canvas.drawText("Endstand / Rangliste", MARGIN, currentY + 11f, paints.sectionHeaderPaint)
+        currentY += 16f
+
+        val rankColW = 35f
+        val pointsColW = 55f
+        val nameColW = 200f
+        val rankRowH = 16f
+
+        // Header row
+        canvas.drawRect(MARGIN, currentY, MARGIN + rankColW + nameColW + pointsColW, currentY + rankRowH, paints.headerBgPaint)
+        canvas.drawText("Pl.", MARGIN + 6f, currentY + 11f, paints.textBoldPaint)
+        canvas.drawText("Spieler", MARGIN + rankColW + 6f, currentY + 11f, paints.textBoldPaint)
+        canvas.drawText("Punkte", MARGIN + rankColW + nameColW + 6f, currentY + 11f, paints.textBoldPaint)
+        currentY += rankRowH
+
+        rankingRows.forEachIndexed { index, row ->
+            if (index % 2 == 1) {
+                canvas.drawRect(MARGIN, currentY, MARGIN + rankColW + nameColW + pointsColW, currentY + rankRowH, paints.altRowPaint)
+            }
+            canvas.drawText("${row.rank}.", MARGIN + 6f, currentY + 11f, paints.textPaint)
+            canvas.drawText(row.name, MARGIN + rankColW + 6f, currentY + 11f, paints.textPaint)
+            val pointsStr = if (row.points % 1.0 == 0.0) "${row.points.toInt()}" else "${row.points}"
+            canvas.drawText(pointsStr, MARGIN + rankColW + nameColW + 6f, currentY + 11f, paints.textBoldPaint)
+            canvas.drawLine(MARGIN, currentY + rankRowH, MARGIN + rankColW + nameColW + pointsColW, currentY + rankRowH, paints.linePaint)
+            currentY += rankRowH
+        }
+
+        return currentY + 18f
+    }
+
+    private fun drawCrosstable(
+        canvas: Canvas,
+        crosstableRows: List<CrosstableRowData>,
+        startY: Float,
+        paints: PdfPaints
+    ): Float {
+        var currentY = startY
+        if (crosstableRows.isEmpty() || currentY + 60f >= PAGE_HEIGHT - MARGIN) {
+            return currentY
+        }
+
+        canvas.drawText("Kreuztabelle", MARGIN, currentY + 11f, paints.sectionHeaderPaint)
+        currentY += 16f
+
+        val ctNameColW = 120f
+        val ctPtsColW = 40f
+        val availableW = (PAGE_WIDTH - 2 * MARGIN) - ctNameColW - ctPtsColW
+        val numPlayers = crosstableRows.size
+        val cellW = (availableW / numPlayers).coerceIn(16f, 32f)
+        val totalCtW = ctNameColW + (cellW * numPlayers) + ctPtsColW
+        val ctRowH = 15f
+
+        // CT Header
+        canvas.drawRect(MARGIN, currentY, MARGIN + totalCtW, currentY + ctRowH, paints.headerBgPaint)
+        canvas.drawText("Spieler", MARGIN + 4f, currentY + 11f, paints.textBoldPaint)
+        for (i in 1..numPlayers) {
+            canvas.drawText("$i", MARGIN + ctNameColW + (i - 1) * cellW + 4f, currentY + 11f, paints.textBoldPaint)
+        }
+        canvas.drawText("Pkt.", MARGIN + ctNameColW + numPlayers * cellW + 4f, currentY + 11f, paints.textBoldPaint)
+        currentY += ctRowH
+
+        crosstableRows.forEachIndexed { index, row ->
+            if (index % 2 == 1) {
+                canvas.drawRect(MARGIN, currentY, MARGIN + totalCtW, currentY + ctRowH, paints.altRowPaint)
+            }
+            val pName = "${index + 1}. ${row.playerName}"
+            val clippedName = if (pName.length > 18) pName.substring(0, 16) + "…" else pName
+            canvas.drawText(clippedName, MARGIN + 4f, currentY + 11f, paints.textPaint)
+
+            row.results.forEachIndexed { colIndex, res ->
+                canvas.drawText(res, MARGIN + ctNameColW + colIndex * cellW + 4f, currentY + 11f, paints.textPaint)
+            }
+
+            val ptsStr = if (row.totalPoints % 1.0 == 0.0) "${row.totalPoints.toInt()}" else "${row.totalPoints}"
+            canvas.drawText(ptsStr, MARGIN + ctNameColW + numPlayers * cellW + 4f, currentY + 11f, paints.textBoldPaint)
+            canvas.drawLine(MARGIN, currentY + ctRowH, MARGIN + totalCtW, currentY + ctRowH, paints.linePaint)
+            currentY += ctRowH
+        }
+
+        return currentY
+    }
+
+    private fun drawFooters(
+        canvas: Canvas,
+        rankingRows: List<RankingRowData>,
+        crosstableRows: List<CrosstableRowData>,
+        startY: Float,
+        paints: PdfPaints
+    ) {
+        var currentY = startY
+        val hasWithdrawn = rankingRows.any { it.name.endsWith("(z)") } || crosstableRows.any { it.isWithdrawn }
+        if (hasWithdrawn) {
+            currentY += 12f
+            canvas.drawText("*(z) = vorzeitig beendet / zurückgetreten*", MARGIN, currentY + 9f, paints.subtitlePaint)
+        }
+
+        canvas.drawText("Erstellt mit Monatsblitz Android App", MARGIN, PAGE_HEIGHT - MARGIN + 10f, paints.footerPaint)
+    }
+
+    private class PdfPaints {
+        val titlePaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 18f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        val subtitlePaint = Paint().apply {
+            color = Color.DKGRAY
+            textSize = 10f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            isAntiAlias = true
+        }
+        val sectionHeaderPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 12f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        val textPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 9f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            isAntiAlias = true
+        }
+        val textBoldPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 9f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        val linePaint = Paint().apply {
+            color = Color.LTGRAY
+            strokeWidth = 0.8f
+            style = Paint.Style.STROKE
+            isAntiAlias = true
+        }
+        val headerBgPaint = Paint().apply {
+            color = Color.rgb(235, 238, 242)
+            style = Paint.Style.FILL
+        }
+        val altRowPaint = Paint().apply {
+            color = Color.rgb(248, 249, 250)
+            style = Paint.Style.FILL
+        }
+        val footerPaint = Paint().apply {
+            color = Color.GRAY
+            textSize = 8f
+            isAntiAlias = true
+        }
     }
 
     fun generateAndSharePdf(

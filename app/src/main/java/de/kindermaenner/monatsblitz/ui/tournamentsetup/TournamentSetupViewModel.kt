@@ -29,10 +29,10 @@ fun determineNextRotationMode(rotationModes: List<String>, recentModes: List<Str
     if (rotationModes.isEmpty()) return ""
     val lastRotationMode = recentModes.firstOrNull { recent ->
         rotationModes.any { it.equals(recent, ignoreCase = true) }
-    } ?: return rotationModes.first()
+    } ?: return rotationModes[0]
 
     val lastIndex = rotationModes.indexOfFirst { it.equals(lastRotationMode, ignoreCase = true) }
-    if (lastIndex == -1) return rotationModes.first()
+    if (lastIndex == -1) return rotationModes[0]
     return rotationModes[(lastIndex + 1) % rotationModes.size]
 }
 
@@ -441,7 +441,7 @@ class TournamentSetupViewModel(
         }
     }
 
-    suspend fun checkForRemoteOpenTournament() {
+    private suspend fun checkForRemoteOpenTournament() {
         val repo = tournamentRepository ?: return
         try {
             val openInfo = repo.getRemoteOpenTournament() ?: return

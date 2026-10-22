@@ -144,10 +144,12 @@ fun TournamentSetupScreen(
     )
 
     AddModeDialog(
-        show = state.showAddModeDialog,
-        modeName = state.newModeName,
-        isPermanent = state.newModePermanent,
-        error = state.addModeError,
+        state = AddModeDialogState(
+            show = state.showAddModeDialog,
+            modeName = state.newModeName,
+            isPermanent = state.newModePermanent,
+            error = state.addModeError
+        ),
         onModeNameChanged = viewModel::onNewModeNameChanged,
         onPermanentChanged = viewModel::onNewModePermanentChanged,
         onConfirm = viewModel::onConfirmAddMode,
@@ -241,35 +243,41 @@ fun TournamentSetupScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             TournamentSettingsCard(
-                isExpanded = isSettingsExpanded,
-                onToggleExpanded = { isSettingsExpanded = !isSettingsExpanded },
-                selectedDate = state.selectedDate,
-                selectedMode = state.selectedMode,
-                availableModes = state.availableModes,
-                doubleRound = state.doubleRound,
-                isLocalOnly = state.isLocalOnly,
-                isServerConfigured = state.isServerConfigured,
-                onDateChanged = viewModel::onDateChanged,
-                onModeChanged = viewModel::onModeChanged,
-                onAddNewMode = { viewModel.onShowAddModeDialog(true) },
-                onDoubleRoundChanged = viewModel::onDoubleRoundChanged,
-                onLocalOnlyChanged = viewModel::onLocalOnlyChanged
+                state = TournamentSettingsState(
+                    isExpanded = isSettingsExpanded,
+                    selectedDate = state.selectedDate,
+                    selectedMode = state.selectedMode,
+                    availableModes = state.availableModes,
+                    doubleRound = state.doubleRound,
+                    isLocalOnly = state.isLocalOnly,
+                    isServerConfigured = state.isServerConfigured
+                ),
+                actions = TournamentSettingsActions(
+                    onToggleExpanded = { isSettingsExpanded = !isSettingsExpanded },
+                    onDateChanged = viewModel::onDateChanged,
+                    onModeChanged = viewModel::onModeChanged,
+                    onAddNewMode = { viewModel.onShowAddModeDialog(true) },
+                    onDoubleRoundChanged = viewModel::onDoubleRoundChanged,
+                    onLocalOnlyChanged = viewModel::onLocalOnlyChanged
+                )
             )
 
             TournamentPlayerList(
                 state = state,
-                onShowAddPlayerDialog = { viewModel.onShowAddPlayerDialog(true) },
-                onSearchQueryChanged = viewModel::onSearchQueryChanged,
-                onSearchFocused = { isSettingsExpanded = false },
-                onShowOnlySelectedChanged = viewModel::onShowOnlySelectedChanged,
-                onSelectSortOrder = viewModel::setSortOrder,
-                onClearSelectedPlayers = viewModel::clearSelectedPlayers,
-                onPlayerChecked = { playerId, checked ->
-                    if (checked && state.selectedPlayerIds.isEmpty()) {
-                        isSettingsExpanded = false
+                actions = TournamentPlayerListActions(
+                    onShowAddPlayerDialog = { viewModel.onShowAddPlayerDialog(true) },
+                    onSearchQueryChanged = viewModel::onSearchQueryChanged,
+                    onSearchFocused = { isSettingsExpanded = false },
+                    onShowOnlySelectedChanged = viewModel::onShowOnlySelectedChanged,
+                    onSelectSortOrder = viewModel::setSortOrder,
+                    onClearSelectedPlayers = viewModel::clearSelectedPlayers,
+                    onPlayerChecked = { playerId, checked ->
+                        if (checked && state.selectedPlayerIds.isEmpty()) {
+                            isSettingsExpanded = false
+                        }
+                        viewModel.onPlayerChecked(playerId, checked)
                     }
-                    viewModel.onPlayerChecked(playerId, checked)
-                },
+                ),
                 modifier = Modifier.weight(1f)
             )
         }
@@ -341,29 +349,33 @@ private fun AddPlayerDialog(
     )
 }
 
+data class AddModeDialogState(
+    val show: Boolean,
+    val modeName: String,
+    val isPermanent: Boolean,
+    val error: String?
+)
+
 @Composable
 private fun AddModeDialog(
-    show: Boolean,
-    modeName: String,
-    isPermanent: Boolean,
-    error: String?,
+    state: AddModeDialogState,
     onModeNameChanged: (String) -> Unit,
     onPermanentChanged: (Boolean) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    if (!show) return
+    if (!state.show) return
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Neuen Modus anlegen") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
-                    value = modeName,
+                    value = state.modeName,
                     onValueChange = onModeNameChanged,
                     label = { Text("Name des Modus") },
                     placeholder = { Text("z. B. 10+0 oder Jubiläumsblitz") },
-                    isError = error != null,
+                    isError = state.error != null,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
@@ -375,12 +387,12 @@ private fun AddModeDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onPermanentChanged(!isPermanent) }
+                        .clickable { onPermanentChanged(!state.isPermanent) }
                         .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
-                        checked = isPermanent,
+                        checked = state.isPermanent,
                         onCheckedChange = onPermanentChanged
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -390,14 +402,14 @@ private fun AddModeDialog(
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
-                            text = if (isPermanent) "Wird auf dem Server gesichert und bleibt für zukünftige Turniere erhalten" else "Nur einmalig (One-Shot) für dieses Turnier nutzen",
+                            text = if (state.isPermanent) "Wird auf dem Server gesichert und bleibt für zukünftige Turniere erhalten" else "Nur einmalig (One-Shot) für dieses Turnier nutzen",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                error?.let { err ->
+                state.error?.let { err ->
                     Text(
                         text = err,
                         color = MaterialTheme.colorScheme.error,
@@ -409,9 +421,9 @@ private fun AddModeDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                enabled = modeName.isNotBlank()
+                enabled = state.modeName.isNotBlank()
             ) {
-                Text(if (isPermanent) "Weiter" else "Anlegen")
+                Text(if (state.isPermanent) "Weiter" else "Anlegen")
             }
         },
         dismissButton = {
@@ -486,28 +498,36 @@ private fun TournamentSetupBottomBar(
     }
 }
 
+data class TournamentSettingsState(
+    val isExpanded: Boolean,
+    val selectedDate: LocalDate,
+    val selectedMode: GameMode?,
+    val availableModes: List<GameMode> = emptyList(),
+    val doubleRound: Boolean = false,
+    val isLocalOnly: Boolean = false,
+    val isServerConfigured: Boolean = true
+)
+
+data class TournamentSettingsActions(
+    val onToggleExpanded: () -> Unit,
+    val onDateChanged: (LocalDate) -> Unit,
+    val onModeChanged: (GameMode) -> Unit,
+    val onAddNewMode: (() -> Unit)? = null,
+    val onDoubleRoundChanged: (Boolean) -> Unit,
+    val onLocalOnlyChanged: (Boolean) -> Unit = {}
+)
+
 @Composable
 internal fun TournamentSettingsCard(
-    isExpanded: Boolean,
-    onToggleExpanded: () -> Unit,
-    selectedDate: LocalDate,
-    selectedMode: GameMode?,
-    availableModes: List<GameMode> = emptyList(),
-    doubleRound: Boolean,
-    isLocalOnly: Boolean = false,
-    isServerConfigured: Boolean = true,
-    onDateChanged: (LocalDate) -> Unit,
-    onModeChanged: (GameMode) -> Unit,
-    onAddNewMode: (() -> Unit)? = null,
-    onDoubleRoundChanged: (Boolean) -> Unit,
-    onLocalOnlyChanged: (Boolean) -> Unit = {}
+    state: TournamentSettingsState,
+    actions: TournamentSettingsActions
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
 
     if (showDatePicker) {
         TournamentDatePickerDialog(
-            initialDate = selectedDate,
-            onDateSelected = onDateChanged,
+            initialDate = state.selectedDate,
+            onDateSelected = actions.onDateChanged,
             onDismiss = { showDatePicker = false }
         )
     }
@@ -518,153 +538,198 @@ internal fun TournamentSettingsCard(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
-        val isToday = selectedDate == LocalDate.now()
-        val formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+        val isToday = state.selectedDate == LocalDate.now()
+        val formattedDate = state.selectedDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
         val dateLabel = if (isToday) "Heute ($formattedDate)" else formattedDate
-        val roundLabel = if (doubleRound) "Doppelrunde" else "Einfachrunde"
-        val modeLabel = selectedMode?.displayName ?: "Kein Modus"
+        val roundLabel = if (state.doubleRound) "Doppelrunde" else "Einfachrunde"
+        val modeLabel = state.selectedMode?.displayName ?: "Kein Modus"
 
-        if (!isExpanded) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onToggleExpanded() }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = "Einstellungen",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "(${if (isToday) "Heute" else formattedDate} • $modeLabel • $roundLabel)",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Einstellungen aufklappen",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        if (!state.isExpanded) {
+            TournamentSettingsCollapsedRow(
+                isToday = isToday,
+                formattedDate = formattedDate,
+                modeLabel = modeLabel,
+                roundLabel = roundLabel,
+                onToggleExpanded = actions.onToggleExpanded
+            )
         } else {
             Column(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { onToggleExpanded() }
-                    ) {
-                        Text(
-                            text = "Einstellungen",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowUp,
-                            contentDescription = "Einstellungen einklappen",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .padding(start = 4.dp)
-                                .size(24.dp)
-                        )
-                    }
-                    AssistChip(
-                        onClick = { showDatePicker = true },
-                        label = {
-                            Text(
-                                text = dateLabel,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.DateRange,
-                                contentDescription = "Turnierdatum",
-                                tint = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    )
-                }
+                TournamentSettingsExpandedHeader(
+                    isToday = isToday,
+                    dateLabel = dateLabel,
+                    onToggleExpanded = actions.onToggleExpanded,
+                    onOpenDatePicker = { showDatePicker = true }
+                )
 
                 GameModeDropdownSelector(
-                    selectedMode = selectedMode,
-                    availableModes = availableModes,
-                    onModeSelected = onModeChanged,
-                    onAddNewMode = onAddNewMode
+                    selectedMode = state.selectedMode,
+                    availableModes = state.availableModes,
+                    onModeSelected = actions.onModeChanged,
+                    onAddNewMode = actions.onAddNewMode
                 )
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onDoubleRoundChanged(!doubleRound) },
+                        .clickable { actions.onDoubleRoundChanged(!state.doubleRound) },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Doppelrundig", style = MaterialTheme.typography.bodyMedium)
                     Switch(
-                        checked = doubleRound,
-                        onCheckedChange = onDoubleRoundChanged
+                        checked = state.doubleRound,
+                        onCheckedChange = actions.onDoubleRoundChanged
                     )
                 }
 
-                if (isServerConfigured) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onLocalOnlyChanged(!isLocalOnly) },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Nur lokal spielen", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                "Keine Website-Veröffentlichung",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = isLocalOnly,
-                            onCheckedChange = onLocalOnlyChanged,
-                            modifier = Modifier.testTag("tournament_local_only_switch")
-                        )
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Turniertyp", style = MaterialTheme.typography.bodyMedium)
-                        Surface(
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        ) {
-                            Text(
-                                text = "Reines Offline-Turnier",
-                                style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
+                TournamentSettingsServerOption(
+                    isServerConfigured = state.isServerConfigured,
+                    isLocalOnly = state.isLocalOnly,
+                    onLocalOnlyChanged = actions.onLocalOnlyChanged
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TournamentSettingsCollapsedRow(
+    isToday: Boolean,
+    formattedDate: String,
+    modeLabel: String,
+    roundLabel: String,
+    onToggleExpanded: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggleExpanded() }
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = "Einstellungen",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "(${if (isToday) "Heute" else formattedDate} • $modeLabel • $roundLabel)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowDown,
+            contentDescription = "Einstellungen aufklappen",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun TournamentSettingsExpandedHeader(
+    isToday: Boolean,
+    dateLabel: String,
+    onToggleExpanded: () -> Unit,
+    onOpenDatePicker: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable { onToggleExpanded() }
+        ) {
+            Text(
+                text = "Einstellungen",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowUp,
+                contentDescription = "Einstellungen einklappen",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .padding(start = 4.dp)
+                    .size(24.dp)
+            )
+        }
+        AssistChip(
+            onClick = onOpenDatePicker,
+            label = {
+                Text(
+                    text = dateLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.DateRange,
+                    contentDescription = "Turnierdatum",
+                    tint = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
+    }
+}
+
+@Composable
+private fun TournamentSettingsServerOption(
+    isServerConfigured: Boolean,
+    isLocalOnly: Boolean,
+    onLocalOnlyChanged: (Boolean) -> Unit
+) {
+    if (isServerConfigured) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onLocalOnlyChanged(!isLocalOnly) },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Nur lokal spielen", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Keine Website-Veröffentlichung",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = isLocalOnly,
+                onCheckedChange = onLocalOnlyChanged,
+                modifier = Modifier.testTag("tournament_local_only_switch")
+            )
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Turniertyp", style = MaterialTheme.typography.bodyMedium)
+            Surface(
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            ) {
+                Text(
+                    text = "Reines Offline-Turnier",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
             }
         }
     }
@@ -705,16 +770,20 @@ private fun TournamentDatePickerDialog(
     }
 }
 
+data class TournamentPlayerListActions(
+    val onShowAddPlayerDialog: () -> Unit,
+    val onSearchQueryChanged: (String) -> Unit,
+    val onSearchFocused: () -> Unit,
+    val onShowOnlySelectedChanged: (Boolean) -> Unit,
+    val onSelectSortOrder: (PlayerSortOrder) -> Unit,
+    val onClearSelectedPlayers: () -> Unit,
+    val onPlayerChecked: (Long, Boolean) -> Unit
+)
+
 @Composable
 private fun TournamentPlayerList(
     state: TournamentSetupUiState,
-    onShowAddPlayerDialog: () -> Unit,
-    onSearchQueryChanged: (String) -> Unit,
-    onSearchFocused: () -> Unit,
-    onShowOnlySelectedChanged: (Boolean) -> Unit,
-    onSelectSortOrder: (PlayerSortOrder) -> Unit,
-    onClearSelectedPlayers: () -> Unit,
-    onPlayerChecked: (Long, Boolean) -> Unit,
+    actions: TournamentPlayerListActions,
     modifier: Modifier = Modifier
 ) {
     val query = state.searchQuery.trim()
@@ -732,13 +801,13 @@ private fun TournamentPlayerList(
         TournamentPlayerHeader(
             selectedCount = state.selectedPlayerIds.size,
             totalCount = state.players.size,
-            onShowAddPlayerDialog = onShowAddPlayerDialog
+            onShowAddPlayerDialog = actions.onShowAddPlayerDialog
         )
 
         TournamentPlayerSearchBar(
             query = state.searchQuery,
-            onSearchQueryChanged = onSearchQueryChanged,
-            onSearchFocused = onSearchFocused
+            onSearchQueryChanged = actions.onSearchQueryChanged,
+            onSearchFocused = actions.onSearchFocused
         )
 
         TournamentPlayerFilterRow(
@@ -746,9 +815,9 @@ private fun TournamentPlayerList(
             totalCount = state.players.size,
             selectedCount = state.selectedPlayerIds.size,
             sortOrder = state.sortOrder,
-            onShowOnlySelectedChanged = onShowOnlySelectedChanged,
-            onSelectSortOrder = onSelectSortOrder,
-            onClearSelectedPlayers = onClearSelectedPlayers
+            onShowOnlySelectedChanged = actions.onShowOnlySelectedChanged,
+            onSelectSortOrder = actions.onSelectSortOrder,
+            onClearSelectedPlayers = actions.onClearSelectedPlayers
         )
 
         HorizontalDivider()
@@ -758,7 +827,7 @@ private fun TournamentPlayerList(
             matchingPlayers = matchingPlayers,
             selectedMatching = selectedMatching,
             query = query,
-            onPlayerChecked = onPlayerChecked,
+            onPlayerChecked = actions.onPlayerChecked,
             modifier = Modifier.weight(1f)
         )
     }

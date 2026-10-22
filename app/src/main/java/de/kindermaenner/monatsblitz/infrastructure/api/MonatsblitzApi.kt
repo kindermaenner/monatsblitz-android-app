@@ -1,6 +1,5 @@
 package de.kindermaenner.monatsblitz.infrastructure.api
 
-import de.kindermaenner.monatsblitz.infrastructure.api.dto.BatchResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGameDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGamesDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGamesResponseDto

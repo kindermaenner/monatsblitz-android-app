@@ -78,14 +78,18 @@ class TournamentSetupScreenTest {
 
         composeTestRule.setContent {
             TournamentSettingsCard(
-                isExpanded = isExpanded.value,
-                onToggleExpanded = { isExpanded.value = !isExpanded.value },
-                selectedDate = LocalDate.now(),
-                selectedMode = GameMode.BLITZ_3_2,
-                doubleRound = false,
-                onDateChanged = {},
-                onModeChanged = {},
-                onDoubleRoundChanged = {}
+                state = TournamentSettingsState(
+                    isExpanded = isExpanded.value,
+                    selectedDate = LocalDate.now(),
+                    selectedMode = GameMode.BLITZ_3_2,
+                    doubleRound = false
+                ),
+                actions = TournamentSettingsActions(
+                    onToggleExpanded = { isExpanded.value = !isExpanded.value },
+                    onDateChanged = {},
+                    onModeChanged = {},
+                    onDoubleRoundChanged = {}
+                )
             )
         }
 

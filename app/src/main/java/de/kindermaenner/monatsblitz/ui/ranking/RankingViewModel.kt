@@ -38,6 +38,12 @@ class RankingViewModel(
         val tournamentFlow = runCatching { tournamentRepository.observeTournament(tournamentId) }
             .getOrNull() ?: flowOf(null)
 
+        observeRankingItems(tournamentFlow)
+        observeOpenGames(tournamentFlow)
+        observeSyncStatus()
+    }
+
+    private fun observeRankingItems(tournamentFlow: kotlinx.coroutines.flow.Flow<de.kindermaenner.monatsblitz.domain.model.Tournament?>) {
         viewModelScope.launch {
             combine(
                 tournamentRepository.observeTournamentRanking(tournamentId),
@@ -55,17 +61,7 @@ class RankingViewModel(
                 } else emptyMap()
 
                 val rows = items.map { item ->
-                    val baseName = shortNameMap[item.playerId] ?: item.name
-                    val displayName = if (tournament?.withdrawnPlayerIds?.contains(item.playerId) == true && !baseName.endsWith("(z)")) {
-                        "$baseName (z)"
-                    } else {
-                        baseName
-                    }
-                    RankingRowData(
-                        name = displayName,
-                        points = item.points,
-                        rank = item.rank
-                    )
+                    mapToRankingRow(item, tournament, shortNameMap)
                 }
                 val currentReady = _uiState.value as? RankingUiState.Ready
                 _uiState.value = RankingUiState.Ready(
@@ -79,7 +75,27 @@ class RankingViewModel(
                 )
             }.collect {}
         }
+    }
 
+    private fun mapToRankingRow(
+        item: de.kindermaenner.monatsblitz.domain.model.TournamentRankingItem,
+        tournament: de.kindermaenner.monatsblitz.domain.model.Tournament?,
+        shortNameMap: Map<Long, String>
+    ): RankingRowData {
+        val baseName = shortNameMap[item.playerId] ?: item.name
+        val displayName = if (tournament?.withdrawnPlayerIds?.contains(item.playerId) == true && !baseName.endsWith("(z)")) {
+            "$baseName (z)"
+        } else {
+            baseName
+        }
+        return RankingRowData(
+            name = displayName,
+            points = item.points,
+            rank = item.rank
+        )
+    }
+
+    private fun observeOpenGames(tournamentFlow: kotlinx.coroutines.flow.Flow<de.kindermaenner.monatsblitz.domain.model.Tournament?>) {
         viewModelScope.launch {
             tournamentFlow.collect { tournament ->
                 val count = tournament?.games?.values?.count {
@@ -92,16 +108,17 @@ class RankingViewModel(
                 }
             }
         }
+    }
 
-        if (tournamentSyncService != null) {
-            viewModelScope.launch {
-                tournamentSyncService.syncStatus.collect { syncStatus ->
-                    val readOnly = syncStatus == SyncStatus.FINALIZED
-                    isReadOnly = readOnly
-                    val currentReady = _uiState.value as? RankingUiState.Ready
-                    if (currentReady != null) {
-                        _uiState.value = currentReady.copy(isReadOnly = readOnly)
-                    }
+    private fun observeSyncStatus() {
+        val syncService = tournamentSyncService ?: return
+        viewModelScope.launch {
+            syncService.syncStatus.collect { syncStatus ->
+                val readOnly = syncStatus == SyncStatus.FINALIZED
+                isReadOnly = readOnly
+                val currentReady = _uiState.value as? RankingUiState.Ready
+                if (currentReady != null) {
+                    _uiState.value = currentReady.copy(isReadOnly = readOnly)
                 }
             }
         }

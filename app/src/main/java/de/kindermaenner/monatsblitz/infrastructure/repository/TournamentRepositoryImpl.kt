@@ -31,6 +31,7 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDa
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.toDomain
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.toEntity
@@ -420,29 +421,7 @@ class TournamentRepositoryImpl(
         val parsedDate = runCatching { LocalDate.parse(remoteTournament.date) }.getOrElse { LocalDate.now() }
 
         val localTournamentId = database.withTransaction {
-            val existingTournamentWithDetails = tournamentDao.getTournamentByRemoteId(remoteTournamentId)
-            val tournamentId: Long
-
-            if (existingTournamentWithDetails != null) {
-                tournamentId = existingTournamentWithDetails.tournament.id
-                tournamentDao.update(
-                    existingTournamentWithDetails.tournament.copy(
-                        mode = mode,
-                        date = parsedDate,
-                        rounds = rounds,
-                        dirty = false
-                    )
-                )
-            } else {
-                val newEntity = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity(
-                    mode = mode,
-                    date = parsedDate,
-                    rounds = rounds,
-                    remoteId = remoteTournamentId.toLong(),
-                    dirty = false
-                )
-                tournamentId = tournamentDao.insert(newEntity)
-            }
+            val tournamentId = upsertTournamentEntity(remoteTournamentId, mode, rounds, parsedDate)
 
             val withdrawnRemoteIds = remoteTournament.withdrawnPlayerIds.toSet()
             val playerRefs = localPlayers.map {
@@ -457,98 +436,135 @@ class TournamentRepositoryImpl(
             tournamentPlayerDao.insertAll(playerRefs)
 
             val baseGames = createNewGamesUseCase(domainPlayers, rounds)
-
-            val remoteGameMap = mutableMapOf<Triple<Long, Long, Int>, GameDto>()
-            remoteGames.forEach { rg ->
-                val lp1 = resolvedPlayerDao.getPlayerByRemoteId(rg.player1Id.toLong())?.id
-                val lp2 = resolvedPlayerDao.getPlayerByRemoteId(rg.player2Id.toLong())?.id
-                if (lp1 != null && lp2 != null) {
-                    val pMin = minOf(lp1, lp2)
-                    val pMax = maxOf(lp1, lp2)
-                    remoteGameMap[Triple(pMin, pMax, rg.leg)] = rg
-                }
-            }
-
-            val gameEntities = baseGames.map { bg ->
-                val pMin = minOf(bg.player1Id, bg.player2Id)
-                val pMax = maxOf(bg.player1Id, bg.player2Id)
-                val remoteGame = remoteGameMap[Triple(pMin, pMax, bg.leg)]
-
-                val (result, remoteGameId) = if (remoteGame != null) {
-                    val lp1 = resolvedPlayerDao.getPlayerByRemoteId(remoteGame.player1Id.toLong())?.id ?: pMin
-                    val rawResult = remoteGame.result.toGameResult()
-                    val canonicalResult = if (lp1 == pMin) rawResult else rawResult.opposite()
-                    Pair(canonicalResult, remoteGame.id.toLong())
-                } else {
-                    Pair(bg.result, null)
-                }
-
-                GameEntity(
-                    tournamentId = tournamentId,
-                    player1Id = pMin,
-                    player2Id = pMax,
-                    leg = bg.leg,
-                    result = result,
-                    remoteId = remoteGameId,
-                    dirty = false
-                )
-            }
+            val gameEntities = reconcileGames(tournamentId, baseGames, remoteGames, resolvedPlayerDao)
 
             gameDao.deleteForTournament(tournamentId)
             gameDao.insertAll(gameEntities)
 
-            val playerPoints = mutableMapOf<Long, Double>()
-            localPlayers.forEach { playerPoints[it.id] = 0.0 }
-
-            gameEntities.forEach { game ->
-                when (game.result) {
-                    GameResult.Win -> {
-                        playerPoints[game.player1Id] = (playerPoints[game.player1Id] ?: 0.0) + 1.0
-                    }
-                    GameResult.Loss -> {
-                        playerPoints[game.player2Id] = (playerPoints[game.player2Id] ?: 0.0) + 1.0
-                    }
-                    GameResult.Remis -> {
-                        playerPoints[game.player1Id] = (playerPoints[game.player1Id] ?: 0.0) + 0.5
-                        playerPoints[game.player2Id] = (playerPoints[game.player2Id] ?: 0.0) + 0.5
-                    }
-                    GameResult.ForfeitDraw -> {
-                        playerPoints[game.player1Id] = (playerPoints[game.player1Id] ?: 0.0) + 0.5
-                        playerPoints[game.player2Id] = (playerPoints[game.player2Id] ?: 0.0) + 0.5
-                    }
-                    GameResult.ForfeitWin -> {
-                        playerPoints[game.player1Id] = (playerPoints[game.player1Id] ?: 0.0) + 1.0
-                    }
-                    GameResult.ForfeitLoss -> {
-                        playerPoints[game.player2Id] = (playerPoints[game.player2Id] ?: 0.0) + 1.0
-                    }
-                    GameResult.Open -> { /* 0.0 */ }
-                }
-            }
-
-            val sorted = playerPoints.entries.sortedByDescending { it.value }
-            var lastPoints: Double? = null
-            var lastRank = 0
-            var itemsProcessed = 0
-            val updatedRefs = sorted.map { (playerId, points) ->
-                itemsProcessed++
-                val rank = if (lastPoints != null && points == lastPoints) lastRank else itemsProcessed
-                lastPoints = points
-                lastRank = rank
-                TournamentPlayerCrossRef(
-                    tournamentId = tournamentId,
-                    playerId = playerId,
-                    points = points,
-                    rank = rank
-                )
-            }
-            tournamentPlayerDao.upsertAll(updatedRefs)
+            saveTournamentRankings(tournamentId, localPlayers, gameEntities)
 
             tournamentStorage.saveTournamentState(tournamentId, false)
             tournamentId
         }
 
         return localTournamentId
+    }
+
+    private suspend fun upsertTournamentEntity(
+        remoteTournamentId: Int,
+        mode: GameMode,
+        rounds: Int,
+        parsedDate: LocalDate
+    ): Long {
+        val existingTournamentWithDetails = tournamentDao.getTournamentByRemoteId(remoteTournamentId)
+        return if (existingTournamentWithDetails != null) {
+            val tournamentId = existingTournamentWithDetails.tournament.id
+            tournamentDao.update(
+                existingTournamentWithDetails.tournament.copy(
+                    mode = mode,
+                    date = parsedDate,
+                    rounds = rounds,
+                    dirty = false
+                )
+            )
+            tournamentId
+        } else {
+            val newEntity = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity(
+                mode = mode,
+                date = parsedDate,
+                rounds = rounds,
+                remoteId = remoteTournamentId.toLong(),
+                dirty = false
+            )
+            tournamentDao.insert(newEntity)
+        }
+    }
+
+    private suspend fun reconcileGames(
+        tournamentId: Long,
+        baseGames: List<de.kindermaenner.monatsblitz.domain.model.Game>,
+        remoteGames: List<GameDto>,
+        resolvedPlayerDao: PlayerDao
+    ): List<GameEntity> {
+        val remoteGameMap = mutableMapOf<Triple<Long, Long, Int>, GameDto>()
+        remoteGames.forEach { rg ->
+            val lp1 = resolvedPlayerDao.getPlayerByRemoteId(rg.player1Id.toLong())?.id
+            val lp2 = resolvedPlayerDao.getPlayerByRemoteId(rg.player2Id.toLong())?.id
+            if (lp1 != null && lp2 != null) {
+                remoteGameMap[Triple(minOf(lp1, lp2), maxOf(lp1, lp2), rg.leg)] = rg
+            }
+        }
+
+        return baseGames.map { bg ->
+            val pMin = minOf(bg.player1Id, bg.player2Id)
+            val pMax = maxOf(bg.player1Id, bg.player2Id)
+            val remoteGame = remoteGameMap[Triple(pMin, pMax, bg.leg)]
+
+            val (result, remoteGameId) = if (remoteGame != null) {
+                val lp1 = resolvedPlayerDao.getPlayerByRemoteId(remoteGame.player1Id.toLong())?.id ?: pMin
+                val rawResult = remoteGame.result.toGameResult()
+                val canonicalResult = if (lp1 == pMin) rawResult else rawResult.opposite()
+                Pair(canonicalResult, remoteGame.id.toLong())
+            } else {
+                Pair(bg.result, null)
+            }
+
+            GameEntity(
+                tournamentId = tournamentId,
+                player1Id = pMin,
+                player2Id = pMax,
+                leg = bg.leg,
+                result = result,
+                remoteId = remoteGameId,
+                dirty = false
+            )
+        }
+    }
+
+    private suspend fun saveTournamentRankings(
+        tournamentId: Long,
+        localPlayers: List<PlayerEntity>,
+        gameEntities: List<GameEntity>
+    ) {
+        val playerPoints = mutableMapOf<Long, Double>()
+        localPlayers.forEach { playerPoints[it.id] = 0.0 }
+
+        gameEntities.forEach { game ->
+            when (game.result) {
+                GameResult.Win,
+                GameResult.ForfeitWin -> {
+                    playerPoints[game.player1Id] = (playerPoints[game.player1Id] ?: 0.0) + 1.0
+                }
+                GameResult.Loss,
+                GameResult.ForfeitLoss -> {
+                    playerPoints[game.player2Id] = (playerPoints[game.player2Id] ?: 0.0) + 1.0
+                }
+                GameResult.Remis,
+                GameResult.ForfeitDraw -> {
+                    playerPoints[game.player1Id] = (playerPoints[game.player1Id] ?: 0.0) + 0.5
+                    playerPoints[game.player2Id] = (playerPoints[game.player2Id] ?: 0.0) + 0.5
+                }
+                GameResult.Open -> { /* 0.0 */ }
+            }
+        }
+
+        val sorted = playerPoints.entries.sortedByDescending { it.value }
+        var lastPoints: Double? = null
+        var lastRank = 0
+        var itemsProcessed = 0
+        val updatedRefs = sorted.map { (playerId, points) ->
+            itemsProcessed++
+            val rank = if (lastPoints != null && points == lastPoints) lastRank else itemsProcessed
+            lastPoints = points
+            lastRank = rank
+            TournamentPlayerCrossRef(
+                tournamentId = tournamentId,
+                playerId = playerId,
+                points = points,
+                rank = rank
+            )
+        }
+        tournamentPlayerDao.upsertAll(updatedRefs)
     }
 
     override suspend fun getRecentTournamentModes(): List<String> {

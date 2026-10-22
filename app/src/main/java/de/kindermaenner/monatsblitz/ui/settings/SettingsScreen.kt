@@ -60,6 +60,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
@@ -130,256 +131,61 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (!isConfigured) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Willkommen beim Monatsblitz!",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Bitte gib die Adresse deiner WordPress-Website und deinen API-Schlüssel ein – oder scanne einfach den Einrichtungs-QR-Code im WordPress-Admin. Alternativ kannst du die App auch dauerhaft im Offline-Modus nutzen.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
+            WelcomeBanner(isConfigured = isConfigured)
 
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = if (standaloneOfflineMode) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Dauerhafter Offline-Betrieb",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "App komplett ohne WordPress-Server nutzen (z. B. für Kuscheltier- oder private Turniere).",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Switch(
-                        checked = standaloneOfflineMode,
-                        onCheckedChange = { enabled ->
-                            viewModel.setStandaloneOfflineMode(enabled)
-                        },
-                        modifier = Modifier.testTag("standalone_offline_switch")
-                    )
-                }
-            }
-
-            if (standaloneOfflineMode && !isServerConfigured) {
-                Button(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("continue_to_setup_button")
-                ) {
-                    Text("Weiter zum Turniersetup")
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Server-Verbindung",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                FilledTonalButton(
-                    onClick = {
-                        barcodeScanner.startScan()
-                            .addOnSuccessListener { barcode ->
-                                val raw = barcode.rawValue
-                                val config = raw?.let { QrSetupParser.parse(it) }
-                                if (config != null) {
-                                    viewModel.applyQrConfig(config)
-                                } else {
-                                    viewModel.onQrScanError("Der gescannte QR-Code enthält keine gültigen Monatsblitz-Daten.")
-                                }
-                            }
-                            .addOnFailureListener {
-                                // Scan abgebrochen oder Fehler
-                            }
-                    },
-                    modifier = Modifier.testTag("scan_qr_button")
-                ) {
-                    Icon(
-                        Icons.Default.QrCodeScanner,
-                        contentDescription = "QR-Code scannen",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("QR-Code scannen")
-                }
-            }
-
-            OutlinedTextField(
-                value = serverUrl,
-                onValueChange = { viewModel.onServerUrlChanged(it) },
-                label = { Text("WordPress-Adresse") },
-                placeholder = { Text("https://sg-koenigslutter.de") },
-                supportingText = { Text("Website mit installiertem Monatsblitz-Plugin") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Next
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("server_url_input")
+            OfflineModeSection(
+                standaloneOfflineMode = standaloneOfflineMode,
+                isServerConfigured = isServerConfigured,
+                onToggle = { viewModel.setStandaloneOfflineMode(it) },
+                onContinue = onBack
             )
 
-            OutlinedTextField(
-                value = apiKey,
-                onValueChange = { viewModel.onApiKeyChanged(it) },
-                label = { Text("API-Schlüssel (X-MB-Key)") },
-                placeholder = { Text("Geheimer Schlüssel") },
-                supportingText = { Text("Im WordPress-Admin unter Einstellungen → Monatsblitz") },
-                singleLine = true,
-                visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                trailingIcon = {
-                    IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                        Icon(
-                            imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (isPasswordVisible) "Schlüssel verbergen" else "Schlüssel anzeigen"
-                        )
-                    }
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("api_key_input")
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { viewModel.testConnection() },
-                    enabled = !isTesting && serverUrl.isNotBlank() && apiKey.isNotBlank(),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("test_connection_button")
-                ) {
-                    if (isTesting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Prüfe...")
-                    } else {
-                        Text("Verbindung testen")
-                    }
-                }
-
-                Button(
-                    onClick = {
-                        viewModel.saveSettings {
-                            if (!isConfigured) {
-                                onBack()
+            ServerConnectionHeader(
+                onScanQr = {
+                    barcodeScanner.startScan()
+                        .addOnSuccessListener { barcode ->
+                            val raw = barcode.rawValue
+                            val config = raw?.let { QrSetupParser.parse(it) }
+                            if (config != null) {
+                                viewModel.applyQrConfig(config)
+                            } else {
+                                viewModel.onQrScanError("Der gescannte QR-Code enthält keine gültigen Monatsblitz-Daten.")
                             }
                         }
-                    },
-                    enabled = !isTesting && serverUrl.isNotBlank() && apiKey.isNotBlank(),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("save_settings_button")
-                ) {
-                    if (isTesting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    Text(if (!isConfigured) "Übernehmen & Los" else "Einstellungen übernehmen")
+                        .addOnFailureListener {
+                            // Scan abgebrochen oder Fehler
+                        }
                 }
-            }
+            )
+
+            ServerUrlField(
+                serverUrl = serverUrl,
+                onValueChange = { viewModel.onServerUrlChanged(it) }
+            )
+
+            ApiKeyField(
+                apiKey = apiKey,
+                isVisible = isPasswordVisible,
+                onVisibilityToggle = { isPasswordVisible = !isPasswordVisible },
+                onValueChange = { viewModel.onApiKeyChanged(it) }
+            )
+
+            ServerActionButtons(
+                isTesting = isTesting,
+                canSubmit = !isTesting && serverUrl.isNotBlank() && apiKey.isNotBlank(),
+                isConfigured = isConfigured,
+                onTest = { viewModel.testConnection() },
+                onSave = {
+                    viewModel.saveSettings {
+                        if (!isConfigured) {
+                            onBack()
+                        }
+                    }
+                }
+            )
 
             testResult?.let { result ->
-                when (result) {
-                    is ConnectionTestResult.Success -> {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = "Erfolg",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = "Verbindung erfolgreich! ${result.playerCount} Spieler gefunden.",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-                    }
-                    is ConnectionTestResult.Error -> {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.Error,
-                                    contentDescription = "Fehler",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = result.message,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-                    }
-                }
+                ConnectionTestResultCard(result = result)
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -390,225 +196,493 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.primary
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        viewModel.setShowDetailedSyncIndicators(!showDetailedSync)
-                    }
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Detaillierte Sync-Indikatoren",
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Zeigt kleine Statuspunkte an ungespeicherten Zellen und neuen Spielern, bis sie synchronisiert sind.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = showDetailedSync,
-                    onCheckedChange = { checked ->
-                        viewModel.setShowDetailedSyncIndicators(checked)
-                    },
-                    modifier = Modifier.padding(start = 16.dp)
-                )
-            }
+            SyncSettingItem(
+                title = "Detaillierte Sync-Indikatoren",
+                description = "Zeigt kleine Statuspunkte an ungespeicherten Zellen und neuen Spielern, bis sie synchronisiert sind.",
+                checked = showDetailedSync,
+                onToggle = { viewModel.setShowDetailedSyncIndicators(it) }
+            )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        viewModel.setUseShortPlayerNames(!useShortPlayerNames)
-                    }
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Kurznamen in Tabellen & Rangliste",
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Spart Platz auf kleinen Displays (z. B. 'Peter M.' statt 'Peter Müller').",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = useShortPlayerNames,
-                    onCheckedChange = { checked ->
-                        viewModel.setUseShortPlayerNames(checked)
-                    },
-                    modifier = Modifier.padding(start = 16.dp)
-                )
-            }
+            SyncSettingItem(
+                title = "Kurznamen in Tabellen & Rangliste",
+                description = "Spart Platz auf kleinen Displays (z. B. 'Peter M.' statt 'Peter Müller').",
+                checked = useShortPlayerNames,
+                onToggle = { viewModel.setUseShortPlayerNames(it) }
+            )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        viewModel.setAutoAdoptOpenTournament(!autoAdoptOpenTournament)
-                    }
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Offene Server-Turniere automatisch fortsetzen",
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Übernimmt ein offenes Turnier vom Server beim App-Start automatisch ohne Nachfrage.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = autoAdoptOpenTournament,
-                    onCheckedChange = { checked ->
-                        viewModel.setAutoAdoptOpenTournament(checked)
-                    },
-                    modifier = Modifier.padding(start = 16.dp)
-                )
-            }
+            SyncSettingItem(
+                title = "Offene Server-Turniere automatisch fortsetzen",
+                description = "Übernimmt ein offenes Turnier vom Server beim App-Start automatisch ohne Nachfrage.",
+                checked = autoAdoptOpenTournament,
+                onToggle = { viewModel.setAutoAdoptOpenTournament(it) }
+            )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-            Text(
-                text = "Modus-Vorabauswahl",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
+            ModePreselectionSection(
+                modePreselectionType = modePreselectionType,
+                fixedMode = fixedMode,
+                rotationModes = rotationModes,
+                availableModes = availableModes,
+                onTypeChanged = { viewModel.setModePreselectionType(it) },
+                onFixedModeChanged = { viewModel.setFixedMode(it) },
+                onToggleRotationMode = { viewModel.toggleRotationMode(it) }
             )
 
-            Text(
-                text = "Legt fest, welcher Spielmodus beim Erstellen eines neuen Turniers vorgeschlagen wird.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            PlayerSortingSection(
+                playerSortField = playerSortField,
+                playerSortOrder = playerSortOrder,
+                onSortFieldChanged = { viewModel.setPlayerSortField(it) },
+                onSortOrderChanged = { viewModel.setPlayerSortOrder(it) }
             )
+        }
+    }
+}
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ModePreselectionType.entries.forEach { type ->
-                    FilterChip(
-                        selected = modePreselectionType == type,
-                        onClick = { viewModel.setModePreselectionType(type) },
-                        label = { Text(type.displayName) }
-                    )
-                }
-            }
+@Composable
+private fun WelcomeBanner(isConfigured: Boolean) {
+    if (isConfigured) return
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Willkommen beim Monatsblitz!",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Bitte gib die Adresse deiner WordPress-Website und deinen API-Schlüssel ein – oder scanne einfach den Einrichtungs-QR-Code im WordPress-Admin. Alternativ kannst du die App auch dauerhaft im Offline-Modus nutzen.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
 
-            if (modePreselectionType == ModePreselectionType.FIXED) {
+@Composable
+private fun OfflineModeSection(
+    standaloneOfflineMode: Boolean,
+    isServerConfigured: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onContinue: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (standaloneOfflineMode) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Fester Standard-Modus:",
-                    style = MaterialTheme.typography.titleSmall
+                    text = "Dauerhafter Offline-Betrieb",
+                    style = MaterialTheme.typography.titleMedium
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    availableModes.forEach { mode ->
-                        FilterChip(
-                            selected = fixedMode.equals(mode.name, ignoreCase = true),
-                            onClick = { viewModel.setFixedMode(mode.name) },
-                            label = { Text(mode.displayName) }
-                        )
-                    }
-                }
-            } else if (modePreselectionType == ModePreselectionType.ROTATION) {
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Beteiligte Modi für die Rotation:",
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    text = "Turniere auf dem Server bestimmen den nächsten Modus in der Reihe.",
+                    text = "App komplett ohne WordPress-Server nutzen (z. B. für Kuscheltier- oder private Turniere).",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    availableModes.forEach { mode ->
-                        val index = rotationModes.indexOfFirst { it.equals(mode.name, ignoreCase = true) }
-                        val isSelected = index != -1
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { viewModel.toggleRotationMode(mode.name) }
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = isSelected,
-                                onCheckedChange = { viewModel.toggleRotationMode(mode.name) }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (isSelected) "${mode.displayName} (Nr. ${index + 1} in der Rotation)" else mode.displayName,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Switch(
+                checked = standaloneOfflineMode,
+                onCheckedChange = onToggle,
+                modifier = Modifier.testTag("standalone_offline_switch")
+            )
+        }
+    }
+
+    if (standaloneOfflineMode && !isServerConfigured) {
+        Button(
+            onClick = onContinue,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("continue_to_setup_button")
+        ) {
+            Text("Weiter zum Turniersetup")
+        }
+    }
+}
+
+@Composable
+private fun ServerConnectionHeader(onScanQr: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Server-Verbindung",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        FilledTonalButton(
+            onClick = onScanQr,
+            modifier = Modifier.testTag("scan_qr_button")
+        ) {
+            Icon(
+                Icons.Default.QrCodeScanner,
+                contentDescription = "QR-Code scannen",
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("QR-Code scannen")
+        }
+    }
+}
+
+@Composable
+private fun ServerUrlField(
+    serverUrl: String,
+    onValueChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = serverUrl,
+        onValueChange = onValueChange,
+        label = { Text("WordPress-Adresse") },
+        placeholder = { Text("https://sg-koenigslutter.de") },
+        supportingText = { Text("Website mit installiertem Monatsblitz-Plugin") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Uri,
+            imeAction = ImeAction.Next
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("server_url_input")
+    )
+}
+
+@Composable
+private fun ApiKeyField(
+    apiKey: String,
+    isVisible: Boolean,
+    onVisibilityToggle: () -> Unit,
+    onValueChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = apiKey,
+        onValueChange = onValueChange,
+        label = { Text("API-Schlüssel (X-MB-Key)") },
+        placeholder = { Text("Geheimer Schlüssel") },
+        supportingText = { Text("Im WordPress-Admin unter Einstellungen → Monatsblitz") },
+        singleLine = true,
+        visualTransformation = if (isVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            IconButton(onClick = onVisibilityToggle) {
+                Icon(
+                    imageVector = if (isVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = if (isVisible) "Schlüssel verbergen" else "Schlüssel anzeigen"
+                )
+            }
+        },
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Password,
+            imeAction = ImeAction.Done
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("api_key_input")
+    )
+}
+
+@Composable
+private fun ServerActionButtons(
+    isTesting: Boolean,
+    canSubmit: Boolean,
+    isConfigured: Boolean,
+    onTest: () -> Unit,
+    onSave: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        OutlinedButton(
+            onClick = onTest,
+            enabled = canSubmit,
+            modifier = Modifier
+                .weight(1f)
+                .testTag("test_connection_button")
+        ) {
+            if (isTesting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Prüfe...")
+            } else {
+                Text("Verbindung testen")
+            }
+        }
+
+        Button(
+            onClick = onSave,
+            enabled = canSubmit,
+            modifier = Modifier
+                .weight(1f)
+                .testTag("save_settings_button")
+        ) {
+            if (isTesting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text(if (!isConfigured) "Übernehmen & Los" else "Einstellungen übernehmen")
+        }
+    }
+}
+
+@Composable
+private fun ConnectionTestResultCard(result: ConnectionTestResult) {
+    when (result) {
+        is ConnectionTestResult.Success -> {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = "Erfolg",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Verbindung erfolgreich! ${result.playerCount} Spieler gefunden.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
             }
+        }
+        is ConnectionTestResult.Error -> {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Error,
+                        contentDescription = "Fehler",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = result.message,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+    }
+}
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
+@Composable
+private fun SyncSettingItem(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle(!checked) }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Sortierung der Spielerliste",
+                text = title,
                 style = MaterialTheme.typography.titleSmall
             )
-
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Sortieren nach",
+                text = description,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onToggle,
+            modifier = Modifier.padding(start = 16.dp)
+        )
+    }
+}
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = playerSortField == PlayerSortField.LAST_NAME,
-                    onClick = { viewModel.setPlayerSortField(PlayerSortField.LAST_NAME) },
-                    label = { Text("Nachname") }
-                )
-                FilterChip(
-                    selected = playerSortField == PlayerSortField.FIRST_NAME,
-                    onClick = { viewModel.setPlayerSortField(PlayerSortField.FIRST_NAME) },
-                    label = { Text("Vorname") }
-                )
-            }
+@Composable
+private fun ModePreselectionSection(
+    modePreselectionType: ModePreselectionType,
+    fixedMode: String,
+    rotationModes: List<String>,
+    availableModes: List<GameMode>,
+    onTypeChanged: (ModePreselectionType) -> Unit,
+    onFixedModeChanged: (String) -> Unit,
+    onToggleRotationMode: (String) -> Unit
+) {
+    Text(
+        text = "Modus-Vorabauswahl",
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary
+    )
 
-            Text(
-                text = "Reihenfolge",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+    Text(
+        text = "Legt fest, welcher Spielmodus beim Erstellen eines neuen Turniers vorgeschlagen wird.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        ModePreselectionType.entries.forEach { type ->
+            FilterChip(
+                selected = modePreselectionType == type,
+                onClick = { onTypeChanged(type) },
+                label = { Text(type.displayName) }
             )
+        }
+    }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+    if (modePreselectionType == ModePreselectionType.FIXED) {
+        Text(
+            text = "Fester Standard-Modus:",
+            style = MaterialTheme.typography.titleSmall
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            availableModes.forEach { mode ->
                 FilterChip(
-                    selected = playerSortOrder == PlayerSortOrder.ASCENDING,
-                    onClick = { viewModel.setPlayerSortOrder(PlayerSortOrder.ASCENDING) },
-                    label = { Text("Aufsteigend (A–Z)") }
-                )
-                FilterChip(
-                    selected = playerSortOrder == PlayerSortOrder.DESCENDING,
-                    onClick = { viewModel.setPlayerSortOrder(PlayerSortOrder.DESCENDING) },
-                    label = { Text("Absteigend (Z–A)") }
+                    selected = fixedMode.equals(mode.name, ignoreCase = true),
+                    onClick = { onFixedModeChanged(mode.name) },
+                    label = { Text(mode.displayName) }
                 )
             }
         }
+    } else if (modePreselectionType == ModePreselectionType.ROTATION) {
+        Text(
+            text = "Beteiligte Modi für die Rotation:",
+            style = MaterialTheme.typography.titleSmall
+        )
+        Text(
+            text = "Turniere auf dem Server bestimmen den nächsten Modus in der Reihe.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            availableModes.forEach { mode ->
+                val index = rotationModes.indexOfFirst { it.equals(mode.name, ignoreCase = true) }
+                val isSelected = index != -1
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onToggleRotationMode(mode.name) }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onToggleRotationMode(mode.name) }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isSelected) "${mode.displayName} (Nr. ${index + 1} in der Rotation)" else mode.displayName,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerSortingSection(
+    playerSortField: PlayerSortField,
+    playerSortOrder: PlayerSortOrder,
+    onSortFieldChanged: (PlayerSortField) -> Unit,
+    onSortOrderChanged: (PlayerSortOrder) -> Unit
+) {
+    Text(
+        text = "Sortierung der Spielerliste",
+        style = MaterialTheme.typography.titleSmall
+    )
+
+    Text(
+        text = "Sortieren nach",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterChip(
+            selected = playerSortField == PlayerSortField.LAST_NAME,
+            onClick = { onSortFieldChanged(PlayerSortField.LAST_NAME) },
+            label = { Text("Nachname") }
+        )
+        FilterChip(
+            selected = playerSortField == PlayerSortField.FIRST_NAME,
+            onClick = { onSortFieldChanged(PlayerSortField.FIRST_NAME) },
+            label = { Text("Vorname") }
+        )
+    }
+
+    Text(
+        text = "Reihenfolge",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterChip(
+            selected = playerSortOrder == PlayerSortOrder.ASCENDING,
+            onClick = { onSortOrderChanged(PlayerSortOrder.ASCENDING) },
+            label = { Text("Aufsteigend (A–Z)") }
+        )
+        FilterChip(
+            selected = playerSortOrder == PlayerSortOrder.DESCENDING,
+            onClick = { onSortOrderChanged(PlayerSortOrder.DESCENDING) },
+            label = { Text("Absteigend (Z–A)") }
+        )
     }
 }

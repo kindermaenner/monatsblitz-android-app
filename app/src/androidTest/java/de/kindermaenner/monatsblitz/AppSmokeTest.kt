@@ -1,6 +1,7 @@
 package de.kindermaenner.monatsblitz
 
-import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -19,6 +20,12 @@ class AppSmokeTest {
 
     @Test
     fun app_launchesSuccessfullyAndRenders() {
-        composeTestRule.waitForIdle()
+        composeTestRule.waitUntil(timeoutMillis = 10_000) {
+            composeTestRule.onAllNodes(
+                hasText("Monatsblitz Einrichtung") or
+                hasText("Einstellungen") or
+                hasText("Neues Turnier")
+            ).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 }

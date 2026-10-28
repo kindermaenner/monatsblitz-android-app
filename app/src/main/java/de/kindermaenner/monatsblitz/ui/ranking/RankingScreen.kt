@@ -21,6 +21,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -77,9 +78,14 @@ fun RankingScreen(
                 is RankingUiState.Ready -> {
                     RankingTable(state.rows)
 
+                    val context = LocalContext.current
+                    val tournament = state.tournament
+                    val isLocalOnly = tournament?.isLocalOnly == true
+
                     FinalizeConfirmDialog(
                         show = showFinalizeConfirmDialog,
                         openGamesCount = state.openGamesCount,
+                        isLocalOnly = isLocalOnly,
                         onConfirm = {
                             showFinalizeConfirmDialog = false
                             viewModel.finalizeTournament()
@@ -94,6 +100,16 @@ fun RankingScreen(
 
                     FinalizeSuccessDialog(
                         show = state.isFinalized,
+                        isLocalOnly = isLocalOnly,
+                        onExportPdf = if (tournament != null) {
+                            {
+                                TournamentPdfGenerator.generateAndSharePdf(
+                                    context = context,
+                                    tournament = tournament,
+                                    rankingRows = state.rows
+                                )
+                            }
+                        } else null,
                         onConfirm = onFinalized
                     )
                 }
@@ -179,13 +195,14 @@ private fun RankingTopBar(
 private fun FinalizeConfirmDialog(
     show: Boolean,
     openGamesCount: Int,
+    isLocalOnly: Boolean = false,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
     if (!show) return
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Turnier abschließen?") },
+        title = { Text(if (isLocalOnly) "Offline-Turnier abschließen?" else "Turnier abschließen?") },
         text = {
             Column {
                 if (openGamesCount > 0) {
@@ -197,7 +214,11 @@ private fun FinalizeConfirmDialog(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
-                Text("Die Ergebnisse werden an das WordPress-Backend gesendet und auf der Website veröffentlicht. Danach sind keine Änderungen mehr möglich.")
+                if (isLocalOnly) {
+                    Text("Das Offline-Turnier wird abgeschlossen. Es findet keine Übertragung an die Website statt. Danach sind keine Änderungen mehr möglich.")
+                } else {
+                    Text("Die Ergebnisse werden an das WordPress-Backend gesendet und auf der Website veröffentlicht. Danach sind keine Änderungen mehr möglich.")
+                }
             }
         },
         confirmButton = {
@@ -234,17 +255,46 @@ private fun FinalizeErrorDialog(
 @Composable
 private fun FinalizeSuccessDialog(
     show: Boolean,
+    isLocalOnly: Boolean = false,
+    onExportPdf: (() -> Unit)? = null,
     onConfirm: () -> Unit
 ) {
     if (!show) return
     AlertDialog(
         onDismissRequest = onConfirm,
-        title = { Text("Turnier abgeschlossen") },
-        text = { Text("Das Turnier wurde erfolgreich finalisiert und auf der Vereins-Website veröffentlicht.") },
+        title = { Text(if (isLocalOnly) "Offline-Turnier abgeschlossen" else "Turnier abgeschlossen") },
+        text = {
+            Text(
+                if (isLocalOnly) {
+                    "Das Offline-Turnier wurde erfolgreich abgeschlossen. Es wurden keine Daten an die Website übertragen. Du kannst die Ergebnisse jetzt als PDF speichern oder teilen."
+                } else {
+                    "Das Turnier wurde erfolgreich finalisiert und auf der Vereins-Website veröffentlicht."
+                }
+            )
+        },
         confirmButton = {
-            Button(onClick = onConfirm) {
+            Button(
+                onClick = onConfirm,
+                modifier = Modifier.testTag("finalize_done_button")
+            ) {
                 Text("Zum Hauptmenü")
             }
-        }
+        },
+        dismissButton = if (onExportPdf != null) {
+            {
+                OutlinedButton(
+                    onClick = onExportPdf,
+                    modifier = Modifier.testTag("finalize_export_pdf_button")
+                ) {
+                    Icon(
+                        Icons.Default.Share,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("PDF speichern / teilen")
+                }
+            }
+        } else null
     )
 }

@@ -133,90 +133,115 @@ fun SettingsScreen(
         ) {
             WelcomeBanner(isConfigured = isConfigured)
 
-            OfflineModeSection(
-                standaloneOfflineMode = standaloneOfflineMode,
-                isServerConfigured = isServerConfigured,
-                onToggle = { viewModel.setStandaloneOfflineMode(it) },
-                onContinue = onBack
-            )
-
-            ServerConnectionHeader(
-                onScanQr = {
-                    barcodeScanner.startScan()
-                        .addOnSuccessListener { barcode ->
-                            val raw = barcode.rawValue
-                            val config = raw?.let { QrSetupParser.parse(it) }
-                            if (config != null) {
-                                viewModel.applyQrConfig(config)
-                            } else {
-                                viewModel.onQrScanError("Der gescannte QR-Code enthält keine gültigen Monatsblitz-Daten.")
-                            }
-                        }
-                        .addOnFailureListener {
-                            // Scan abgebrochen oder Fehler
-                        }
-                }
-            )
-
-            ServerUrlField(
-                serverUrl = serverUrl,
-                onValueChange = { viewModel.onServerUrlChanged(it) }
-            )
-
-            ApiKeyField(
-                apiKey = apiKey,
-                isVisible = isPasswordVisible,
-                onVisibilityToggle = { isPasswordVisible = !isPasswordVisible },
-                onValueChange = { viewModel.onApiKeyChanged(it) }
-            )
-
-            ServerActionButtons(
-                isTesting = isTesting,
-                canSubmit = !isTesting && serverUrl.isNotBlank() && apiKey.isNotBlank(),
-                isConfigured = isConfigured,
-                onTest = { viewModel.testConnection() },
-                onSave = {
-                    viewModel.saveSettings {
-                        if (!isConfigured) {
-                            onBack()
-                        }
-                    }
-                }
-            )
-
-            testResult?.let { result ->
-                ConnectionTestResultCard(result = result)
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
+            // Sektion 1: Betriebsmodus
             Text(
-                text = "Turnier-Optionen",
+                text = "Betriebsmodus",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
 
-            SyncSettingItem(
-                title = "Detaillierte Sync-Indikatoren",
-                description = "Zeigt kleine Statuspunkte an ungespeicherten Zellen und neuen Spielern, bis sie synchronisiert sind.",
-                checked = showDetailedSync,
-                onToggle = { viewModel.setShowDetailedSyncIndicators(it) }
+            OfflineModeSection(
+                standaloneOfflineMode = standaloneOfflineMode,
+                onToggle = { viewModel.setStandaloneOfflineMode(it) }
             )
 
-            SyncSettingItem(
+            // Sektion 2: WordPress & Synchronisation (ausgeblendet bei reinem Offline-Betrieb)
+            if (!standaloneOfflineMode) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                ServerConnectionHeader(
+                    onScanQr = {
+                        barcodeScanner.startScan()
+                            .addOnSuccessListener { barcode ->
+                                val raw = barcode.rawValue
+                                val config = raw?.let { QrSetupParser.parse(it) }
+                                if (config != null) {
+                                    viewModel.applyQrConfig(config)
+                                } else {
+                                    viewModel.onQrScanError("Der gescannte QR-Code enthält keine gültigen Monatsblitz-Daten.")
+                                }
+                            }
+                            .addOnFailureListener {
+                                // Scan abgebrochen oder Fehler
+                            }
+                    }
+                )
+
+                ServerUrlField(
+                    serverUrl = serverUrl,
+                    onValueChange = { viewModel.onServerUrlChanged(it) }
+                )
+
+                ApiKeyField(
+                    apiKey = apiKey,
+                    isVisible = isPasswordVisible,
+                    onVisibilityToggle = { isPasswordVisible = !isPasswordVisible },
+                    onValueChange = { viewModel.onApiKeyChanged(it) }
+                )
+
+                ServerActionButtons(
+                    isTesting = isTesting,
+                    canSubmit = !isTesting && serverUrl.isNotBlank() && apiKey.isNotBlank(),
+                    isConfigured = isConfigured,
+                    onTest = { viewModel.testConnection() },
+                    onSave = {
+                        viewModel.saveSettings {
+                            if (!isConfigured) {
+                                onBack()
+                            }
+                        }
+                    }
+                )
+
+                testResult?.let { result ->
+                    ConnectionTestResultCard(result = result)
+                }
+
+                Text(
+                    text = "Synchronisation",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                SettingToggleItem(
+                    title = "Offene Server-Turniere automatisch fortsetzen",
+                    description = "Übernimmt ein offenes Turnier vom Server beim App-Start automatisch ohne Nachfrage.",
+                    checked = autoAdoptOpenTournament,
+                    onToggle = { viewModel.setAutoAdoptOpenTournament(it) }
+                )
+
+                SettingToggleItem(
+                    title = "Detaillierte Sync-Indikatoren",
+                    description = "Zeigt kleine Statuspunkte an ungespeicherten Zellen und neuen Spielern, bis sie synchronisiert sind.",
+                    checked = showDetailedSync,
+                    onToggle = { viewModel.setShowDetailedSyncIndicators(it) }
+                )
+            }
+
+            // Sektion 3: Darstellung (immer sichtbar)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            Text(
+                text = "Darstellung",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            SettingToggleItem(
                 title = "Kurznamen in Tabellen & Rangliste",
                 description = "Spart Platz auf kleinen Displays (z. B. 'Peter M.' statt 'Peter Müller').",
                 checked = useShortPlayerNames,
                 onToggle = { viewModel.setUseShortPlayerNames(it) }
             )
 
-            SyncSettingItem(
-                title = "Offene Server-Turniere automatisch fortsetzen",
-                description = "Übernimmt ein offenes Turnier vom Server beim App-Start automatisch ohne Nachfrage.",
-                checked = autoAdoptOpenTournament,
-                onToggle = { viewModel.setAutoAdoptOpenTournament(it) }
+            PlayerSortingSection(
+                playerSortField = playerSortField,
+                playerSortOrder = playerSortOrder,
+                onSortFieldChanged = { viewModel.setPlayerSortField(it) },
+                onSortOrderChanged = { viewModel.setPlayerSortOrder(it) }
             )
 
+            // Sektion 4: Turnier-Vorauswahl (immer sichtbar)
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
             ModePreselectionSection(
@@ -229,14 +254,18 @@ fun SettingsScreen(
                 onToggleRotationMode = { viewModel.toggleRotationMode(it) }
             )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-            PlayerSortingSection(
-                playerSortField = playerSortField,
-                playerSortOrder = playerSortOrder,
-                onSortFieldChanged = { viewModel.setPlayerSortField(it) },
-                onSortOrderChanged = { viewModel.setPlayerSortOrder(it) }
-            )
+            // Abschluss-Button für Offline-Onboarding ganz unten
+            if (standaloneOfflineMode && !isServerConfigured) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("continue_to_setup_button")
+                ) {
+                    Text("Weiter zum Turniersetup")
+                }
+            }
         }
     }
 }
@@ -268,9 +297,7 @@ private fun WelcomeBanner(isConfigured: Boolean) {
 @Composable
 private fun OfflineModeSection(
     standaloneOfflineMode: Boolean,
-    isServerConfigured: Boolean,
-    onToggle: (Boolean) -> Unit,
-    onContinue: () -> Unit
+    onToggle: (Boolean) -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -292,7 +319,7 @@ private fun OfflineModeSection(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "App komplett ohne WordPress-Server nutzen (z. B. für Kuscheltier- oder private Turniere).",
+                    text = "App komplett ohne WordPress-Server nutzen (z. B. für Vereinsfeste, Jugend- oder private Turniere).",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -305,17 +332,6 @@ private fun OfflineModeSection(
             )
         }
     }
-
-    if (standaloneOfflineMode && !isServerConfigured) {
-        Button(
-            onClick = onContinue,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("continue_to_setup_button")
-        ) {
-            Text("Weiter zum Turniersetup")
-        }
-    }
 }
 
 @Composable
@@ -326,7 +342,7 @@ private fun ServerConnectionHeader(onScanQr: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Server-Verbindung",
+            text = "WordPress & Synchronisation",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary
         )
@@ -509,7 +525,7 @@ private fun ConnectionTestResultCard(result: ConnectionTestResult) {
 }
 
 @Composable
-private fun SyncSettingItem(
+private fun SettingToggleItem(
     title: String,
     description: String,
     checked: Boolean,
@@ -553,13 +569,13 @@ private fun ModePreselectionSection(
     onToggleRotationMode: (String) -> Unit
 ) {
     Text(
-        text = "Modus-Vorabauswahl",
+        text = "Turnier-Vorauswahl",
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.primary
     )
 
     Text(
-        text = "Legt fest, welcher Spielmodus beim Erstellen eines neuen Turniers vorgeschlagen wird.",
+        text = "Legt fest, welcher Spielmodus beim Erstellen eines neuen Turniers vorgeschlagen wird. Wird beim QR-Code-Scan automatisch von der Vereinswebsite übernommen.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )

@@ -200,4 +200,66 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithTag("scan_qr_button").assertExists()
         composeTestRule.onNodeWithText("QR-Code scannen").assertExists()
     }
+
+    @Test
+    fun settingsScreen_offlineMode_hidesServerSettingsAndShowsContinueButton() {
+        offlineFlow.value = true
+        serverUrlFlow.value = ""
+        apiKeyFlow.value = ""
+
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        var continueClicked = false
+
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onBack = { continueClicked = true }
+            )
+        }
+
+        // Section 1: Betriebsmodus exists
+        composeTestRule.onNodeWithText("Betriebsmodus").assertExists()
+        composeTestRule.onNodeWithTag("standalone_offline_switch").assertExists()
+
+        // Section 2: Server & Sync are hidden
+        composeTestRule.onNodeWithTag("server_url_input").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("api_key_input").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("scan_qr_button").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Offene Server-Turniere automatisch fortsetzen").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Detaillierte Sync-Indikatoren").assertDoesNotExist()
+
+        // Section 3: Darstellung and Section 4: Turnier-Vorauswahl remain visible
+        composeTestRule.onNodeWithText("Darstellung").performScrollTo().assertExists()
+        composeTestRule.onNodeWithText("Turnier-Vorauswahl").performScrollTo().assertExists()
+
+        // Bottom continue button exists and works
+        composeTestRule.onNodeWithTag("continue_to_setup_button")
+            .performScrollTo()
+            .assertExists()
+            .performClick()
+
+        assertTrue("Continue button should trigger onBack", continueClicked)
+    }
+
+    @Test
+    fun settingsScreen_onlineMode_showsServerSettingsAndHidesContinueButton() {
+        offlineFlow.value = false
+        serverUrlFlow.value = "https://sg-koenigslutter.de"
+        apiKeyFlow.value = "valid-key"
+
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onBack = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("WordPress & Synchronisation").assertExists()
+        composeTestRule.onNodeWithTag("server_url_input").assertExists()
+        composeTestRule.onNodeWithTag("api_key_input").assertExists()
+        composeTestRule.onNodeWithTag("scan_qr_button").assertExists()
+        composeTestRule.onNodeWithTag("continue_to_setup_button").assertDoesNotExist()
+    }
 }

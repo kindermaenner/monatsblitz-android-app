@@ -85,25 +85,44 @@ object TournamentPdfGenerator {
         val rankColW = 35f
         val pointsColW = 55f
         val nameColW = 200f
+        val totalTableW = rankColW + nameColW + pointsColW
         val rankRowH = 16f
+        val tableTop = currentY
+
+        // Header top border
+        canvas.drawLine(MARGIN, tableTop, MARGIN + totalTableW, tableTop, paints.linePaint)
 
         // Header row
-        canvas.drawRect(MARGIN, currentY, MARGIN + rankColW + nameColW + pointsColW, currentY + rankRowH, paints.headerBgPaint)
+        canvas.drawRect(MARGIN, currentY, MARGIN + totalTableW, currentY + rankRowH, paints.headerBgPaint)
         canvas.drawText("Pl.", MARGIN + 6f, currentY + 11f, paints.textBoldPaint)
         canvas.drawText("Spieler", MARGIN + rankColW + 6f, currentY + 11f, paints.textBoldPaint)
         canvas.drawText("Punkte", MARGIN + rankColW + nameColW + 6f, currentY + 11f, paints.textBoldPaint)
+        canvas.drawLine(MARGIN, currentY + rankRowH, MARGIN + totalTableW, currentY + rankRowH, paints.linePaint)
         currentY += rankRowH
 
         rankingRows.forEachIndexed { index, row ->
             if (index % 2 == 1) {
-                canvas.drawRect(MARGIN, currentY, MARGIN + rankColW + nameColW + pointsColW, currentY + rankRowH, paints.altRowPaint)
+                canvas.drawRect(MARGIN, currentY, MARGIN + totalTableW, currentY + rankRowH, paints.altRowPaint)
             }
             canvas.drawText("${row.rank}.", MARGIN + 6f, currentY + 11f, paints.textPaint)
             canvas.drawText(row.name, MARGIN + rankColW + 6f, currentY + 11f, paints.textPaint)
             val pointsStr = if (row.points % 1.0 == 0.0) "${row.points.toInt()}" else "${row.points}"
             canvas.drawText(pointsStr, MARGIN + rankColW + nameColW + 6f, currentY + 11f, paints.textBoldPaint)
-            canvas.drawLine(MARGIN, currentY + rankRowH, MARGIN + rankColW + nameColW + pointsColW, currentY + rankRowH, paints.linePaint)
+            canvas.drawLine(MARGIN, currentY + rankRowH, MARGIN + totalTableW, currentY + rankRowH, paints.linePaint)
             currentY += rankRowH
+        }
+
+        val tableBottom = currentY
+
+        // Vertikale Trennlinien zwischen den Spalten
+        val xPositions = listOf(
+            MARGIN,
+            MARGIN + rankColW,
+            MARGIN + rankColW + nameColW,
+            MARGIN + totalTableW
+        )
+        for (x in xPositions) {
+            canvas.drawLine(x, tableTop, x, tableBottom, paints.linePaint)
         }
 
         return currentY + 18f
@@ -130,14 +149,20 @@ object TournamentPdfGenerator {
         val cellW = (availableW / numPlayers).coerceIn(16f, 32f)
         val totalCtW = ctNameColW + (cellW * numPlayers) + ctPtsColW
         val ctRowH = 15f
+        val tableTop = currentY
+
+        // Header top border
+        canvas.drawLine(MARGIN, tableTop, MARGIN + totalCtW, tableTop, paints.linePaint)
 
         // CT Header
         canvas.drawRect(MARGIN, currentY, MARGIN + totalCtW, currentY + ctRowH, paints.headerBgPaint)
         canvas.drawText("Spieler", MARGIN + 4f, currentY + 11f, paints.textBoldPaint)
         for (i in 1..numPlayers) {
-            canvas.drawText("$i", MARGIN + ctNameColW + (i - 1) * cellW + 4f, currentY + 11f, paints.textBoldPaint)
+            val cellCenterX = MARGIN + ctNameColW + (i - 0.5f) * cellW
+            canvas.drawText("$i", cellCenterX, currentY + 11f, paints.cellTextBoldPaint)
         }
-        canvas.drawText("Pkt.", MARGIN + ctNameColW + numPlayers * cellW + 4f, currentY + 11f, paints.textBoldPaint)
+        canvas.drawText("Pkt.", MARGIN + ctNameColW + numPlayers * cellW + 6f, currentY + 11f, paints.textBoldPaint)
+        canvas.drawLine(MARGIN, currentY + ctRowH, MARGIN + totalCtW, currentY + ctRowH, paints.linePaint)
         currentY += ctRowH
 
         crosstableRows.forEachIndexed { index, row ->
@@ -149,14 +174,26 @@ object TournamentPdfGenerator {
             canvas.drawText(clippedName, MARGIN + 4f, currentY + 11f, paints.textPaint)
 
             row.results.forEachIndexed { colIndex, res ->
-                canvas.drawText(res, MARGIN + ctNameColW + colIndex * cellW + 4f, currentY + 11f, paints.textPaint)
+                val cellCenterX = MARGIN + ctNameColW + (colIndex + 0.5f) * cellW
+                canvas.drawText(res, cellCenterX, currentY + 11f, paints.cellTextPaint)
             }
 
             val ptsStr = if (row.totalPoints % 1.0 == 0.0) "${row.totalPoints.toInt()}" else "${row.totalPoints}"
-            canvas.drawText(ptsStr, MARGIN + ctNameColW + numPlayers * cellW + 4f, currentY + 11f, paints.textBoldPaint)
+            canvas.drawText(ptsStr, MARGIN + ctNameColW + numPlayers * cellW + 6f, currentY + 11f, paints.textBoldPaint)
             canvas.drawLine(MARGIN, currentY + ctRowH, MARGIN + totalCtW, currentY + ctRowH, paints.linePaint)
             currentY += ctRowH
         }
+
+        val tableBottom = currentY
+
+        // Vertikale Trennlinien zwischen den Spalten
+        canvas.drawLine(MARGIN, tableTop, MARGIN, tableBottom, paints.linePaint)
+        canvas.drawLine(MARGIN + ctNameColW, tableTop, MARGIN + ctNameColW, tableBottom, paints.linePaint)
+        for (i in 1..numPlayers) {
+            val x = MARGIN + ctNameColW + i * cellW
+            canvas.drawLine(x, tableTop, x, tableBottom, paints.linePaint)
+        }
+        canvas.drawLine(MARGIN + totalCtW, tableTop, MARGIN + totalCtW, tableBottom, paints.linePaint)
 
         return currentY
     }
@@ -207,6 +244,20 @@ object TournamentPdfGenerator {
             color = Color.BLACK
             textSize = 9f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        val cellTextPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 9f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        val cellTextBoldPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 9f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
             isAntiAlias = true
         }
         val linePaint = Paint().apply {

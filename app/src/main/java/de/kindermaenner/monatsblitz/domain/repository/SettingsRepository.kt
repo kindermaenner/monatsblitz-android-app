@@ -19,6 +19,8 @@ interface SettingsRepository {
     val rotationModes: Flow<List<String>>
 
     val standaloneOfflineMode: Flow<Boolean>
+    val isServerConfigured: Flow<Boolean>
+    val isConfigured: Flow<Boolean>
 
     suspend fun setShowDetailedSyncIndicators(enabled: Boolean)
     suspend fun setServerUrl(url: String)

@@ -45,6 +45,9 @@ class TournamentSetupViewModelTest {
     @org.junit.Before
     fun setUp() {
         coEvery { settingsRepository.isServerConfigured() } returns true
+        coEvery { settingsRepository.isServerConfigured } returns flowOf(true)
+        coEvery { settingsRepository.isConfigured() } returns true
+        coEvery { settingsRepository.isConfigured } returns flowOf(true)
         coEvery { settingsRepository.standaloneOfflineMode } returns flowOf(false)
         coEvery { settingsRepository.showDetailedSyncIndicators } returns flowOf(true)
         coEvery { settingsRepository.playerSortField } returns flowOf(PlayerSortField.LAST_NAME)
@@ -533,6 +536,39 @@ class TournamentSetupViewModelTest {
 
         assertTrue(viewModel.uiState.value.isStandaloneOffline)
         assertTrue(viewModel.uiState.value.isLocalOnly)
+    }
+
+    @Test
+    fun `when settings change from offline to server configured, viewModel dynamically updates server state`() = runTest {
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        val offlineFlow = kotlinx.coroutines.flow.MutableStateFlow(true)
+        val serverConfiguredFlow = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+        coEvery { settingsRepository.standaloneOfflineMode } returns offlineFlow
+        coEvery { settingsRepository.isServerConfigured } returns serverConfiguredFlow
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            settingsRepository = settingsRepository
+        )
+        advanceUntilIdle()
+
+        // Initially in offline mode
+        assertTrue(viewModel.uiState.value.isStandaloneOffline)
+        assertFalse(viewModel.uiState.value.isServerConfigured)
+        assertTrue(viewModel.uiState.value.isLocalOnly)
+
+        // User connects to server in settings
+        serverConfiguredFlow.value = true
+        offlineFlow.value = false
+        advanceUntilIdle()
+
+        // Automatically updated
+        assertFalse(viewModel.uiState.value.isStandaloneOffline)
+        assertTrue(viewModel.uiState.value.isServerConfigured)
+        assertFalse(viewModel.uiState.value.isLocalOnly)
     }
 
     @Test

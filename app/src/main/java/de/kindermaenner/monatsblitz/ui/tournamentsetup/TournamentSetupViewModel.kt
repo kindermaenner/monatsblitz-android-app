@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -83,14 +84,29 @@ class TournamentSetupViewModel(
 
         if (settingsRepository != null) {
             viewModelScope.launch {
-                val isServer = runCatching { settingsRepository.isServerConfigured() }.getOrDefault(true)
-                val isOffline = runCatching { settingsRepository.standaloneOfflineMode.first() }.getOrDefault(false)
-                _uiState.update {
-                    it.copy(
-                        isServerConfigured = isServer,
-                        isStandaloneOffline = isOffline,
-                        isLocalOnly = !isServer || isOffline
-                    )
+                combine(
+                    settingsRepository.isServerConfigured,
+                    settingsRepository.standaloneOfflineMode
+                ) { serverConfigured, offline ->
+                    val effectiveServerActive = serverConfigured && !offline
+                    Triple(serverConfigured, offline, effectiveServerActive)
+                }.collect { (serverConfigured, offline, effectiveServerActive) ->
+                    _uiState.update { state ->
+                        val wasOfflineOrUnconfigured = !state.isServerConfigured || state.isStandaloneOffline
+                        val nowServerActive = effectiveServerActive
+                        val newLocalOnly = if (wasOfflineOrUnconfigured && nowServerActive) {
+                            false
+                        } else if (!nowServerActive) {
+                            true
+                        } else {
+                            state.isLocalOnly
+                        }
+                        state.copy(
+                            isServerConfigured = effectiveServerActive,
+                            isStandaloneOffline = offline,
+                            isLocalOnly = newLocalOnly
+                        )
+                    }
                 }
             }
             viewModelScope.launch {

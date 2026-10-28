@@ -10,6 +10,7 @@ import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
@@ -159,20 +160,20 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
         }
     }
 
+    override val isServerConfigured: Flow<Boolean> = combine(serverUrl, apiKey) { url, key ->
+        url.isNotBlank() && key.isNotBlank()
+    }
+
+    override val isConfigured: Flow<Boolean> = combine(isServerConfigured, standaloneOfflineMode) { serverConfigured, offline ->
+        serverConfigured || offline
+    }
+
     override suspend fun isConfigured(): Boolean {
-        val prefs = dataStore.data.first()
-        val url = runCatching { prefs[serverUrlKey]?.trim().orEmpty() }.getOrDefault("")
-        val key = runCatching { prefs[apiKeyKey]?.trim().orEmpty() }.getOrDefault("")
-        if (url.isNotEmpty() && key.isNotEmpty()) return true
-        val offline = runCatching { prefs[standaloneOfflineModeKey] }.getOrNull() ?: false
-        return offline
+        return isConfigured.first()
     }
 
     override suspend fun isServerConfigured(): Boolean {
-        val prefs = dataStore.data.first()
-        val url = runCatching { prefs[serverUrlKey]?.trim().orEmpty() }.getOrDefault("")
-        val key = runCatching { prefs[apiKeyKey]?.trim().orEmpty() }.getOrDefault("")
-        return url.isNotEmpty() && key.isNotEmpty()
+        return isServerConfigured.first()
     }
 
     fun getServerUrlSync(): String {

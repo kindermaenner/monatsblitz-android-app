@@ -22,6 +22,7 @@ class AppSettingsStorageTest {
     private val syncKey = booleanPreferencesKey("show_detailed_sync_indicators")
     private val serverUrlKey = stringPreferencesKey("server_url")
     private val apiKeyKey = stringPreferencesKey("api_key")
+    private val standaloneOfflineModeKey = booleanPreferencesKey("standalone_offline_mode")
 
     @Test
     fun `showDetailedSyncIndicators returns default true when key not set`() = runTest {
@@ -124,6 +125,7 @@ class AppSettingsStorageTest {
         val prefs1 = mockk<Preferences>()
         every { prefs1[serverUrlKey] } returns ""
         every { prefs1[apiKeyKey] } returns "key"
+        every { prefs1[standaloneOfflineModeKey] } returns false
         every { dataStore.data } returns flowOf(prefs1)
         val storage1 = AppSettingsStorage(dataStore)
         assertFalse(storage1.isConfigured())
@@ -131,6 +133,7 @@ class AppSettingsStorageTest {
         val prefs2 = mockk<Preferences>()
         every { prefs2[serverUrlKey] } returns "https://example.com"
         every { prefs2[apiKeyKey] } returns null
+        every { prefs2[standaloneOfflineModeKey] } returns false
         every { dataStore.data } returns flowOf(prefs2)
         val storage2 = AppSettingsStorage(dataStore)
         assertFalse(storage2.isConfigured())
@@ -141,9 +144,26 @@ class AppSettingsStorageTest {
         val prefs = mockk<Preferences>()
         every { prefs[serverUrlKey] } returns "https://example.com"
         every { prefs[apiKeyKey] } returns "valid-key"
+        every { prefs[standaloneOfflineModeKey] } returns false
         every { dataStore.data } returns flowOf(prefs)
         val storage = AppSettingsStorage(dataStore)
 
+        assertTrue(storage.isConfigured())
+        assertTrue(storage.isServerConfigured.first())
+        assertTrue(storage.isConfigured.first())
+    }
+
+    @Test
+    fun `isConfigured flow returns true when standaloneOfflineMode is true even without server`() = runTest {
+        val prefs = mockk<Preferences>()
+        every { prefs[serverUrlKey] } returns ""
+        every { prefs[apiKeyKey] } returns ""
+        every { prefs[standaloneOfflineModeKey] } returns true
+        every { dataStore.data } returns flowOf(prefs)
+        val storage = AppSettingsStorage(dataStore)
+
+        assertFalse(storage.isServerConfigured.first())
+        assertTrue(storage.isConfigured.first())
         assertTrue(storage.isConfigured())
     }
 }

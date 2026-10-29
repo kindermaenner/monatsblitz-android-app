@@ -220,6 +220,32 @@ fun TournamentSetupScreen(
         return
     }
 
+    val loadingMsg = state.loadingMessage
+    if (state.isLoading && loadingMsg != null) {
+        BackHandler(enabled = true) { /* Block back navigation during loading */ }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .pointerInput(Unit) {},
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                CircularProgressIndicator()
+                Text(
+                    text = loadingMsg,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        return
+    }
+
     val openTournament = state.remoteOpenTournament
     if (openTournament != null) {
         val roundsText = if (openTournament.roundCount == 2) "Doppelrunde" else "1 Runde"
@@ -368,41 +394,6 @@ fun TournamentSetupScreen(
                 ),
                 modifier = Modifier.weight(1f)
             )
-        }
-    }
-
-    if (state.isLoading) {
-        BackHandler(enabled = true) { /* Block back navigation during loading */ }
-        val message = state.loadingMessage ?: "Bitte warten…"
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
-                .pointerInput(Unit) {},
-            contentAlignment = Alignment.Center
-        ) {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.padding(32.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    CircularProgressIndicator()
-                    Text(
-                        text = message,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
         }
     }
 }

@@ -51,5 +51,6 @@ fun PlayerDto.toEntity() : PlayerEntity =
         remoteId = id,
         name = surname,
         vorname = forename,
-        dirty = false
+        dirty = false,
+        lastParticipated = lastParticipated
     )

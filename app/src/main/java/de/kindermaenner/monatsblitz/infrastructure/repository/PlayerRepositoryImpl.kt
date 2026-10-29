@@ -75,6 +75,7 @@ class PlayerRepositoryImpl(
                     existingByRemoteId.copy(
                         name = remotePlayer.name.trim(),
                         vorname = remotePlayer.vorname.trim(),
+                        lastParticipated = remotePlayer.lastParticipated,
                         dirty = false,
                         isLocal = false
                     )

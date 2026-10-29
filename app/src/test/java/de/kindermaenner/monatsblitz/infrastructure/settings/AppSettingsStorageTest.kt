@@ -3,6 +3,7 @@ package de.kindermaenner.monatsblitz.infrastructure.settings
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import io.mockk.coEvery
@@ -23,6 +24,7 @@ class AppSettingsStorageTest {
     private val serverUrlKey = stringPreferencesKey("server_url")
     private val apiKeyKey = stringPreferencesKey("api_key")
     private val standaloneOfflineModeKey = booleanPreferencesKey("standalone_offline_mode")
+    private val activePlayersCutoffMonthsKey = intPreferencesKey("active_players_cutoff_months")
 
     @Test
     fun `showDetailedSyncIndicators returns default true when key not set`() = runTest {
@@ -165,5 +167,33 @@ class AppSettingsStorageTest {
         assertFalse(storage.isServerConfigured.first())
         assertTrue(storage.isConfigured.first())
         assertTrue(storage.isConfigured())
+    }
+
+    @Test
+    fun `activePlayersCutoffMonths returns default 12 when not set`() = runTest {
+        val prefs = mockk<Preferences>()
+        every { prefs[activePlayersCutoffMonthsKey] } returns null
+        every { dataStore.data } returns flowOf(prefs)
+        val storage = AppSettingsStorage(dataStore)
+
+        assertEquals(12, storage.activePlayersCutoffMonths.first())
+    }
+
+    @Test
+    fun `setActivePlayersCutoffMonths edits preferences`() = runTest {
+        val initialPrefs = mutablePreferencesOf()
+        var updatedPrefs: Preferences? = null
+        every { dataStore.data } returns flowOf(mockk())
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
+        val storage = AppSettingsStorage(dataStore)
+
+        storage.setActivePlayersCutoffMonths(6)
+
+        assertEquals(6, updatedPrefs?.get(activePlayersCutoffMonthsKey))
     }
 }

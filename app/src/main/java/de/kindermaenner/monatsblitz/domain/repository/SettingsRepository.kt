@@ -13,6 +13,7 @@ interface SettingsRepository {
     val playerSortOrder: Flow<PlayerSortOrder>
     val useShortPlayerNames: Flow<Boolean>
     val autoAdoptOpenTournament: Flow<Boolean>
+    val activePlayersCutoffMonths: Flow<Int>
 
     val modePreselectionType: Flow<ModePreselectionType>
     val fixedMode: Flow<String>
@@ -29,6 +30,7 @@ interface SettingsRepository {
     suspend fun setPlayerSortOrder(order: PlayerSortOrder)
     suspend fun setUseShortPlayerNames(enabled: Boolean)
     suspend fun setAutoAdoptOpenTournament(enabled: Boolean)
+    suspend fun setActivePlayersCutoffMonths(months: Int)
 
     suspend fun setModePreselectionType(type: ModePreselectionType)
     suspend fun setFixedMode(mode: String)

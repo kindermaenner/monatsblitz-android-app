@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
 import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.PlayerFilterMode
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.repository.ModeRepository
@@ -132,6 +133,11 @@ class TournamentSetupViewModel(
                             players = sortPlayers(state.players, state.sortField, order)
                         )
                     }
+                }
+            }
+            viewModelScope.launch {
+                settingsRepository.activePlayersCutoffMonths.collect { months ->
+                    _uiState.update { it.copy(activeCutoffMonths = months) }
                 }
             }
         }
@@ -282,8 +288,23 @@ class TournamentSetupViewModel(
         _uiState.update { it.copy(searchQuery = query) }
     }
 
+    fun setPlayerFilterMode(mode: PlayerFilterMode) {
+        _uiState.update { state ->
+            state.copy(
+                playerFilterMode = mode,
+                showOnlySelected = (mode == PlayerFilterMode.SELECTED)
+            )
+        }
+    }
+
     fun onShowOnlySelectedChanged(showOnly: Boolean) {
-        _uiState.update { it.copy(showOnlySelected = showOnly) }
+        _uiState.update { state ->
+            val mode = if (showOnly) PlayerFilterMode.SELECTED else PlayerFilterMode.ACTIVE
+            state.copy(
+                playerFilterMode = mode,
+                showOnlySelected = showOnly
+            )
+        }
     }
 
     fun clearSelectedPlayers() {

@@ -104,6 +104,7 @@ fun SettingsScreen(
     val fixedMode by viewModel.fixedMode.collectAsStateWithLifecycle()
     val rotationModes by viewModel.rotationModes.collectAsStateWithLifecycle()
     val availableModes by viewModel.availableModes.collectAsStateWithLifecycle()
+    val activePlayersCutoffMonths by viewModel.activePlayersCutoffMonths.collectAsStateWithLifecycle()
 
     var isPasswordVisible by remember { mutableStateOf(false) }
     var showExitWithoutConfigDialog by remember { mutableStateOf(false) }
@@ -454,6 +455,13 @@ fun SettingsScreen(
                         playerSortOrder = playerSortOrder,
                         onSortFieldChanged = { viewModel.setPlayerSortField(it) },
                         onSortOrderChanged = { viewModel.setPlayerSortOrder(it) }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    ActivePlayersCutoffSection(
+                        selectedMonths = activePlayersCutoffMonths,
+                        onMonthsSelected = { viewModel.setActivePlayersCutoffMonths(it) }
                     )
                 }
             }
@@ -921,5 +929,44 @@ private fun PlayerSortingSection(
             },
             modifier = Modifier.weight(1f)
         )
+    }
+}
+
+@Composable
+private fun ActivePlayersCutoffSection(
+    selectedMonths: Int,
+    onMonthsSelected: (Int) -> Unit
+) {
+    Text(
+        text = "Aktivitätszeitraum für Spieler",
+        style = MaterialTheme.typography.titleSmall
+    )
+
+    Text(
+        text = "Spieler mit einer Teilnahme innerhalb dieses Zeitraums gelten als aktiv.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        listOf(6 to "6 Monate", 12 to "12 Monate", 24 to "24 Monate").forEach { (months, label) ->
+            FilterChip(
+                selected = selectedMonths == months,
+                onClick = { onMonthsSelected(months) },
+                label = {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }

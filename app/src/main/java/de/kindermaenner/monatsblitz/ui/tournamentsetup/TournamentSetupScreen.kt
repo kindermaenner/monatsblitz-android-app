@@ -85,6 +85,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.PlayerFilterMode
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.ui.tournamentsetup.components.GameModeDropdownSelector
@@ -286,6 +287,7 @@ fun TournamentSetupScreen(
                     onShowAddPlayerDialog = { viewModel.onShowAddPlayerDialog(true) },
                     onSearchQueryChanged = viewModel::onSearchQueryChanged,
                     onSearchFocused = { isSettingsExpanded = false },
+                    onFilterModeChanged = viewModel::setPlayerFilterMode,
                     onShowOnlySelectedChanged = viewModel::onShowOnlySelectedChanged,
                     onSelectSortOrder = viewModel::setSortOrder,
                     onClearSelectedPlayers = viewModel::clearSelectedPlayers,
@@ -808,6 +810,7 @@ data class TournamentPlayerListActions(
     val onShowAddPlayerDialog: () -> Unit,
     val onSearchQueryChanged: (String) -> Unit,
     val onSearchFocused: () -> Unit,
+    val onFilterModeChanged: (PlayerFilterMode) -> Unit,
     val onShowOnlySelectedChanged: (Boolean) -> Unit,
     val onSelectSortOrder: (PlayerSortOrder) -> Unit,
     val onClearSelectedPlayers: () -> Unit,
@@ -822,10 +825,21 @@ private fun TournamentPlayerList(
     listState: LazyListState = rememberLazyListState()
 ) {
     val query = state.searchQuery.trim()
-    val matchingPlayers = if (query.isEmpty()) {
-        state.players
-    } else {
+    val cutoffDate = remember(state.activeCutoffMonths) {
+        LocalDate.now().minusMonths(state.activeCutoffMonths.toLong())
+    }
+    val activeCount = remember(state.players, cutoffDate) {
+        state.players.count { it.isActive(cutoffDate) }
+    }
+
+    val matchingPlayers = if (query.isNotEmpty()) {
         state.players.filter { matchesPlayerSearch(it, query) }
+    } else {
+        when (state.playerFilterMode) {
+            PlayerFilterMode.ACTIVE -> state.players.filter { it.isActive(cutoffDate) }
+            PlayerFilterMode.SELECTED -> state.players.filter { it.id in state.selectedPlayerIds }
+            PlayerFilterMode.ALL -> state.players
+        }
     }
     val selectedMatching = matchingPlayers.filter { it.id in state.selectedPlayerIds }
 
@@ -846,11 +860,12 @@ private fun TournamentPlayerList(
         )
 
         TournamentPlayerFilterRow(
-            showOnlySelected = state.showOnlySelected,
+            filterMode = state.playerFilterMode,
+            activeCount = activeCount,
             totalCount = state.players.size,
             selectedCount = state.selectedPlayerIds.size,
             sortOrder = state.sortOrder,
-            onShowOnlySelectedChanged = actions.onShowOnlySelectedChanged,
+            onFilterModeChanged = actions.onFilterModeChanged,
             onSelectSortOrder = actions.onSelectSortOrder,
             onClearSelectedPlayers = actions.onClearSelectedPlayers
         )
@@ -939,11 +954,12 @@ private fun TournamentPlayerSearchBar(
 
 @Composable
 private fun TournamentPlayerFilterRow(
-    showOnlySelected: Boolean,
+    filterMode: PlayerFilterMode,
+    activeCount: Int,
     totalCount: Int,
     selectedCount: Int,
     sortOrder: PlayerSortOrder,
-    onShowOnlySelectedChanged: (Boolean) -> Unit,
+    onFilterModeChanged: (PlayerFilterMode) -> Unit,
     onSelectSortOrder: (PlayerSortOrder) -> Unit,
     onClearSelectedPlayers: () -> Unit
 ) {
@@ -955,14 +971,19 @@ private fun TournamentPlayerFilterRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         FilterChip(
-            selected = !showOnlySelected,
-            onClick = { onShowOnlySelectedChanged(false) },
-            label = { Text("Alle ($totalCount)") }
+            selected = filterMode == PlayerFilterMode.ACTIVE,
+            onClick = { onFilterModeChanged(PlayerFilterMode.ACTIVE) },
+            label = { Text("Aktive ($activeCount)") }
         )
 
         FilterChip(
-            selected = showOnlySelected,
-            onClick = { onShowOnlySelectedChanged(true) },
+            selected = filterMode == PlayerFilterMode.SELECTED,
+            onClick = {
+                onFilterModeChanged(
+                    if (filterMode == PlayerFilterMode.SELECTED) PlayerFilterMode.ACTIVE
+                    else PlayerFilterMode.SELECTED
+                )
+            },
             label = { Text("Ausgewählt ($selectedCount)") }
         )
 
@@ -982,6 +1003,19 @@ private fun TournamentPlayerFilterRow(
                 expanded = menuExpanded,
                 onDismissRequest = { menuExpanded = false }
             ) {
+                DropdownMenuItem(
+                    text = { Text("Alle Spieler anzeigen ($totalCount)") },
+                    leadingIcon = {
+                        if (filterMode == PlayerFilterMode.ALL) {
+                            Icon(Icons.Default.Check, contentDescription = null)
+                        }
+                    },
+                    onClick = {
+                        onFilterModeChanged(PlayerFilterMode.ALL)
+                        menuExpanded = false
+                    }
+                )
+                HorizontalDivider()
                 DropdownMenuItem(
                     text = { Text("Sortierung A➔Z") },
                     leadingIcon = {
@@ -1058,7 +1092,7 @@ private fun TournamentPlayerListContent(
                 .testTag("tournament_player_list"),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            if (state.showOnlySelected) {
+            if (state.playerFilterMode == PlayerFilterMode.SELECTED && query.isEmpty()) {
                 renderSelectedOnlyPlayers(
                     selectedMatching = selectedMatching,
                     query = query,
@@ -1067,10 +1101,15 @@ private fun TournamentPlayerListContent(
                     onPlayerChecked = onPlayerChecked
                 )
             } else {
+                val emptyMessage = when {
+                    query.isNotEmpty() -> "Kein Spieler gefunden für '$query'."
+                    state.playerFilterMode == PlayerFilterMode.ACTIVE -> "Keine aktiven Spieler gefunden."
+                    else -> "Noch keine Spieler vorhanden."
+                }
                 renderAllPlayers(
                     players = matchingPlayers,
                     selectedPlayerIds = state.selectedPlayerIds,
-                    query = query,
+                    emptyMessage = emptyMessage,
                     showDetailedSyncIndicators = state.showDetailedSyncIndicators,
                     sortField = state.sortField,
                     onPlayerChecked = onPlayerChecked
@@ -1119,7 +1158,7 @@ private fun LazyListScope.renderSelectedOnlyPlayers(
 private fun LazyListScope.renderAllPlayers(
     players: List<Player>,
     selectedPlayerIds: Set<Long>,
-    query: String,
+    emptyMessage: String,
     showDetailedSyncIndicators: Boolean,
     sortField: PlayerSortField,
     onPlayerChecked: (Long, Boolean) -> Unit
@@ -1133,7 +1172,7 @@ private fun LazyListScope.renderAllPlayers(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (query.isEmpty()) "Noch keine Spieler vorhanden." else "Kein Spieler gefunden für '$query'.",
+                    text = emptyMessage,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

@@ -7,7 +7,9 @@ import kotlinx.serialization.Serializable
 data class PlayerDto(
     val id: Long,
     val surname: String,
-    val forename: String
+    val forename: String,
+    @SerialName("last_participated")
+    val lastParticipated: String? = null
 )
 
 @Serializable

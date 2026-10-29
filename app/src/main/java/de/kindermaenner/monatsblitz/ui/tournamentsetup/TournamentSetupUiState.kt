@@ -2,6 +2,7 @@ package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.PlayerFilterMode
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.repository.RemoteOpenTournamentInfo
@@ -11,7 +12,9 @@ data class TournamentSetupUiState(
     val players: List<Player> = emptyList(),
     val selectedPlayerIds: Set<Long> = emptySet(),
     val searchQuery: String = "",
+    val playerFilterMode: PlayerFilterMode = PlayerFilterMode.ACTIVE,
     val showOnlySelected: Boolean = false,
+    val activeCutoffMonths: Int = 12,
     val sortField: PlayerSortField = PlayerSortField.FIRST_NAME,
     val sortOrder: PlayerSortOrder = PlayerSortOrder.ASCENDING,
 

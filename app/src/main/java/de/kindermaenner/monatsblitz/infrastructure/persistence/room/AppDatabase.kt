@@ -26,7 +26,7 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.Tourn
         TournamentPlayerCrossRef::class,
         ModeEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -97,6 +97,12 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `players` ADD COLUMN `lastParticipated` TEXT")
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -107,7 +113,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "monatsblitz.db"
                 )
-                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .build().also { INSTANCE = it }
             }
     }

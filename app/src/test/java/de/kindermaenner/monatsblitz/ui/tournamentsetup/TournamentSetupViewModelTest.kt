@@ -2,6 +2,7 @@ package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
+import de.kindermaenner.monatsblitz.domain.model.PlayerFilterMode
 import de.kindermaenner.monatsblitz.domain.repository.ModeRepository
 import java.time.LocalDate
 import de.kindermaenner.monatsblitz.domain.model.Tournament
@@ -87,6 +88,15 @@ class TournamentSetupViewModelTest {
 
         viewModel.onShowOnlySelectedChanged(true)
         assertTrue(viewModel.uiState.value.showOnlySelected)
+        assertEquals(PlayerFilterMode.SELECTED, viewModel.uiState.value.playerFilterMode)
+
+        viewModel.setPlayerFilterMode(PlayerFilterMode.ALL)
+        assertEquals(PlayerFilterMode.ALL, viewModel.uiState.value.playerFilterMode)
+        assertFalse(viewModel.uiState.value.showOnlySelected)
+
+        viewModel.setPlayerFilterMode(PlayerFilterMode.ACTIVE)
+        assertEquals(PlayerFilterMode.ACTIVE, viewModel.uiState.value.playerFilterMode)
+        assertFalse(viewModel.uiState.value.showOnlySelected)
 
         viewModel.onPlayerChecked(1L, true)
         viewModel.onPlayerChecked(2L, true)

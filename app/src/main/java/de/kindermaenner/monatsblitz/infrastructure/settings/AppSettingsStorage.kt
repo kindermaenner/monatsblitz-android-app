@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
 import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
@@ -24,6 +25,7 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     private val playerSortOrderKey = stringPreferencesKey("player_sort_order")
     private val useShortPlayerNamesKey = booleanPreferencesKey("use_short_player_names")
     private val autoAdoptOpenTournamentKey = booleanPreferencesKey("auto_adopt_open_tournament")
+    private val activePlayersCutoffMonthsKey = intPreferencesKey("active_players_cutoff_months")
 
     private val modePreselectionTypeKey = stringPreferencesKey("mode_preselection_type")
     private val fixedModeKey = stringPreferencesKey("fixed_mode")
@@ -68,6 +70,10 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
 
     override val autoAdoptOpenTournament: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[autoAdoptOpenTournamentKey] ?: false
+    }
+
+    override val activePlayersCutoffMonths: Flow<Int> = dataStore.data.map { preferences ->
+        preferences[activePlayersCutoffMonthsKey] ?: 12
     }
 
     override val modePreselectionType: Flow<ModePreselectionType> = dataStore.data.map { preferences ->
@@ -133,6 +139,12 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     override suspend fun setAutoAdoptOpenTournament(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[autoAdoptOpenTournamentKey] = enabled
+        }
+    }
+
+    override suspend fun setActivePlayersCutoffMonths(months: Int) {
+        dataStore.edit { preferences ->
+            preferences[activePlayersCutoffMonthsKey] = months
         }
     }
 

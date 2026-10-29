@@ -18,5 +18,6 @@ data class PlayerEntity(
     @ColumnInfo(collate = ColumnInfo.NOCASE)
     val vorname: String,
     val dirty: Boolean = true,
-    val isLocal: Boolean = false
+    val isLocal: Boolean = false,
+    val lastParticipated: String? = null
 )

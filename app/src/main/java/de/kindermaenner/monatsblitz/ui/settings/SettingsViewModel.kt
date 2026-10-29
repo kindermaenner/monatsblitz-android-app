@@ -296,6 +296,20 @@ class SettingsViewModel(
         }
     }
 
+    val activePlayersCutoffMonths: StateFlow<Int> =
+        settingsRepository.activePlayersCutoffMonths
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = 12
+            )
+
+    fun setActivePlayersCutoffMonths(months: Int) {
+        viewModelScope.launch {
+            settingsRepository.setActivePlayersCutoffMonths(months)
+        }
+    }
+
     fun setModePreselectionType(type: ModePreselectionType) {
         viewModelScope.launch {
             settingsRepository.setModePreselectionType(type)

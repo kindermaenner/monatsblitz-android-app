@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,7 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -68,6 +71,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -121,6 +125,16 @@ fun TournamentSetupScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val canStartTournament = state.selectedPlayerIds.size >= 2 && state.selectedMode != null
     var isSettingsExpanded by rememberSaveable { mutableStateOf(true) }
+    val playerListState = rememberLazyListState()
+
+    LaunchedEffect(playerListState) {
+        snapshotFlow { playerListState.isScrollInProgress }
+            .collect { isScrolling ->
+                if (isScrolling) {
+                    isSettingsExpanded = false
+                }
+            }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.navigationEffect.collect { tournamentId ->
@@ -267,6 +281,7 @@ fun TournamentSetupScreen(
 
             TournamentPlayerList(
                 state = state,
+                listState = playerListState,
                 actions = TournamentPlayerListActions(
                     onShowAddPlayerDialog = { viewModel.onShowAddPlayerDialog(true) },
                     onSearchQueryChanged = viewModel::onSearchQueryChanged,
@@ -547,7 +562,9 @@ internal fun TournamentSettingsCard(
     }
 
     OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
         colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
@@ -801,7 +818,8 @@ data class TournamentPlayerListActions(
 private fun TournamentPlayerList(
     state: TournamentSetupUiState,
     actions: TournamentPlayerListActions,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState()
 ) {
     val query = state.searchQuery.trim()
     val matchingPlayers = if (query.isEmpty()) {
@@ -844,6 +862,7 @@ private fun TournamentPlayerList(
             matchingPlayers = matchingPlayers,
             selectedMatching = selectedMatching,
             query = query,
+            listState = listState,
             onPlayerChecked = actions.onPlayerChecked,
             modifier = Modifier.weight(1f)
         )
@@ -1021,7 +1040,8 @@ private fun TournamentPlayerListContent(
     selectedMatching: List<Player>,
     query: String,
     onPlayerChecked: (Long, Boolean) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState()
 ) {
     if (state.isLoading && state.players.isEmpty()) {
         Box(
@@ -1032,7 +1052,10 @@ private fun TournamentPlayerListContent(
         }
     } else {
         LazyColumn(
-            modifier = modifier.fillMaxWidth(),
+            state = listState,
+            modifier = modifier
+                .fillMaxWidth()
+                .testTag("tournament_player_list"),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             if (state.showOnlySelected) {

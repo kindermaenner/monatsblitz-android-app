@@ -7,6 +7,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
@@ -156,5 +158,31 @@ class TournamentSetupScreenTest {
 
         composeTestRule.onNodeWithText("Nur lokal austragen").assertExists()
         composeTestRule.onNodeWithTag("tournament_local_only_switch").assertExists()
+    }
+
+    @Test
+    fun setupScreen_scrollingPlayerListCollapsesSettings() {
+        val players = (1..20).map { i ->
+            Player(i.toLong(), "Nachname$i", "Vorname$i")
+        }
+        coEvery { playerRepository.observePlayers() } returns flowOf(players)
+
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        // Initially expanded
+        composeTestRule.onNodeWithText("Doppelrundig").assertExists()
+
+        // Scroll the player list
+        composeTestRule.onNodeWithTag("tournament_player_list").performTouchInput {
+            swipeUp()
+        }
+
+        // Settings should now be collapsed
+        composeTestRule.onNodeWithText("Doppelrundig").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Turnier einrichten").assertExists()
     }
 }

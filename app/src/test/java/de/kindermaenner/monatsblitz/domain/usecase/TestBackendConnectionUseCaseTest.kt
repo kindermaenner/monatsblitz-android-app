@@ -65,6 +65,27 @@ class TestBackendConnectionUseCaseTest {
     }
 
     @Test
+    fun `returns error when api throws 426 HttpException with json message in body`() = runTest {
+        val errorJson = """{"code":"rest_api_version_mismatch","message":"Plugin erwartet API-Version 2"}"""
+        val response = Response.error<List<PlayerDto>>(426, errorJson.toResponseBody(null))
+        coEvery { api.getPlayers() } throws HttpException(response)
+
+        val result = useCase("https://example.com", "key123")
+        assertTrue(result is ConnectionTestResult.Error)
+        assertEquals("Plugin erwartet API-Version 2", (result as ConnectionTestResult.Error).message)
+    }
+
+    @Test
+    fun `returns fallback error when api throws 426 HttpException with empty body`() = runTest {
+        val response = Response.error<List<PlayerDto>>(426, "".toResponseBody(null))
+        coEvery { api.getPlayers() } throws HttpException(response)
+
+        val result = useCase("https://example.com", "key123")
+        assertTrue(result is ConnectionTestResult.Error)
+        assertTrue((result as ConnectionTestResult.Error).message.contains("Inkompatible API-Version"))
+    }
+
+    @Test
     fun `returns error when host unknown`() = runTest {
         coEvery { api.getPlayers() } throws UnknownHostException("unknown host")
 

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.ApiErrorDto
 import retrofit2.HttpException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -129,6 +130,8 @@ class TournamentSyncManager(
                 403 -> "Turnier ist auf dem Server bereits abgeschlossen (HTTP 403)."
                 404 -> "Server-Endpunkt nicht gefunden (HTTP 404). Bitte Server-Adresse in Einstellungen prüfen."
                 409 -> "Turnier existiert bereits oder Konflikt auf dem Server (HTTP 409)."
+                426 -> ApiErrorDto.extractMessage(responseBody)
+                    ?: "Inkompatible API-Version zwischen App und WordPress-Plugin. Bitte prüfe Updates für App und Plugin."
                 else -> "Server meldete HTTP ${e.code()}: ${responseBody ?: e.message()}"
             }
             Log.e(TAG, "Sync failed: $errorMsg (body=$responseBody)", e)

@@ -3,6 +3,7 @@ package de.kindermaenner.monatsblitz.domain.usecase
 import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
 import de.kindermaenner.monatsblitz.infrastructure.api.client.RetrofitClient
 import de.kindermaenner.monatsblitz.infrastructure.api.client.UrlNormalizer
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.ApiErrorDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
@@ -42,6 +43,12 @@ class TestBackendConnectionUseCase(
             when (e.code()) {
                 401, 403 -> ConnectionTestResult.Error("Server erreichbar, aber API-Schlüssel ungültig (${e.code()}).")
                 404 -> ConnectionTestResult.Error("Server erreichbar, aber Monatsblitz-Endpunkt nicht gefunden (404). Ist das Plugin aktiviert?")
+                426 -> {
+                    val rawBody = try { e.response()?.errorBody()?.string() } catch (_: Exception) { null }
+                    val message = ApiErrorDto.extractMessage(rawBody)
+                        ?: "Inkompatible API-Version zwischen App und WordPress-Plugin. Bitte prüfe Updates für App und Plugin."
+                    ConnectionTestResult.Error(message)
+                }
                 else -> ConnectionTestResult.Error("Server meldete HTTP ${e.code()}: ${e.message()}")
             }
         } catch (_: UnknownHostException) {

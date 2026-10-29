@@ -1,6 +1,7 @@
 package de.kindermaenner.monatsblitz.infrastructure.api.client
 
 import android.util.Log
+import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -36,6 +37,7 @@ class DynamicBackendInterceptorTest {
             val intercepted = arg<Request>(0)
             assertEquals("https://sg-koenigslutter.de/wp-json/monatsblitz/v1/players", intercepted.url.toString())
             assertEquals("secret-key-123", intercepted.header("X-MB-Key"))
+            assertEquals(MonatsblitzApi.API_VERSION.toString(), intercepted.header("X-MB-Api-Version"))
             mockk<Response>()
         }
 

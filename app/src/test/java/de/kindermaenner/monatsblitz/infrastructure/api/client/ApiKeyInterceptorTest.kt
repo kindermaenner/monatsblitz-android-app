@@ -1,6 +1,7 @@
 package de.kindermaenner.monatsblitz.infrastructure.api.client
 
 import android.util.Log
+import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -23,16 +24,17 @@ class ApiKeyInterceptorTest {
     }
 
     @Test
-    fun `intercept adds X-MB-Key header to request`() {
+    fun `intercept adds X-MB-Key and X-MB-Api-Version header to request`() {
         val request = Request.Builder()
             .url("https://example.com")
             .build()
-        
+
         val chain = mockk<Interceptor.Chain>()
         every { chain.request() } returns request
         every { chain.proceed(any()) } answers {
             val interceptedRequest = arg<Request>(0)
             assertEquals(apiKey, interceptedRequest.header("X-MB-Key"))
+            assertEquals(MonatsblitzApi.API_VERSION.toString(), interceptedRequest.header("X-MB-Api-Version"))
             mockk<Response>()
         }
 

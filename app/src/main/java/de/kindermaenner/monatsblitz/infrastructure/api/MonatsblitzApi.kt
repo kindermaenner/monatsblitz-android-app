@@ -34,6 +34,10 @@ import retrofit2.http.Path
 
 interface MonatsblitzApi {
 
+    companion object {
+        const val API_VERSION: Int = 1
+    }
+
     // Player interface
     @GET("players")
     suspend fun getPlayers(): List<PlayerDto>

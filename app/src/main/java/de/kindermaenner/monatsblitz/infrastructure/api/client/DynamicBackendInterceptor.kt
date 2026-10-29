@@ -1,6 +1,7 @@
 package de.kindermaenner.monatsblitz.infrastructure.api.client
 
 import android.util.Log
+import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -18,6 +19,7 @@ class DynamicBackendInterceptor(
         if (apiKey.isNotEmpty()) {
             requestBuilder.header("X-MB-Key", apiKey)
         }
+        requestBuilder.header("X-MB-Api-Version", MonatsblitzApi.API_VERSION.toString())
 
         val rawUrl = serverUrlProvider().trim()
         if (rawUrl.isNotEmpty()) {

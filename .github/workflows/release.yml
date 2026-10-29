@@ -1,0 +1,27 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Android Release Pipeline
+    uses: kindermaenner/ci-templates/.github/workflows/android-release.yml@main
+    secrets: inherit
+    with:
+      app-slug: "monatsblitz"
+      keystore-file: "monatsblitz-android-app-release.jks"
+      ftp-target-path: "kindermaenner.de/app-downloads/monatsblitz"
+      release-title-prefix: "Monatsblitz App"
+      java-version: "21"
+      run-unit-tests: true
+      run-ftp-upload: true

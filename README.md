@@ -22,9 +22,21 @@ The motivation and overall project context are documented in the [Monatsblitz Wo
     *   Support for single and double round-robin formats.
 *   **Interactive Crosstable:** A central matrix view for entering game results (Win, Loss, Draw) with immediate local persistence.
 *   **Early Tournament Exit (Player Withdrawal):** Tournament directors can mark players who leave the tournament early (e.g., youth players having school the next morning) by clicking their name in the crosstable. Open games are automatically scored according to club rules:
-    *   **Youth / Goodwill rule (Kulanzregel):** Remaining unplayed games are scored as unplayed draw (`=`, 0.5 points for both players).
+    *   **Youth / Goodwill rule (Kulanzregel):** Remaining unplayed games are scored as unplayed draw (`=:=`, 0.5 points for both players).
     *   **Regular rule:** Remaining unplayed games are scored as forfeit loss (`-`, 0 points for the leaving player, `+` / 1 point for opponents).
     *   Withdrawn players are marked with `(z)` (*zurückgetreten*) across the crosstable, rankings, and published WordPress results.
+*   **Remote Tournament Adoption ("Turnier fortsetzen") & UX Lifecycle:**
+    *   Automatic detection of open tournaments on the WordPress server upon app launch or entering setup.
+    *   Clean 2-phase start: initial check (*„Prüfe auf laufendes Turnier…“*) prevents abrupt UI popups over an active setup form.
+    *   Prompt dialog displaying metadata, game mode, and participant count, with one-tap adoption into the local database or option to create a fresh tournament.
+    *   Optional auto-adopt setting (`autoAdoptOpenTournament`) for instant continuation.
+    *   Modal fullscreen loading overlay with touch and back-navigation lock during adoption and tournament generation to prevent race conditions.
+    *   Seamless reconciliation of all existing games, participant lists, and match results.
+*   **Detailed Cell Sync Indicators (Detaillierte Sync-Indikatoren):**
+    *   Configurable visual indicator dots in each crosstable result cell: **Green** for server-synchronized games, **Orange/Tertiary** for local/pending changes.
+*   **Developer Error Reporting ("Fehler an Entwickler melden"):**
+    *   Maximum error transparency combining local exception details and backend response bodies.
+    *   Integrated error reporting in dialogs (e.g., Finalize, Adopt) and Settings (*Hilfe & Feedback*), generating pre-filled emails to `monatsblitz@kindermaenner.de` with clipboard fallback.
 *   **Real-time Rankings:** Automatic calculation of tournament standings based on entered results.
 *   **Offline-First Approach & Standalone Offline Mode:**
     *   Full offline capability ensures tournaments can be conducted without reliable internet access. The local Room database serves as the Single Source of Truth (SSoT).

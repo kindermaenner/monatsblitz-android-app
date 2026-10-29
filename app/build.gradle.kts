@@ -25,12 +25,30 @@ android {
     }
     val apiKey = localProperties.getProperty("API_KEY_MONATSBLITZ", "DEBUG_KEY")
 
+    val propVersionName = project.findProperty("versionName") as? String
+    val propVersionCode = (project.findProperty("versionCode") as? String)?.toIntOrNull()
+
+    val keystorePath = System.getenv("RELEASE_KEYSTORE")
+    val keystorePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+    val hasReleaseKey = !keystorePath.isNullOrBlank() && file(keystorePath).exists()
+
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = file(keystorePath!!)
+                storePassword = keystorePassword
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: "release"
+                keyPassword = keystorePassword
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "de.kindermaenner.monatsblitz"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = propVersionCode ?: 1
+        versionName = propVersionName ?: "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -43,6 +61,9 @@ android {
         }
         release {
             isMinifyEnabled = true
+            if (hasReleaseKey) {
+                signingConfig = signingConfigs.getByName("release")
+            }
 
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -61,7 +82,7 @@ android {
         buildConfig = true
     }
 
-        testOptions {
+    testOptions {
         unitTests {
             isReturnDefaultValues = true
             isIncludeAndroidResources = true
@@ -75,7 +96,6 @@ ksp {
 
 androidComponents {
     onVariants(selector().all()) { variant ->
-        val appName = project.name
         val versionName = android.defaultConfig.versionName
 
         variant.outputs.forEach { output ->
@@ -120,7 +140,7 @@ dependencies {
 
     ksp(libs.androidx.room.compiler)
 
-        testImplementation(libs.junit)
+    testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.junit)
     testImplementation(libs.androidx.compose.ui.test.junit4)

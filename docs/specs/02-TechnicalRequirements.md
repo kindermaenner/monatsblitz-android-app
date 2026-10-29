@@ -53,6 +53,7 @@ Bei Turnierstart werden alle Paarungen nach dem Prinzip "Jeder-gegen-Jeden" erze
 *   **Einrundig:** `n * (n - 1) / 2` Spiele (`leg = 1`).
 *   **Doppelrundig:** `n * (n - 1)` Spiele (`leg = 1` und `leg = 2`).
 *   **Kanonisches Datenmodell:** Jede Paarung wird pro Runde (`leg`) als genau **ein** kanonischer Datensatz mit `player1Id < player2Id` in Room persistiert und mit dem WordPress-Backend synchronisiert. Für die Gegenrichtung (`player1Id > player2Id`) wird das Ergebnis in der Domäne (`Tournament.findGame`, `CalculatePlayerPointsUseCase`) automatisch gespiegelt (`result.opposite()`).
+*   **Ergebnisnotationen:** Unterstützt werden `1:0`, `0:1`, `0.5:0.5`, `+:-`, `-:+`, `offen` sowie für vorzeitigen Rücktritt `=:=` (ungespieltes Remis). Beim Einlesen wird die Altschreibweise `=` tolerant zu `=:=` normalisiert.
 *   **Initialer Sync-Status:** Neu generierte, noch ungespielte Partien (`GameResult.Open`) werden mit `dirty = false` angelegt und erst bei der ersten Ergebniseingabe (`result != GameResult.Open`) oder beim Zurücksetzen einer bereits synchronisierten Partie (`remoteId != null`) auf `dirty = true` gesetzt.
 *   Die Generierung erfolgt initial im `CreateNewGamesUseCase`.
 
@@ -83,8 +84,9 @@ Anforderungen an die REST-API zur Unterstützung der Multi-Device-Synchronisatio
 ### 2.4.1 Geräteunabhängige Synchronisation
 *   Alle Geräte sind gleichberechtigt; es gibt keine Bindung an eine `device_id` oder Master-Rolle.
 *   **Lese-Endpunkte:**
-    *   `GET /tournament/{id}`: Liefert Turnier-Kopfdaten sowie die zugeordneten `player_ids` aus `monatsblitz_tournament_players`.
-    *   `GET /games/{tournament_id}`: Liefert alle Spiele und aktuellen Ergebnisse eines Turniers für den Read-before-Write-Schritt.
+    *   `GET /tournaments`: Liefert alle Turniere inklusive Teilnehmer-IDs (`player_ids`, `withdrawn_player_ids`).
+    *   `GET /tournament/{id}`: Liefert Turnier-Kopfdaten sowie die zugeordneten `player_ids` aus `monatsblitz_tournament_players` (mit Fallback auf `monatsblitz_games`).
+    *   `GET /games/{tournament_id}`: Liefert alle Spiele und aktuellen Ergebnisse eines Turniers für den Read-before-Write-Schritt. Unterstützt sowohl `id` als auch `game_id` im JSON-Objekt.
     *   `GET /players`: Liefert alle registrierten Spieler.
 *   **Schreib-Endpunkte:**
     *   `POST /tournament`: Erstellt ein Turnier (oder setzt ein am selben Tag bestehendes `open`-Turnier zurück) und speichert die übergebenen `player_ids` in `monatsblitz_tournament_players`.
@@ -115,8 +117,11 @@ Anforderungen an die REST-API zur Unterstützung der Multi-Device-Synchronisatio
     *   Bei der nächsten Ergebniseingabe (oder manuellem Sync) werden die zuvor aufgelaufenen Änderungen automatisch mitübertragen.
     *   Erhält die App einen `HTTP 403 Forbidden` (z. B. Turnier serverseitig bereits finalisiert), wird das Turnier lokal finalisiert und die Bearbeitung gesperrt.
 6.  **Zellen-Indikatoren & Präferenzen:**
-    *   Ungesyncte Zellen können durch einen dezenten Punkt visualisiert werden.
-    *   Diese Anzeige ist über `AppSettingsStorage` (DataStore) in den App-Einstellungen konfigurierbar (Standard: aktiviert).
+    *   Erfasste Zellen werden durch einen farbigen Punkt visualisiert: **Grün** (`0xFF2E7D32`) für synchronisierte Partien (`!dirty`), **Orange / Terziär** für lokal geänderte, noch nicht synchronisierte Partien (`dirty`).
+    *   Diese Anzeige ist über `AppSettingsStorage` (DataStore) in den App-Einstellungen konfigurierbar (`showDetailedSyncIndicators`, Standard: aktiviert).
+7.  **Fehlerberichterstattung (`ErrorReportSender`):**
+    *   Tritt ein Fehler auf, kombiniert `Throwable.toDetailedErrorMessage()` den Fehlertext mit der vom Backend zurückgegebenen Fehlermeldung.
+    *   `ErrorReportSender` öffnet einen E-Mail-Intent an `monatsblitz@kindermaenner.de` mit vorformatiertem Betreff und Body und legt den Inhalt als Fallback in die Zwischenablage.
 
 
 ## 2.6 Modus-Vorabauswahl & Rotations-Algorithmus

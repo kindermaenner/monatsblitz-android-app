@@ -30,6 +30,12 @@ Die App dient als mobiles Werkzeug für Turnierleiter, um monatliche Blitzschach
     *   Anzeige aller Paarungen in einer Matrix-Ansicht (Crosstable).
     *   Eingabe von Ergebnissen (1:0, 0:1, ½:½, +:-, -:+).
     *   Ergebnisse werden sofort in der lokalen Datenbank persistiert (Single Source of Truth).
+*   **Vorzeitiger Rücktritt (Player Withdrawal):**
+    *   Turnierleiter können vorzeitig ausscheidende Spieler (z. B. Jugendliche) durch Klick auf den Spielernamen markieren.
+    *   Automatische Wertung offener Partien nach Vereinsregeln:
+        *   **Kulanzregel (Jugend):** Ungespieltes Remis (`=:=`, 0.5 Punkte für beide Spieler).
+        *   **Reguläre Wertung:** Kampflose Niederlage (`-:+`, 0 Punkte für den Aussteigenden, 1 Punkt für Gegner).
+    *   Kennzeichnung ausgetretener Spieler mit `(z)` (*zurückgetreten*) in Kreuztabelle, Rangliste und Veröffentlichungen.
 *   **Live-Ranking:**
     *   Aufruf einer aktuellen Rangliste während des laufenden Turniers.
     *   Berechnung nach Punkten (Sieg = 1.0, Remis = 0.5, Niederlage = 0.0).
@@ -44,11 +50,17 @@ Die App dient als mobiles Werkzeug für Turnierleiter, um monatliche Blitzschach
 *   **Datenübertragung:** Die Gesamtergebnisse werden per REST-API an das WordPress-Plugin gesendet, um dort Berichte zu generieren und das Turnier zu archivieren.
 *   **Schreibschutz:** Nach der erfolgreichen Übertragung ist das Turnier in der App und auf dem Server abgeschlossen. Es sind keine weiteren Änderungen an Ergebnissen mehr möglich (Read-only).
 
-## 1.3 Startverhalten und Sitzungsmanagement
+## 1.3 Startverhalten, Sitzungsmanagement & Turnierübernahme
 *   **Status-Prüfung:** Beim Starten der App wird der Zustand des letzten Turniers aus dem lokalen Speicher (DataStore) ermittelt und mit dem Status auf dem WordPress-Server abgeglichen.
-*   **Automatisches Fortsetzen:**
+*   **Automatisches Fortsetzen lokaler Turniere:**
     *   Existiert ein lokales, nicht finalisiertes Turnier, das auch auf dem Server noch als "offen" markiert ist, startet die App direkt in **Phase 2 (Durchführung)**.
     *   Ist kein Turnier vorhanden oder wurde das Turnier bereits (lokal oder remote) finalisiert, startet die App in **Phase 1 (Setup)**.
+*   **Übernahme offener Server-Turniere ("Turnier fortsetzen"):**
+    *   Liegt auf dem WordPress-Server ein offenes Turnier vor, das lokal noch nicht geführt wird:
+        *   **2-Phasen-Start (Setup-Screen):** Der Setup-Screen prüft initial kurz den Serverzustand (*„Prüfe auf laufendes Turnier…“*). Erst nach negativem Befund wird die Eingabemaske freigeschaltet.
+        *   **Übernahme-Dialog:** Liegt ein offenes Turnier vor, wird ein Info-Dialog mit Datum, Modus und tatsächlicher Teilnehmeranzahl angezeigt. Der Nutzer kann das Turnier mit allen bisherigen Ergebnissen auf das Gerät übernehmen oder stattdessen ein neues Turnier starten.
+        *   **Automatisches Übernehmen (Einstellung):** Über `autoAdoptOpenTournament` kann in den Einstellungen festgelegt werden, dass offene Turniere beim Start ohne Rückfrage direkt in die Kreuztabelle übernommen werden.
+        *   **Lade-Sperre:** Während des Übernahme- und Vorbereitungsvorgangs sperrt ein modales Vollbild-Overlay alle Touches und Zurück-Eingaben.
 *   **Initialer Datenabgleich:** Bei aktiver Internetverbindung wird beim App-Start geprüft, ob auf dem Server neuere Daten vorliegen, und gemäß dem Read-before-Write-Prinzip synchronisiert.
 
 ## 1.4 Synchronisation und Live-Status (Version 1)
@@ -56,11 +68,16 @@ Die App dient als mobiles Werkzeug für Turnierleiter, um monatliche Blitzschach
 *   **Status-Visualisierung:**
     *   Ein Symbol in der Kopfzeile (`TopAppBar`) visualisiert jederzeit den aktuellen Zustand: `SYNCED` (Wolke mit Haken), `SYNCING` (Ladekreis), `FAILED` (Warnung) und `FINALIZED` (Schloss).
     *   Tippen auf das Symbol löst bei Bedarf (z. B. nach Verbindungsabbruch oder bei Fehlern) einen manuellen Synchronisationsversuch aus.
-    *   Optionale Statuspunkte an einzelnen Zellen markieren ungesyncte Partien (in den Einstellungen deaktivierbar).
+    *   **Detaillierte Zellen-Indikatoren:** Jede Zelle mit erfasstem Ergebnis zeigt einen farbigen Statuspunkt: **Grün** signalisiert eine erfolgreich synchronisierte Partie (`!dirty`), **Orange / Terziär** eine lokale, noch ausstehende Änderung (`dirty`). Diese Anzeige ist in den Einstellungen konfigurierbar (`showDetailedSyncIndicators`).
 *   **Korrekturfreundlichkeit:** Vor der Finalisierung können Ergebnisse jederzeit korrigiert oder zurückgesetzt werden. Das Backend führt nahtlose Aktualisierungen ohne Fehler durch.
 *   **Multi-Device & Peer-to-Peer Merge (Geplant für V2+):**
     *   Für Version 1 führt ein einzelnes Gerät das Turnier. Erweiterte Konfliktlösungsdialoge und P2P-Merge mehrerer gleichzeitig schreibender Geräte sind für ein späteres Release vorgesehen.
 
 ## 1.5 Datenintegrität und Offline-Betrieb
 *   **Offline-First:** Alle Aktionen während Phase 1 und Phase 2 müssen vollständig ohne aktive Internetverbindung möglich sein. Alle Eingaben werden lokal persistiert.
+*   **Standalone Offline-Modus:** Die App kann vollständig ohne Serveranbindung betrieben werden.
 *   **Synchronisation bei Verbindungsverfügbarkeit:** Eine Internetverbindung ist lediglich für den initialen Spieler-Sync (vor dem Turnier), für zwischenzeitliche Synchronisationen und die Finalisierung (nach dem Turnier) erforderlich. War ein Gerät längere Zeit offline, holt der automatische Sync alle ungespeicherten Ergebnisse gebündelt nach, sobald wieder eine Verbindung besteht oder ein neues Ergebnis eingegeben wird.
+
+## 1.6 Fehlerbehandlung und Fehlerberichte
+*   **Transparente Fehlerinformation:** Fehlermeldungen bei Serverinteraktionen kombinieren technische Exceptions mit den genauen Fehlermeldungen des WordPress-Plugins (`WP_Error`-Body).
+*   **Fehler an Entwickler melden:** In allen relevanten Fehlerdialogen (Finalisierung, Turnierübernahme) sowie im Einstellungsbereich (*Hilfe & Feedback*) steht eine Schaltfläche bereit, um vorkonfigurierte Fehlerberichte direkt per E-Mail an `monatsblitz@kindermaenner.de` zu übermitteln (inklusive Fallback über die Android-Zwischenablage).

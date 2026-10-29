@@ -4,9 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.core.net.toUri
 import de.kindermaenner.monatsblitz.BuildConfig
 
 object ErrorReportSender {
@@ -46,7 +46,7 @@ object ErrorReportSender {
         val body = buildReportBody(actionTitle, errorMessage, serverUrl)
         val subject = "[Monatsblitz] Fehlerbericht: $actionTitle"
 
-        val mailtoUri = Uri.parse("mailto:$DEVELOPER_EMAIL").buildUpon()
+        val mailtoUri = "mailto:$DEVELOPER_EMAIL".toUri().buildUpon()
             .appendQueryParameter("subject", subject)
             .appendQueryParameter("body", body)
             .build()

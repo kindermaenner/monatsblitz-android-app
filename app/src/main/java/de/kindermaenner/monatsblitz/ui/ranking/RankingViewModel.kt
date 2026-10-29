@@ -63,10 +63,16 @@ class RankingViewModel(
                 val rows = items.map { item ->
                     mapToRankingRow(item, tournament, shortNameMap)
                 }
+                val count = tournament?.games?.values?.count {
+                    it.result == GameResult.Open
+                }
+                if (count != null) {
+                    openGamesCount = count
+                }
                 val currentReady = _uiState.value as? RankingUiState.Ready
                 _uiState.value = RankingUiState.Ready(
                     rows = rows,
-                    openGamesCount = currentReady?.openGamesCount ?: openGamesCount,
+                    openGamesCount = count ?: currentReady?.openGamesCount ?: openGamesCount,
                     isReadOnly = currentReady?.isReadOnly ?: isReadOnly,
                     isFinalizing = currentReady?.isFinalizing ?: false,
                     isFinalized = currentReady?.isFinalized ?: false,
@@ -126,7 +132,7 @@ class RankingViewModel(
 
     fun finalizeTournament() {
         val currentState = _uiState.value
-        if (currentState !is RankingUiState.Ready || currentState.isFinalizing || currentState.isReadOnly) return
+        if (currentState !is RankingUiState.Ready || currentState.isFinalizing || currentState.isReadOnly || currentState.openGamesCount > 0) return
 
         if (finalizeTournamentUseCase == null) {
             _uiState.value = currentState.copy(finalizeError = "Finalisierung nicht konfiguriert")

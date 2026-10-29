@@ -66,7 +66,7 @@ fun RankingScreen(
         },
         bottomBar = {
             val readyState = uiState as? RankingUiState.Ready
-            if (readyState != null && !readyState.isReadOnly && !readyState.isFinalized) {
+            if (readyState != null && !readyState.isReadOnly && !readyState.isFinalized && readyState.openGamesCount == 0) {
                 Surface(
                     tonalElevation = 6.dp,
                     shadowElevation = 8.dp,

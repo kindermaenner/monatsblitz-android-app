@@ -164,4 +164,39 @@ class RankingScreenTest {
         composeTestRule.onNodeWithTag("finalize_done_button").assertExists()
         composeTestRule.onNodeWithText("Zum Hauptmenü").assertExists()
     }
+
+    @Test
+    fun rankingScreen_openGamesExist_doesNotShowFinalizeButton() {
+        val tournamentId = 1L
+        val rankingItems = listOf(
+            TournamentRankingItem(playerId = 1L, rank = 1, name = "Max Mustermann", points = 3.0)
+        )
+        val p1 = de.kindermaenner.monatsblitz.domain.model.Player(1, "Mustermann", "Max")
+        val p2 = de.kindermaenner.monatsblitz.domain.model.Player(2, "Musterfrau", "Erika")
+        val tournament = Tournament(
+            id = tournamentId,
+            date = LocalDate.now(),
+            mode = GameMode.BLITZ_5_0,
+            rounds = 1,
+            players = listOf(p1, p2),
+            games = mapOf(
+                1L to de.kindermaenner.monatsblitz.domain.model.Game(1L, 1L, 2L, 1, de.kindermaenner.monatsblitz.domain.model.GameResult.Open)
+            )
+        )
+
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        every { tournamentRepository.observeTournament(tournamentId) } returns flowOf(tournament)
+
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository)
+
+        composeTestRule.setContent {
+            RankingScreen(
+                viewModel = viewModel,
+                onBack = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Turnier abschließen").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("finalize_button").assertDoesNotExist()
+    }
 }

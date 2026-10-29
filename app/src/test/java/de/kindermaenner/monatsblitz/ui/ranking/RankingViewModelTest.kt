@@ -200,5 +200,36 @@ class RankingViewModelTest {
         assertEquals("Alice", state.rows[0].name)
         assertEquals("Bob (z)", state.rows[1].name)
     }
+
+    @Test
+    fun `finalizeTournament should do nothing when openGamesCount is greater than 0`() = runTest {
+        val tournamentId = 100L
+        val finalizeTournamentUseCase = mockk<FinalizeTournamentUseCase>()
+        val rankingItems = listOf(TournamentRankingItem(playerId = 1, name = "Alice Meier", points = 2.5, rank = 1))
+        val p1 = Player(1, "A", "A")
+        val p2 = Player(2, "B", "B")
+        val tournament = Tournament(
+            id = tournamentId,
+            mode = GameMode.BLITZ_5_0,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = listOf(p1, p2),
+            games = mapOf(
+                1L to Game(1L, 1L, 2L, 1, GameResult.Open)
+            )
+        )
+
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        every { tournamentRepository.observeTournament(tournamentId) } returns flowOf(tournament)
+
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository, finalizeTournamentUseCase)
+
+        viewModel.finalizeTournament()
+
+        val state = viewModel.uiState.value as RankingUiState.Ready
+        assertEquals(false, state.isFinalized)
+        assertEquals(false, state.isFinalizing)
+        io.mockk.coVerify(exactly = 0) { finalizeTournamentUseCase(any()) }
+    }
 }
 

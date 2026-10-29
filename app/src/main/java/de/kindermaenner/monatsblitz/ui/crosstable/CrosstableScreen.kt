@@ -25,12 +25,15 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SyncProblem
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Surface
@@ -290,6 +293,8 @@ private fun CrosstableTopBar(
             }
         },
         actions = {
+            var menuExpanded by remember { mutableStateOf(false) }
+
             if (tournament?.isLocalOnly != true) {
                 SyncStatusAction(
                     syncStatus = syncStatus,
@@ -298,24 +303,40 @@ private fun CrosstableTopBar(
                 )
             }
 
-            IconButton(onClick = onNavigateToSettings) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Einstellungen"
-                )
+            if (tournament != null) {
+                IconButton(onClick = { onNavigateToRanking(tournament.id) }) {
+                    Icon(
+                        imageVector = Icons.Default.Leaderboard,
+                        contentDescription = "Rangliste"
+                    )
+                }
             }
 
-            if (tournament != null) {
-                FilledTonalButton(
-                    onClick = { onNavigateToRanking(tournament.id) },
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
                     Icon(
-                        Icons.Default.Leaderboard,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 4.dp)
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Weitere Optionen"
                     )
-                    Text("Rangliste")
+                }
+
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Einstellungen") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = null
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onNavigateToSettings()
+                        }
+                    )
                 }
             }
         }

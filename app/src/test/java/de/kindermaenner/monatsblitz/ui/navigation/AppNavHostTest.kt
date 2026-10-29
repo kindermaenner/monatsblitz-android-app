@@ -108,7 +108,7 @@ class AppNavHostTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Rangliste").performClick()
+        composeTestRule.onNodeWithContentDescription("Rangliste").performClick()
 
         // Verify we are on Ranking screen
         composeTestRule.onNodeWithText("Rangliste").assertExists()

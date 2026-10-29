@@ -46,18 +46,22 @@ data class UpdateGameDto(
 
 @Serializable
 data class GameDto(
+    val id: Int = 0,
     @SerialName("game_id")
-    val id: Int,
+    val gameId: Int = 0,
     @SerialName("tournament_id")
-    val tournamentId: Int,
+    val tournamentId: Int = 0,
     @SerialName("leg_type")
-    val leg: Int,
+    val leg: Int = 1,
     @SerialName("player1_id")
     val player1Id: Int,
     @SerialName("player2_id")
     val player2Id: Int,
     val result: String
-)
+) {
+    val resolvedId: Int
+        get() = if (id != 0) id else gameId
+}
 
 @Serializable
 data class CreateGamesDto(

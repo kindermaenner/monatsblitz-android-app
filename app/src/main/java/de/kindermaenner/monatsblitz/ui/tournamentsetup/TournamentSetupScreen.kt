@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.ui.tournamentsetup
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -48,6 +50,7 @@ import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -75,11 +78,14 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -192,17 +198,64 @@ fun TournamentSetupScreen(
         )
     }
 
-    state.remoteOpenTournament?.let { t ->
-        val roundsText = if (t.roundCount == 2) "Doppelrunde" else "1 Runde"
-        val playerText = if (t.playerCount == 1) "1 Teilnehmer" else "${t.playerCount} Teilnehmer"
+    if (state.isCheckingForOpenTournament) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                CircularProgressIndicator()
+                Text(
+                    text = "Prüfe auf laufendes Turnier…",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        }
+        return
+    }
+
+    val openTournament = state.remoteOpenTournament
+    if (openTournament != null) {
+        val roundsText = if (openTournament.roundCount == 2) "Doppelrunde" else "1 Runde"
+        val playerText = if (openTournament.playerCount == 1) "1 Teilnehmer" else "${openTournament.playerCount} Teilnehmer"
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Monatsblitz",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Offenes Turnier auf dem Server gefunden",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         AlertDialog(
             onDismissRequest = viewModel::dismissRemoteTournamentDialog,
             title = { Text("Offenes Turnier gefunden") },
             text = {
                 Text(
                     "Auf dem Server wurde ein offenes Turnier gefunden:\n\n" +
-                    "• Datum: ${t.date}\n" +
-                    "• Modus: ${t.mode} ($roundsText)\n" +
+                    "• Datum: ${openTournament.date}\n" +
+                    "• Modus: ${openTournament.mode} ($roundsText)\n" +
                     "• Teilnehmer: $playerText\n\n" +
                     "Möchtest du dieses Turnier auf diesem Gerät fortsetzen?"
                 )
@@ -218,6 +271,7 @@ fun TournamentSetupScreen(
                 }
             }
         )
+        return
     }
 
     state.adoptError?.let { err ->
@@ -314,6 +368,41 @@ fun TournamentSetupScreen(
                 ),
                 modifier = Modifier.weight(1f)
             )
+        }
+    }
+
+    if (state.isLoading) {
+        BackHandler(enabled = true) { /* Block back navigation during loading */ }
+        val message = state.loadingMessage ?: "Bitte warten…"
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.6f))
+                .pointerInput(Unit) {},
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator()
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
         }
     }
 }

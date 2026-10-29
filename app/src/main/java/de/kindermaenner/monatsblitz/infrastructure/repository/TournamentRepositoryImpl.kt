@@ -377,22 +377,31 @@ class TournamentRepositoryImpl(
         val api = monatsblitzApi ?: return null
         return try {
             val remoteList = api.getTournaments()
-            val openTournament = remoteList.firstOrNull { it.status.equals("open", ignoreCase = true) } ?: return null
+            val openSummary = remoteList.firstOrNull { it.status.equals("open", ignoreCase = true) } ?: return null
 
             val currentState = tournamentStorage.getTournamentState().first()
             if (currentState != null && !currentState.finalized) {
                 val localTournament = tournamentDao.getTournament(currentState.tournamentId)
-                if (localTournament?.tournament?.remoteId?.toInt() == openTournament.id) {
+                if (localTournament?.tournament?.remoteId?.toInt() == openSummary.id) {
                     return null
                 }
             }
 
+            // In case the list endpoint did not include players or has partial data,
+            // query the full tournament details to get the exact player IDs.
+            val fullTournament = try {
+                api.getTournament(openSummary.id)
+            } catch (e: Exception) {
+                Log.w(TAG, "getRemoteOpenTournament: could not fetch full tournament details: ${e.message}")
+                openSummary
+            }
+
             RemoteOpenTournamentInfo(
-                id = openTournament.id,
-                date = openTournament.date,
-                mode = openTournament.mode,
-                roundCount = openTournament.roundCount,
-                playerCount = openTournament.playerIds.size
+                id = fullTournament.id,
+                date = fullTournament.date,
+                mode = fullTournament.mode,
+                roundCount = fullTournament.roundCount,
+                playerCount = fullTournament.playerIds.size
             )
         } catch (e: Exception) {
             Log.e(TAG, "getRemoteOpenTournament failed: ${e.message}", e)
@@ -408,16 +417,46 @@ class TournamentRepositoryImpl(
         val remoteGames = try {
             api.getGames(remoteTournamentId)
         } catch (e: Exception) {
-            Log.w(TAG, "adoptRemoteTournament: could not fetch games: ${e.message}")
+            Log.e(TAG, "adoptRemoteTournament: could not fetch games: ${e.message}", e)
             emptyList()
         }
 
         try {
             val allRemotePlayers = api.getPlayers()
-            val entities = allRemotePlayers.map { it.toEntity() }
-            resolvedPlayerDao.upsertAll(entities)
+            allRemotePlayers.forEach { dto ->
+                val remoteId = dto.id
+                val existingByRemoteId = resolvedPlayerDao.getPlayerByRemoteId(remoteId)
+                if (existingByRemoteId != null) {
+                    resolvedPlayerDao.update(
+                        existingByRemoteId.copy(
+                            name = dto.surname.trim(),
+                            vorname = dto.forename.trim(),
+                            lastParticipated = dto.lastParticipated,
+                            dirty = false,
+                            isLocal = false
+                        )
+                    )
+                } else {
+                    val existingByName = resolvedPlayerDao.findPlayersByName(
+                        dto.forename.trim(),
+                        dto.surname.trim()
+                    ).firstOrNull()
+                    if (existingByName != null) {
+                        resolvedPlayerDao.setRemoteId(playerId = existingByName.id, remoteId = remoteId)
+                    } else {
+                        resolvedPlayerDao.insert(
+                            dto.toEntity().copy(
+                                name = dto.surname.trim(),
+                                vorname = dto.forename.trim(),
+                                dirty = false,
+                                isLocal = false
+                            )
+                        )
+                    }
+                }
+            }
         } catch (e: Exception) {
-            Log.w(TAG, "adoptRemoteTournament: could not refresh players from server: ${e.message}")
+            Log.w(TAG, "adoptRemoteTournament: could not refresh players from server: ${e.message}", e)
         }
 
         val remotePlayerIds = remoteTournament.playerIds
@@ -514,7 +553,8 @@ class TournamentRepositoryImpl(
                 val lp1 = resolvedPlayerDao.getPlayerByRemoteId(remoteGame.player1Id.toLong())?.id ?: pMin
                 val rawResult = remoteGame.result.toGameResult()
                 val canonicalResult = if (lp1 == pMin) rawResult else rawResult.opposite()
-                Pair(canonicalResult, remoteGame.id.toLong())
+                val gameId = remoteGame.resolvedId.takeIf { it > 0 }?.toLong()
+                Pair(canonicalResult, gameId)
             } else {
                 Pair(bg.result, null)
             }

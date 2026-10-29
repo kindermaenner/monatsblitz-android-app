@@ -135,7 +135,16 @@ class SerializationTest {
         val gameJson = json.encodeToString(game)
         val decodedGame = json.decodeFromString<GameDto>(gameJson)
         org.junit.Assert.assertEquals(100, decodedGame.id)
+        org.junit.Assert.assertEquals(100, decodedGame.resolvedId)
         org.junit.Assert.assertEquals(3, decodedGame.player1Id)
+
+        val wpJsonWithIdOnly = """{"id":42,"tournament_id":2,"leg_type":1,"player1_id":3,"player2_id":4,"result":"1:0"}"""
+        val decodedFromWp = json.decodeFromString<GameDto>(wpJsonWithIdOnly)
+        org.junit.Assert.assertEquals(42, decodedFromWp.resolvedId)
+
+        val legacyJsonWithGameId = """{"game_id":88,"tournament_id":2,"leg_type":1,"player1_id":3,"player2_id":4,"result":"0:1"}"""
+        val decodedFromLegacy = json.decodeFromString<GameDto>(legacyJsonWithGameId)
+        org.junit.Assert.assertEquals(88, decodedFromLegacy.resolvedId)
     }
 
     @Test

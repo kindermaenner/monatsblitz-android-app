@@ -38,10 +38,12 @@ data class TournamentSetupUiState(
     val newModePermanent: Boolean = true,
     val addModeError: String? = null,
 
+    val isCheckingForOpenTournament: Boolean = false,
     val remoteOpenTournament: RemoteOpenTournamentInfo? = null,
     val adoptError: String? = null,
 
     val isLoading: Boolean = false,
+    val loadingMessage: String? = null,
     val isSyncingPlayers: Boolean = false,
     val isSyncingModes: Boolean = false,
     val showDetailedSyncIndicators: Boolean = true

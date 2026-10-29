@@ -399,6 +399,7 @@ class TournamentSetupViewModelTest {
 
         viewModel.dismissRemoteTournamentDialog()
         assertEquals(null, viewModel.uiState.value.remoteOpenTournament)
+        assertEquals(false, viewModel.uiState.value.isCheckingForOpenTournament)
     }
 
     @Test

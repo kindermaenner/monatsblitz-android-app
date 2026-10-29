@@ -143,6 +143,7 @@ class TournamentSetupViewModel(
         }
 
         if (tournamentRepository != null) {
+            _uiState.update { it.copy(isCheckingForOpenTournament = true) }
             viewModelScope.launch {
                 checkForRemoteOpenTournament()
             }
@@ -349,14 +350,29 @@ class TournamentSetupViewModel(
                 it.id in state.selectedPlayerIds
             }
             val mode = state.selectedMode ?: return@launch
-            val tournament = createTournamentUseCase.invoke(
-                players = players,
-                mode = mode,
-                date = state.selectedDate,
-                rounds = if (state.doubleRound) 2 else 1,
-                isLocalOnly = state.isLocalOnly
-            )
-            _navigationEffect.emit(tournament.id)
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    loadingMessage = "Turnier wird vorbereitet…"
+                )
+            }
+            try {
+                val tournament = createTournamentUseCase.invoke(
+                    players = players,
+                    mode = mode,
+                    date = state.selectedDate,
+                    rounds = if (state.doubleRound) 2 else 1,
+                    isLocalOnly = state.isLocalOnly
+                )
+                _navigationEffect.emit(tournament.id)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        loadingMessage = null
+                    )
+                }
+            }
         }
     }
 
@@ -479,18 +495,46 @@ class TournamentSetupViewModel(
     }
 
     private suspend fun checkForRemoteOpenTournament() {
-        val repo = tournamentRepository ?: return
+        val repo = tournamentRepository ?: run {
+            _uiState.update { it.copy(isCheckingForOpenTournament = false) }
+            return
+        }
+        val isServerConfigured = _uiState.value.isServerConfigured
+        val isOffline = _uiState.value.isStandaloneOffline
+        if (!isServerConfigured || isOffline) {
+            _uiState.update { it.copy(isCheckingForOpenTournament = false) }
+            return
+        }
+
         try {
-            val openInfo = repo.getRemoteOpenTournament() ?: return
-            val autoAdopt = settingsRepository?.autoAdoptOpenTournament?.first() ?: false
-            if (autoAdopt) {
-                val localId = repo.adoptRemoteTournament(openInfo.id)
-                _navigationEffect.emit(localId)
+            val openInfo = kotlinx.coroutines.withTimeoutOrNull(3000L) {
+                repo.getRemoteOpenTournament()
+            }
+            val autoAdopt = runCatching { settingsRepository?.autoAdoptOpenTournament?.first() }.getOrNull() ?: false
+            if (openInfo != null) {
+                if (autoAdopt) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = true,
+                            loadingMessage = "Turnierdaten werden vom Server geladen…",
+                            isCheckingForOpenTournament = false
+                        )
+                    }
+                    val localId = repo.adoptRemoteTournament(openInfo.id)
+                    _navigationEffect.emit(localId)
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            remoteOpenTournament = openInfo,
+                            isCheckingForOpenTournament = false
+                        )
+                    }
+                }
             } else {
-                _uiState.update { it.copy(remoteOpenTournament = openInfo) }
+                _uiState.update { it.copy(isCheckingForOpenTournament = false) }
             }
         } catch (_: Exception) {
-            // Offline-First
+            _uiState.update { it.copy(isCheckingForOpenTournament = false) }
         }
     }
 
@@ -498,17 +542,30 @@ class TournamentSetupViewModel(
         val info = _uiState.value.remoteOpenTournament ?: return
         val repo = tournamentRepository ?: return
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, remoteOpenTournament = null, adoptError = null) }
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    loadingMessage = "Turnierdaten werden vom Server geladen…",
+                    remoteOpenTournament = null,
+                    adoptError = null
+                )
+            }
             try {
                 val localId = repo.adoptRemoteTournament(info.id)
                 _navigationEffect.emit(localId)
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, adoptError = e.toDetailedErrorMessage()) }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        loadingMessage = null,
+                        adoptError = e.toDetailedErrorMessage()
+                    )
+                }
             }
         }
     }
 
     fun dismissRemoteTournamentDialog() {
-        _uiState.update { it.copy(remoteOpenTournament = null) }
+        _uiState.update { it.copy(remoteOpenTournament = null, isCheckingForOpenTournament = false, adoptError = null) }
     }
 }

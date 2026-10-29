@@ -2,8 +2,10 @@ package de.kindermaenner.monatsblitz.ui.ranking
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -11,6 +13,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -23,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -55,9 +60,45 @@ fun RankingScreen(
         topBar = {
             RankingTopBar(
                 uiState = uiState,
-                onBack = onBack,
-                onFinalizeClick = { showFinalizeConfirmDialog = true }
+                onBack = onBack
             )
+        },
+        bottomBar = {
+            val readyState = uiState as? RankingUiState.Ready
+            if (readyState != null && !readyState.isReadOnly && !readyState.isFinalized) {
+                Surface(
+                    tonalElevation = 6.dp,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Button(
+                        onClick = { showFinalizeConfirmDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                            .testTag("finalize_button"),
+                        enabled = !readyState.isFinalizing
+                    ) {
+                        if (readyState.isFinalizing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Wird abgeschlossen...")
+                        } else {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Turnier abschließen")
+                        }
+                    }
+                }
+            }
         }
     ) { padding ->
         Box(
@@ -122,11 +163,20 @@ fun RankingScreen(
 @Composable
 private fun RankingTopBar(
     uiState: RankingUiState,
-    onBack: () -> Unit,
-    onFinalizeClick: () -> Unit
+    onBack: () -> Unit
 ) {
     TopAppBar(
-        title = { Text("Ranking") },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Leaderboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text("Ranking")
+            }
+        },
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
@@ -152,39 +202,6 @@ private fun RankingTopBar(
                         Icons.Default.Share,
                         contentDescription = "Als PDF teilen / drucken"
                     )
-                }
-
-                FilledTonalButton(
-                    onClick = onFinalizeClick,
-                    enabled = !uiState.isFinalizing && !uiState.isFinalized && !uiState.isReadOnly,
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    when {
-                        uiState.isFinalizing -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Wird abgeschlossen...")
-                        }
-                        uiState.isReadOnly -> {
-                            Icon(
-                                Icons.Default.Lock,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
-                            Text("Abgeschlossen")
-                        }
-                        else -> {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
-                            Text("Turnier abschließen")
-                        }
-                    }
                 }
             }
         }

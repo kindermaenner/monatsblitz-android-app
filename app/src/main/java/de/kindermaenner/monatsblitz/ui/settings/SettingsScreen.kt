@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -175,6 +176,17 @@ fun SettingsScreen(
                 navigationIcon = {
                     IconButton(onClick = handleBackAttempt) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
+                    }
+                },
+                actions = {
+                    if (!isConfigured && (isServerConfigured || standaloneOfflineMode)) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Einrichtung abschließen",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             )
@@ -346,15 +358,9 @@ fun SettingsScreen(
                         ServerActionButtons(
                             isTesting = isTesting,
                             canSubmit = !isTesting && serverUrl.isNotBlank() && apiKey.isNotBlank(),
-                            isConfigured = isConfigured,
+                            isServerConfigured = isServerConfigured,
                             onTest = { viewModel.testConnection() },
-                            onSave = {
-                                viewModel.saveSettings {
-                                    if (!isConfigured) {
-                                        onBack()
-                                    }
-                                }
-                            }
+                            onSave = { viewModel.saveSettings() }
                         )
 
                         testResult?.let { result ->
@@ -448,16 +454,17 @@ fun SettingsScreen(
                 }
             }
 
-            // Abschluss-Button für Offline-Betrieb ganz unten
-            if (standaloneOfflineMode) {
+            // Abschluss-Button ganz unten (wenn noch unkonfiguriert oder Offline-Betrieb aktiv)
+            if (!isConfigured || standaloneOfflineMode) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = onBack,
+                    enabled = isConfigured,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("continue_to_setup_button")
                 ) {
-                    Text("Weiter zum Turniersetup")
+                    Text(if (standaloneOfflineMode) "Weiter zum Turniersetup" else "Einrichtung abschließen")
                 }
             }
         }
@@ -492,27 +499,32 @@ private fun WelcomeBanner(isConfigured: Boolean) {
 
 @Composable
 private fun ServerConnectionHeader(onScanQr: () -> Unit) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = "WordPress & Synchronisation",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary
         )
-
+        Text(
+            text = "Verbinde die App mit deiner WordPress-Vereinswebsite für automatische Spieler- und Turniersynchronisation.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         FilledTonalButton(
             onClick = onScanQr,
-            modifier = Modifier.testTag("scan_qr_button")
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("scan_qr_button")
         ) {
             Icon(
                 Icons.Default.QrCodeScanner,
-                contentDescription = "QR-Code scannen",
-                modifier = Modifier.size(18.dp)
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text("QR-Code scannen")
         }
     }
@@ -577,7 +589,7 @@ private fun ApiKeyField(
 private fun ServerActionButtons(
     isTesting: Boolean,
     canSubmit: Boolean,
-    isConfigured: Boolean,
+    isServerConfigured: Boolean,
     onTest: () -> Unit,
     onSave: () -> Unit
 ) {
@@ -619,7 +631,7 @@ private fun ServerActionButtons(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }
-            Text(if (!isConfigured) "Übernehmen & Los" else "Einstellungen übernehmen")
+            Text(if (isServerConfigured) "Verbindung aktualisieren" else "Verbindung speichern")
         }
     }
 }

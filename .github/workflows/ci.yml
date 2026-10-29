@@ -31,5 +31,5 @@ jobs:
       test-api-level: "34"
       run-sonar: true
       run-ftp-upload: ${{ github.ref == 'refs/heads/main' }}
-      ftp-target-path: "kindermaenner.de/app-downloads/monatsblitz-android-app/"
+      ftp-target-path: "kindermaenner.de/app-downloads/monatsblitz/"
       trigger-badges: ${{ github.ref == 'refs/heads/main' }}

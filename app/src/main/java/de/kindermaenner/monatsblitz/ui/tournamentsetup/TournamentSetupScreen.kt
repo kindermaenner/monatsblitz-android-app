@@ -221,6 +221,7 @@ fun TournamentSetupScreen(
         topBar = {
             TournamentSetupTopBar(
                 isSyncingPlayers = state.isSyncingPlayers,
+                showSyncButton = state.isServerConfigured && !state.isStandaloneOffline,
                 onSyncPlayers = viewModel::syncPlayers,
                 onNavigateToSettings = onNavigateToSettings
             )
@@ -438,25 +439,28 @@ private fun AddModeDialog(
 @Composable
 private fun TournamentSetupTopBar(
     isSyncingPlayers: Boolean,
+    showSyncButton: Boolean = true,
     onSyncPlayers: () -> Unit,
     onNavigateToSettings: (() -> Unit)?
 ) {
     TopAppBar(
         title = { Text("Neues Turnier") },
         actions = {
-            if (isSyncingPlayers) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .size(24.dp),
-                    strokeWidth = 2.dp
-                )
-            } else {
-                IconButton(onClick = onSyncPlayers) {
-                    Icon(
-                        imageVector = Icons.Default.Sync,
-                        contentDescription = "Spieler synchronisieren"
+            if (showSyncButton) {
+                if (isSyncingPlayers) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp)
+                            .size(24.dp),
+                        strokeWidth = 2.dp
                     )
+                } else {
+                    IconButton(onClick = onSyncPlayers) {
+                        Icon(
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = "Spieler synchronisieren"
+                        )
+                    }
                 }
             }
             if (onNavigateToSettings != null) {

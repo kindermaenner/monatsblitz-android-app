@@ -17,7 +17,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Settings
@@ -28,6 +32,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Surface
+import androidx.compose.ui.platform.testTag
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -119,6 +125,10 @@ fun CrosstableScreen(
     )
 
     val tournament = state.tournament
+    val allGamesPlayed = tournament != null &&
+        tournament.games.isNotEmpty() &&
+        tournament.games.values.none { it.result == GameResult.Open }
+    val isFinalized = state.syncStatus == SyncStatus.FINALIZED
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -140,6 +150,58 @@ fun CrosstableScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            if (allGamesPlayed && !isFinalized) {
+                Surface(
+                    tonalElevation = 8.dp,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.EmojiEvents,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Alle Partien gespielt!",
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    text = "Turnier jetzt abschließen & Rangliste anzeigen",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                viewModel.prepareRankingsAndNavigate {
+                                    onNavigateToRanking(tournament.id)
+                                }
+                            },
+                            modifier = Modifier.testTag("crosstable_finish_tournament_button")
+                        ) {
+                            Text("Abschließen")
+                        }
+                    }
+                }
+            }
         }
     ) { padding ->
         if (tournament == null) {
@@ -226,11 +288,13 @@ private fun CrosstableTopBar(
             }
         },
         actions = {
-            SyncStatusAction(
-                syncStatus = syncStatus,
-                onTriggerSync = onTriggerSync,
-                onShowSyncedSnackbar = onShowSyncedSnackbar
-            )
+            if (tournament?.isLocalOnly != true) {
+                SyncStatusAction(
+                    syncStatus = syncStatus,
+                    onTriggerSync = onTriggerSync,
+                    onShowSyncedSnackbar = onShowSyncedSnackbar
+                )
+            }
 
             IconButton(onClick = onNavigateToSettings) {
                 Icon(

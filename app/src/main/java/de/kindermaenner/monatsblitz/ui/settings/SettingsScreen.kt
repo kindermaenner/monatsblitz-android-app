@@ -172,7 +172,7 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(if (!isConfigured) "Monatsblitz Einrichtung" else "Einstellungen") },
+                title = { Text("Einstellungen") },
                 navigationIcon = {
                     IconButton(onClick = handleBackAttempt) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")

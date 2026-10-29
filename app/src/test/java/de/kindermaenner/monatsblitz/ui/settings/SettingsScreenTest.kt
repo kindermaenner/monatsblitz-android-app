@@ -105,7 +105,7 @@ class SettingsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Monatsblitz Einrichtung").assertExists()
+        composeTestRule.onNodeWithText("Einstellungen").assertExists()
         composeTestRule.onNodeWithText("Willkommen beim Monatsblitz!").assertExists()
         composeTestRule.onNodeWithTag("save_settings_button").assertExists()
     }

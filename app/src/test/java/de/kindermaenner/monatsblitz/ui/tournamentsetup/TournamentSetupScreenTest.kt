@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import de.kindermaenner.monatsblitz.domain.model.GameMode
@@ -95,13 +96,65 @@ class TournamentSetupScreenTest {
 
         // Initially expanded: "Doppelrundig" switch is visible
         composeTestRule.onNodeWithText("Doppelrundig").assertExists()
+        composeTestRule.onNodeWithText("Turnierdatum").assertExists()
+        composeTestRule.onNodeWithText("Turnier einrichten").assertExists()
 
         // Collapse settings
         composeTestRule.onNodeWithContentDescription("Einstellungen einklappen").performClick()
         composeTestRule.onNodeWithText("Doppelrundig").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Turnier einrichten").assertExists()
+        composeTestRule.onNodeWithText("Heute • 3+2 • Einfachrunde").assertExists()
 
         // Expand settings
         composeTestRule.onNodeWithContentDescription("Einstellungen aufklappen").performClick()
         composeTestRule.onNodeWithText("Doppelrundig").assertExists()
+    }
+
+    @Test
+    fun setupScreen_serverOptionHiddenInStandaloneOfflineMode() {
+        composeTestRule.setContent {
+            TournamentSettingsCard(
+                state = TournamentSettingsState(
+                    isExpanded = true,
+                    selectedDate = LocalDate.now(),
+                    selectedMode = GameMode.BLITZ_5_0,
+                    isServerConfigured = false,
+                    isStandaloneOffline = true
+                ),
+                actions = TournamentSettingsActions(
+                    onToggleExpanded = {},
+                    onDateChanged = {},
+                    onModeChanged = {},
+                    onDoubleRoundChanged = {}
+                )
+            )
+        }
+
+        composeTestRule.onNodeWithText("Nur lokal austragen").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("tournament_local_only_switch").assertDoesNotExist()
+    }
+
+    @Test
+    fun setupScreen_serverOptionVisibleWhenServerConfigured() {
+        composeTestRule.setContent {
+            TournamentSettingsCard(
+                state = TournamentSettingsState(
+                    isExpanded = true,
+                    selectedDate = LocalDate.now(),
+                    selectedMode = GameMode.BLITZ_5_0,
+                    isServerConfigured = true,
+                    isStandaloneOffline = false
+                ),
+                actions = TournamentSettingsActions(
+                    onToggleExpanded = {},
+                    onDateChanged = {},
+                    onModeChanged = {},
+                    onDoubleRoundChanged = {}
+                )
+            )
+        }
+
+        composeTestRule.onNodeWithText("Nur lokal austragen").assertExists()
+        composeTestRule.onNodeWithTag("tournament_local_only_switch").assertExists()
     }
 }

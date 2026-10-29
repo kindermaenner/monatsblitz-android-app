@@ -42,7 +42,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
@@ -76,6 +75,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.kindermaenner.monatsblitz.domain.model.GameMode
@@ -251,7 +251,8 @@ fun TournamentSetupScreen(
                     availableModes = state.availableModes,
                     doubleRound = state.doubleRound,
                     isLocalOnly = state.isLocalOnly,
-                    isServerConfigured = state.isServerConfigured
+                    isServerConfigured = state.isServerConfigured,
+                    isStandaloneOffline = state.isStandaloneOffline
                 ),
                 actions = TournamentSettingsActions(
                     onToggleExpanded = { isSettingsExpanded = !isSettingsExpanded },
@@ -509,7 +510,8 @@ data class TournamentSettingsState(
     val availableModes: List<GameMode> = emptyList(),
     val doubleRound: Boolean = false,
     val isLocalOnly: Boolean = false,
-    val isServerConfigured: Boolean = true
+    val isServerConfigured: Boolean = true,
+    val isStandaloneOffline: Boolean = false
 )
 
 data class TournamentSettingsActions(
@@ -544,7 +546,6 @@ internal fun TournamentSettingsCard(
     ) {
         val isToday = state.selectedDate == LocalDate.now()
         val formattedDate = state.selectedDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-        val dateLabel = if (isToday) "Heute ($formattedDate)" else formattedDate
         val roundLabel = if (state.doubleRound) "Doppelrunde" else "Einfachrunde"
         val modeLabel = state.selectedMode?.displayName ?: "Kein Modus"
 
@@ -559,12 +560,15 @@ internal fun TournamentSettingsCard(
         } else {
             Column(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 TournamentSettingsExpandedHeader(
+                    onToggleExpanded = actions.onToggleExpanded
+                )
+
+                TournamentDateRow(
                     isToday = isToday,
-                    dateLabel = dateLabel,
-                    onToggleExpanded = actions.onToggleExpanded,
+                    formattedDate = formattedDate,
                     onOpenDatePicker = { showDatePicker = true }
                 )
 
@@ -591,6 +595,7 @@ internal fun TournamentSettingsCard(
 
                 TournamentSettingsServerOption(
                     isServerConfigured = state.isServerConfigured,
+                    isStandaloneOffline = state.isStandaloneOffline,
                     isLocalOnly = state.isLocalOnly,
                     onLocalOnlyChanged = actions.onLocalOnlyChanged
                 )
@@ -615,20 +620,21 @@ private fun TournamentSettingsCollapsedRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = "Einstellungen",
-                style = MaterialTheme.typography.titleSmall,
+                text = "Turnier einrichten",
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "(${if (isToday) "Heute" else formattedDate} • $modeLabel • $roundLabel)",
+                text = "${if (isToday) "Heute" else formattedDate} • $modeLabel • $roundLabel",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         Icon(
@@ -641,61 +647,79 @@ private fun TournamentSettingsCollapsedRow(
 
 @Composable
 private fun TournamentSettingsExpandedHeader(
-    isToday: Boolean,
-    dateLabel: String,
-    onToggleExpanded: () -> Unit,
-    onOpenDatePicker: () -> Unit
+    onToggleExpanded: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggleExpanded() }
+            .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { onToggleExpanded() }
-        ) {
-            Text(
-                text = "Einstellungen",
-                style = MaterialTheme.typography.titleMedium
-            )
+        Text(
+            text = "Turnier einrichten",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowUp,
+            contentDescription = "Einstellungen einklappen",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
+        )
+    }
+}
+
+@Composable
+private fun TournamentDateRow(
+    isToday: Boolean,
+    formattedDate: String,
+    onOpenDatePicker: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenDatePicker() }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = Icons.Default.KeyboardArrowUp,
-                contentDescription = "Einstellungen einklappen",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .padding(start = 4.dp)
-                    .size(24.dp)
+                imageVector = Icons.Default.DateRange,
+                contentDescription = "Turnierdatum",
+                tint = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Turnierdatum",
+                style = MaterialTheme.typography.bodyMedium
             )
         }
-        AssistChip(
-            onClick = onOpenDatePicker,
-            label = {
-                Text(
-                    text = dateLabel,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.DateRange,
-                    contentDescription = "Turnierdatum",
-                    tint = if (!isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        )
+        Surface(
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+            color = if (!isToday) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = if (!isToday) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+        ) {
+            Text(
+                text = if (isToday) "Heute ($formattedDate)" else formattedDate,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            )
+        }
     }
 }
 
 @Composable
 private fun TournamentSettingsServerOption(
     isServerConfigured: Boolean,
+    isStandaloneOffline: Boolean,
     isLocalOnly: Boolean,
     onLocalOnlyChanged: (Boolean) -> Unit
 ) {
-    if (isServerConfigured) {
+    if (isServerConfigured && !isStandaloneOffline) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -704,9 +728,9 @@ private fun TournamentSettingsServerOption(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Nur lokal spielen", style = MaterialTheme.typography.bodyMedium)
+                Text("Nur lokal austragen", style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    "Keine Website-Veröffentlichung",
+                    "Nicht auf Website veröffentlichen",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -716,25 +740,6 @@ private fun TournamentSettingsServerOption(
                 onCheckedChange = onLocalOnlyChanged,
                 modifier = Modifier.testTag("tournament_local_only_switch")
             )
-        }
-    } else {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Turniertyp", style = MaterialTheme.typography.bodyMedium)
-            Surface(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-            ) {
-                Text(
-                    text = "Reines Offline-Turnier",
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-            }
         }
     }
 }

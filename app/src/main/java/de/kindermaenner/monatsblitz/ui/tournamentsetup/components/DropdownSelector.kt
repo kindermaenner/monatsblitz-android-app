@@ -86,7 +86,7 @@ fun GameModeDropdownSelector(
                 DropdownMenuItem(
                     text = {
                         Text(
-                            text = "+ Neuer Modus...",
+                            text = "Neuer Modus...",
                             color = MaterialTheme.colorScheme.primary
                         )
                     },

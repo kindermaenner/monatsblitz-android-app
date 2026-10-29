@@ -338,31 +338,31 @@ class TournamentSetupViewModelTest {
     }
 
     @Test
-    fun `players are sorted by last name ascending by default and can be toggled`() = runTest {
+    fun `players are sorted by first name ascending by default and can be toggled`() = runTest {
         val p1 = Player(1, "Mueller", "Alice")
         val p2 = Player(2, "Meier", "Bob")
         coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1, p2))
 
         val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
 
-        // Default: Last name ascending -> Meier (p2), Mueller (p1)
-        assertEquals(listOf(p2, p1), viewModel.uiState.value.players)
-        assertEquals(PlayerSortField.LAST_NAME, viewModel.uiState.value.sortField)
+        // Default: First name ascending -> Alice (p1), Bob (p2)
+        assertEquals(listOf(p1, p2), viewModel.uiState.value.players)
+        assertEquals(PlayerSortField.FIRST_NAME, viewModel.uiState.value.sortField)
         assertEquals(PlayerSortOrder.ASCENDING, viewModel.uiState.value.sortOrder)
 
-        // Toggle sort order -> Descending: Mueller (p1), Meier (p2)
+        // Toggle sort order -> Descending: Bob (p2), Alice (p1)
         viewModel.toggleSortOrder()
-        assertEquals(listOf(p1, p2), viewModel.uiState.value.players)
+        assertEquals(listOf(p2, p1), viewModel.uiState.value.players)
         assertEquals(PlayerSortOrder.DESCENDING, viewModel.uiState.value.sortOrder)
 
-        // Toggle sort field -> First name descending: Bob Meier (p2), Alice Mueller (p1)
+        // Toggle sort field -> Last name descending: Mueller (p1), Meier (p2)
         viewModel.toggleSortField()
-        assertEquals(listOf(p2, p1), viewModel.uiState.value.players)
-        assertEquals(PlayerSortField.FIRST_NAME, viewModel.uiState.value.sortField)
-
-        // Toggle order -> First name ascending: Alice Mueller (p1), Bob Meier (p2)
-        viewModel.toggleSortOrder()
         assertEquals(listOf(p1, p2), viewModel.uiState.value.players)
+        assertEquals(PlayerSortField.LAST_NAME, viewModel.uiState.value.sortField)
+
+        // Toggle order -> Last name ascending: Meier (p2), Mueller (p1)
+        viewModel.toggleSortOrder()
+        assertEquals(listOf(p2, p1), viewModel.uiState.value.players)
         assertEquals(PlayerSortOrder.ASCENDING, viewModel.uiState.value.sortOrder)
     }
 

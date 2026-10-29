@@ -12,7 +12,7 @@ data class TournamentSetupUiState(
     val selectedPlayerIds: Set<Long> = emptySet(),
     val searchQuery: String = "",
     val showOnlySelected: Boolean = false,
-    val sortField: PlayerSortField = PlayerSortField.LAST_NAME,
+    val sortField: PlayerSortField = PlayerSortField.FIRST_NAME,
     val sortOrder: PlayerSortOrder = PlayerSortOrder.ASCENDING,
 
     val selectedDate: LocalDate = LocalDate.now(),

@@ -58,7 +58,7 @@ class RankingScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Ranking").assertExists()
+        composeTestRule.onNodeWithText("Rangliste").assertExists()
         composeTestRule.onNodeWithText("Max Mustermann").assertExists()
 
         composeTestRule.onNodeWithContentDescription("Zurück").performClick()

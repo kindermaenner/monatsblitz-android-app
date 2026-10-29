@@ -54,7 +54,7 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
 
     override val playerSortField: Flow<PlayerSortField> = dataStore.data.map { preferences ->
         val raw = preferences[playerSortFieldKey]
-        raw?.let { runCatching { PlayerSortField.valueOf(it) }.getOrNull() } ?: PlayerSortField.LAST_NAME
+        raw?.let { runCatching { PlayerSortField.valueOf(it) }.getOrNull() } ?: PlayerSortField.FIRST_NAME
     }
 
     override val playerSortOrder: Flow<PlayerSortOrder> = dataStore.data.map { preferences ->

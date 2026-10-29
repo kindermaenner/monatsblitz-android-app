@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -483,22 +484,29 @@ private fun TournamentSetupBottomBar(
     canStartTournament: Boolean,
     onStartTournament: () -> Unit
 ) {
-    BottomAppBar(
+    Surface(
+        tonalElevation = 6.dp,
+        shadowElevation = 8.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Button(
-            onClick = onStartTournament,
-            enabled = canStartTournament,
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            val label = when {
-                !hasSelectedMode -> "Bitte Spielmodus auswählen"
-                selectedCount < 2 -> "Mindestens 2 Spieler auswählen"
-                else -> "Turnier starten ($selectedCount Spieler)"
+            Button(
+                onClick = onStartTournament,
+                enabled = canStartTournament,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                val label = when {
+                    !hasSelectedMode -> "Bitte Spielmodus auswählen"
+                    selectedCount < 2 -> "Mindestens 2 Spieler auswählen"
+                    else -> "Turnier starten ($selectedCount Spieler)"
+                }
+                Text(label)
             }
-            Text(label)
         }
     }
 }
@@ -1125,7 +1133,7 @@ private fun PlayerRow(
     player: Player,
     selected: Boolean,
     showDirtyIndicator: Boolean,
-    sortField: PlayerSortField = PlayerSortField.LAST_NAME,
+    sortField: PlayerSortField = PlayerSortField.FIRST_NAME,
     onCheckedChange: (Boolean) -> Unit
 ) {
     val displayName = if (sortField == PlayerSortField.LAST_NAME && player.name.isNotBlank() && player.vorname.isNotBlank()) {

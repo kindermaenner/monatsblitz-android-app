@@ -245,7 +245,7 @@ class SettingsViewModel(
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
-                initialValue = PlayerSortField.LAST_NAME
+                initialValue = PlayerSortField.FIRST_NAME
             )
 
     val playerSortOrder: StateFlow<PlayerSortOrder> =

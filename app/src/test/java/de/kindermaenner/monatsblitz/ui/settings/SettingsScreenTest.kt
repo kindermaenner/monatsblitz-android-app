@@ -234,7 +234,6 @@ class SettingsScreenTest {
 
         // Bottom continue button exists and works
         composeTestRule.onNodeWithTag("continue_to_setup_button")
-            .performScrollTo()
             .assertExists()
             .performClick()
 
@@ -242,7 +241,7 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun settingsScreen_onlineMode_showsServerSettingsAndHidesContinueButton() {
+    fun settingsScreen_onlineMode_showsServerSettingsAndShowsContinueButton() {
         offlineFlow.value = false
         serverUrlFlow.value = "https://sg-koenigslutter.de"
         apiKeyFlow.value = "valid-key"
@@ -260,7 +259,7 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithTag("server_url_input").assertExists()
         composeTestRule.onNodeWithTag("api_key_input").assertExists()
         composeTestRule.onNodeWithTag("scan_qr_button").assertExists()
-        composeTestRule.onNodeWithTag("continue_to_setup_button").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("continue_to_setup_button").assertExists()
     }
 
     @Test

@@ -9,12 +9,14 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -48,6 +50,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -65,6 +68,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -179,7 +183,7 @@ fun SettingsScreen(
                     }
                 },
                 actions = {
-                    if (!isConfigured && (isServerConfigured || standaloneOfflineMode)) {
+                    if (isConfigured || isServerConfigured || standaloneOfflineMode) {
                         IconButton(onClick = onBack) {
                             Icon(
                                 imageVector = Icons.Default.Check,
@@ -190,6 +194,31 @@ fun SettingsScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            if (isConfigured || isServerConfigured || standaloneOfflineMode) {
+                Surface(
+                    tonalElevation = 6.dp,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(16.dp)
+                    ) {
+                        Button(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("continue_to_setup_button")
+                        ) {
+                            Text("Weiter zum Turniersetup")
+                        }
+                    }
+                }
+            }
         }
     ) { padding ->
         Column(
@@ -454,19 +483,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Abschluss-Button ganz unten (wenn noch unkonfiguriert oder Offline-Betrieb aktiv)
-            if (!isConfigured || standaloneOfflineMode) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = onBack,
-                    enabled = isConfigured,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("continue_to_setup_button")
-                ) {
-                    Text(if (standaloneOfflineMode) "Weiter zum Turniersetup" else "Einrichtung abschließen")
-                }
-            }
+
         }
     }
 }
@@ -837,14 +854,32 @@ private fun PlayerSortingSection(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         FilterChip(
-            selected = playerSortField == PlayerSortField.LAST_NAME,
-            onClick = { onSortFieldChanged(PlayerSortField.LAST_NAME) },
-            label = { Text("Nachname") }
-        )
-        FilterChip(
             selected = playerSortField == PlayerSortField.FIRST_NAME,
             onClick = { onSortFieldChanged(PlayerSortField.FIRST_NAME) },
-            label = { Text("Vorname") }
+            label = {
+                Text(
+                    text = "Vorname",
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            modifier = Modifier.weight(1f)
+        )
+        FilterChip(
+            selected = playerSortField == PlayerSortField.LAST_NAME,
+            onClick = { onSortFieldChanged(PlayerSortField.LAST_NAME) },
+            label = {
+                Text(
+                    text = "Nachname",
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            modifier = Modifier.weight(1f)
         )
     }
 
@@ -861,12 +896,30 @@ private fun PlayerSortingSection(
         FilterChip(
             selected = playerSortOrder == PlayerSortOrder.ASCENDING,
             onClick = { onSortOrderChanged(PlayerSortOrder.ASCENDING) },
-            label = { Text("Aufsteigend (A–Z)") }
+            label = {
+                Text(
+                    text = "Aufsteigend (A–Z)",
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            modifier = Modifier.weight(1f)
         )
         FilterChip(
             selected = playerSortOrder == PlayerSortOrder.DESCENDING,
             onClick = { onSortOrderChanged(PlayerSortOrder.DESCENDING) },
-            label = { Text("Absteigend (Z–A)") }
+            label = {
+                Text(
+                    text = "Absteigend (Z–A)",
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            modifier = Modifier.weight(1f)
         )
     }
 }

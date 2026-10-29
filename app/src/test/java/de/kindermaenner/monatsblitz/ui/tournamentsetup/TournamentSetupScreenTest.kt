@@ -65,11 +65,11 @@ class TournamentSetupScreenTest {
         composeTestRule.onNodeWithText("Mindestens 2 Spieler auswählen").assertExists().assertIsNotEnabled()
 
         // Select first player
-        composeTestRule.onNodeWithText("Meier, Alice").assertExists().performClick()
+        composeTestRule.onNodeWithText("Alice Meier").assertExists().performClick()
         composeTestRule.onNodeWithText("Mindestens 2 Spieler auswählen").assertExists().assertIsNotEnabled()
 
         // Select second player -> Start button becomes active
-        composeTestRule.onNodeWithText("Mueller, Bob").assertExists().performClick()
+        composeTestRule.onNodeWithText("Bob Mueller").assertExists().performClick()
         composeTestRule.onNodeWithText("Turnier starten (2 Spieler)").assertExists().assertIsEnabled()
     }
 

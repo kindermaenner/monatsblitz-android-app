@@ -19,7 +19,6 @@ jobs:
     secrets: inherit
     with:
       app-slug: "monatsblitz"
-      key-alias: "monatsblitz-android"
       keystore-file: "monatsblitz-android-app-release.jks"
       ftp-target-path: "kindermaenner.de/app-downloads/monatsblitz"
       release-title-prefix: "Monatsblitz App"

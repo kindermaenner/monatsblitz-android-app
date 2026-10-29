@@ -262,4 +262,35 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithTag("scan_qr_button").assertExists()
         composeTestRule.onNodeWithTag("continue_to_setup_button").assertDoesNotExist()
     }
+
+    @Test
+    fun settingsScreen_whenNotConfigured_backClickShowsWarningDialog() {
+        offlineFlow.value = false
+        serverUrlFlow.value = ""
+        apiKeyFlow.value = ""
+
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        var backClicked = false
+
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onBack = { backClicked = true }
+            )
+        }
+
+        // Click Back icon
+        composeTestRule.onNodeWithContentDescription("Zurück").performClick()
+        composeTestRule.waitForIdle()
+
+        // Dialog should be displayed, backClicked should still be false
+        composeTestRule.onNodeWithText("Betriebsmodus erforderlich").assertExists()
+        org.junit.Assert.assertFalse("Back should not be called immediately", backClicked)
+
+        // Click confirm fallback "Offline-Modus nutzen"
+        composeTestRule.onNodeWithText("Offline-Modus nutzen").performClick()
+        composeTestRule.waitForIdle()
+
+        assertTrue("After choosing offline mode, onBack should be triggered", backClicked)
+    }
 }

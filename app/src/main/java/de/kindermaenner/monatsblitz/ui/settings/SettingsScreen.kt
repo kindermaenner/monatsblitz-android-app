@@ -1,10 +1,12 @@
 package de.kindermaenner.monatsblitz.ui.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -97,8 +101,21 @@ fun SettingsScreen(
     val availableModes by viewModel.availableModes.collectAsStateWithLifecycle()
 
     var isPasswordVisible by remember { mutableStateOf(false) }
+    var showExitWithoutConfigDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+
+    val handleBackAttempt = {
+        if (!isConfigured) {
+            showExitWithoutConfigDialog = true
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler(enabled = true) {
+        handleBackAttempt()
+    }
 
     val barcodeScanner = remember(context) {
         val options = GmsBarcodeScannerOptions.Builder()
@@ -115,13 +132,48 @@ fun SettingsScreen(
         }
     }
 
+    if (showExitWithoutConfigDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitWithoutConfigDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.Error,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Betriebsmodus erforderlich") },
+            text = {
+                Text(
+                    "Du hast bisher keinen gültigen Betriebsmodus ausgewählt bzw. eingerichtet. Bitte entscheide dich für den dauerhaften Offline-Modus oder schließe die WordPress-Verbindung ab, bevor du fortfährst."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.setStandaloneOfflineMode(true)
+                        showExitWithoutConfigDialog = false
+                        onBack()
+                    }
+                ) {
+                    Text("Offline-Modus nutzen")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showExitWithoutConfigDialog = false }) {
+                    Text("Hier bleiben & einrichten")
+                }
+            }
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(if (!isConfigured) "Monatsblitz Einrichtung" else "Einstellungen") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = handleBackAttempt) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
                     }
                 }
@@ -142,7 +194,7 @@ fun SettingsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (standaloneOfflineMode) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -151,30 +203,97 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Wähle aus, wie Monatsblitz auf diesem Gerät betrieben werden soll:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
                     Spacer(modifier = Modifier.height(12.dp))
-                    Row(
+
+                    // Option A: WordPress-Vereinswebsite
+                    Card(
+                        onClick = { viewModel.setStandaloneOfflineMode(false) },
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (!standaloneOfflineMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                        ),
+                        border = if (!standaloneOfflineMode) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Dauerhafter Offline-Betrieb",
-                                style = MaterialTheme.typography.titleSmall
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = !standaloneOfflineMode,
+                                onClick = { viewModel.setStandaloneOfflineMode(false) }
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "App komplett ohne WordPress-Server nutzen (z. B. für Vereinsfeste, Jugend- oder private Turniere).",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "WordPress-Vereinswebsite",
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Synchronisiert Spieler, Turniere und Ergebnisse mit dem Monatsblitz-WordPress-Plugin.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Option B: Dauerhafter Offline-Betrieb
+                    Card(
+                        onClick = { viewModel.setStandaloneOfflineMode(true) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (standaloneOfflineMode) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
+                        ),
+                        border = if (standaloneOfflineMode) BorderStroke(2.dp, MaterialTheme.colorScheme.secondary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = standaloneOfflineMode,
+                                    onClick = { viewModel.setStandaloneOfflineMode(true) }
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "Dauerhafter Offline-Betrieb",
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "App komplett ohne WordPress-Server nutzen (z. B. für Vereinsfeste, Jugend- oder private Turniere).",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Switch(
+                                checked = standaloneOfflineMode,
+                                onCheckedChange = { viewModel.setStandaloneOfflineMode(it) },
+                                modifier = Modifier.testTag("standalone_offline_switch")
                             )
                         }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Switch(
-                            checked = standaloneOfflineMode,
-                            onCheckedChange = { viewModel.setStandaloneOfflineMode(it) },
-                            modifier = Modifier.testTag("standalone_offline_switch")
-                        )
                     }
                 }
             }
@@ -329,8 +448,8 @@ fun SettingsScreen(
                 }
             }
 
-            // Abschluss-Button für Offline-Onboarding ganz unten
-            if (standaloneOfflineMode && !isServerConfigured) {
+            // Abschluss-Button für Offline-Betrieb ganz unten
+            if (standaloneOfflineMode) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = onBack,

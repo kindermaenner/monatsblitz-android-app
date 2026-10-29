@@ -21,9 +21,9 @@ The motivation and overall project context are documented in the [Monatsblitz Wo
     *   Automated mode pre-selection: None, Fixed mode, or cyclic Rotation (e.g., alternating 3+2 and 5+0) backed by recent server tournaments as the Single Source of Truth.
     *   Support for single and double round-robin formats.
 *   **Interactive Crosstable:** A central matrix view for entering game results (Win, Loss, Draw) with immediate local persistence.
-*   **Early Tournament Exit (Player Withdrawal):** Tournament directors can mark players who leave the tournament early (e.g., youth players having school the next morning) by clicking their name in the crosstable. Open games are automatically scored according to club rules:
-    *   **Youth / Goodwill rule (Kulanzregel):** Remaining unplayed games are scored as unplayed draw (`=:=`, 0.5 points for both players).
-    *   **Regular rule:** Remaining unplayed games are scored as forfeit loss (`-`, 0 points for the leaving player, `+` / 1 point for opponents).
+*   **Early Tournament Exit (Player Withdrawal):** Tournament directors can mark players who leave the tournament early (e.g., youth players having school the next morning) by clicking their name in the crosstable. Open games are automatically scored according to selection:
+    *   Remaining unplayed games are scored as unplayed draw (`=:=`, 0.5 points for both players).
+    *   Remaining unplayed games are scored as forfeit loss (`-`, 0 points for the leaving player, `+` / 1 point for opponents).
     *   Withdrawn players are marked with `(z)` (*zurückgetreten*) across the crosstable, rankings, and published WordPress results.
 *   **Remote Tournament Adoption ("Turnier fortsetzen") & UX Lifecycle:**
     *   Automatic detection of open tournaments on the WordPress server upon app launch or entering setup.

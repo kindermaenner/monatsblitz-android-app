@@ -516,7 +516,7 @@ private fun PlayerWithdrawDialog(
                         )
                         Column(modifier = Modifier.padding(start = 8.dp)) {
                             Text(
-                                text = "Jugendregel (Kulanz)",
+                                text = "Kulanz",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -546,7 +546,7 @@ private fun PlayerWithdrawDialog(
                         )
                         Column(modifier = Modifier.padding(start = 8.dp)) {
                             Text(
-                                text = "Regulär (Erwachsene)",
+                                text = "Regulär",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold
                             )

@@ -32,9 +32,9 @@ Die App dient als mobiles Werkzeug für Turnierleiter, um monatliche Blitzschach
     *   Ergebnisse werden sofort in der lokalen Datenbank persistiert (Single Source of Truth).
 *   **Vorzeitiger Rücktritt (Player Withdrawal):**
     *   Turnierleiter können vorzeitig ausscheidende Spieler (z. B. Jugendliche) durch Klick auf den Spielernamen markieren.
-    *   Automatische Wertung offener Partien nach Vereinsregeln:
-        *   **Kulanzregel (Jugend):** Ungespieltes Remis (`=:=`, 0.5 Punkte für beide Spieler).
-        *   **Reguläre Wertung:** Kampflose Niederlage (`-:+`, 0 Punkte für den Aussteigenden, 1 Punkt für Gegner).
+    *   Automatische Wertung offener Partien nach Auswahl:
+        *   Ungespieltes Remis (`=:=`, 0.5 Punkte für beide Spieler).
+        *   Kampflose Niederlage (`-:+`, 0 Punkte für den Aussteigenden, 1 Punkt für Gegner).
     *   Kennzeichnung ausgetretener Spieler mit `(z)` (*zurückgetreten*) in Kreuztabelle, Rangliste und Veröffentlichungen.
 *   **Live-Ranking:**
     *   Aufruf einer aktuellen Rangliste während des laufenden Turniers.

@@ -150,6 +150,7 @@ class SettingsViewModel(
         _apiKeyInput.value = config.apiKey
         _testResult.value = null
         _isSavedMessageVisible.value = false
+        setStandaloneOfflineMode(false)
         if (config.modePreselectionType != null) {
             setModePreselectionType(config.modePreselectionType)
         }

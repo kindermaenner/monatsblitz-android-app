@@ -37,7 +37,7 @@ android {
             create("release") {
                 storeFile = file(keystorePath!!)
                 storePassword = keystorePassword
-                keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: "monatsblitz"
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: "monatsblitz-android"
                 keyPassword = keystorePassword
             }
         }

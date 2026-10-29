@@ -22,6 +22,7 @@ import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.repository.RemoteOpenTournamentInfo
 import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.toEntity
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.toGameResult
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.toResultString
 import java.time.LocalDate
@@ -60,9 +61,7 @@ class TournamentRepositoryImpl(
 
     override fun observeTournament(id: Long): Flow<Tournament?> {
         return tournamentDao.observeTournament(id)
-            .map { it ->
-                it?.toDomain()
-            }
+            .map { it?.toDomain() }
     }
 
     override suspend fun getTournamentById(id: Long): Tournament? {
@@ -283,7 +282,12 @@ class TournamentRepositoryImpl(
             )
             if (response.success) {
                 games.forEachIndexed { index, game ->
-                    gameDao.markGameAsSynced(game.localGameId, response.items[index].gameId)
+                    val remoteGameId = response.items.getOrNull(index)?.gameId ?: 0
+                    if (remoteGameId > 0) {
+                        gameDao.markGameAsSynced(game.localGameId, remoteGameId)
+                    } else {
+                        Log.e(TAG, "syncDirtyGames: Server returned invalid gameId ($remoteGameId) for game ${game.localGameId}")
+                    }
                 }
             }
         }
@@ -337,9 +341,7 @@ class TournamentRepositoryImpl(
                 withdrawnPlayerIds = withdrawnRemoteIds.ifEmpty { null }
             )
         )
-        if (!finalizeResponse.success) {
-            throw IllegalStateException("Finalisierung auf dem Server fehlgeschlagen")
-        }
+        check(finalizeResponse.success) { "Finalisierung auf dem Server fehlgeschlagen" }
 
         tournamentStorage.finalizeTournament()
     }
@@ -408,6 +410,14 @@ class TournamentRepositoryImpl(
         } catch (e: Exception) {
             Log.w(TAG, "adoptRemoteTournament: could not fetch games: ${e.message}")
             emptyList()
+        }
+
+        try {
+            val allRemotePlayers = api.getPlayers()
+            val entities = allRemotePlayers.map { it.toEntity() }
+            resolvedPlayerDao.upsertAll(entities)
+        } catch (e: Exception) {
+            Log.w(TAG, "adoptRemoteTournament: could not refresh players from server: ${e.message}")
         }
 
         val remotePlayerIds = remoteTournament.playerIds

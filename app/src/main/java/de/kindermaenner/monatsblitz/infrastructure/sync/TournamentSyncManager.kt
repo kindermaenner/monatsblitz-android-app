@@ -125,14 +125,18 @@ class TournamentSyncManager(
             status
         } catch (e: HttpException) {
             val responseBody = try { e.response()?.errorBody()?.string() } catch (_: Exception) { null }
+            val pluginMessage = ApiErrorDto.extractMessage(responseBody)
             val errorMsg = when (e.code()) {
                 401 -> "Authentifizierungsfehler (HTTP 401). Bitte API-Schlüssel in Einstellungen prüfen."
                 403 -> "Turnier ist auf dem Server bereits abgeschlossen (HTTP 403)."
                 404 -> "Server-Endpunkt nicht gefunden (HTTP 404). Bitte Server-Adresse in Einstellungen prüfen."
-                409 -> "Turnier existiert bereits oder Konflikt auf dem Server (HTTP 409)."
-                426 -> ApiErrorDto.extractMessage(responseBody)
+                409 -> if (!pluginMessage.isNullOrBlank()) "Konflikt (HTTP 409): $pluginMessage" else "Turnier existiert bereits oder Konflikt auf dem Server (HTTP 409)."
+                426 -> pluginMessage
                     ?: "Inkompatible API-Version zwischen App und WordPress-Plugin. Bitte prüfe Updates für App und Plugin."
-                else -> "Server meldete HTTP ${e.code()}: ${responseBody ?: e.message()}"
+                else -> {
+                    val detail = pluginMessage ?: responseBody ?: e.message()
+                    "Server meldete HTTP ${e.code()}: $detail"
+                }
             }
             Log.e(TAG, "Sync failed: $errorMsg (body=$responseBody)", e)
             _lastSyncError.value = errorMsg

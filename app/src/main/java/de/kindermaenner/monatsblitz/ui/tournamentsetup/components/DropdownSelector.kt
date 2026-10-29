@@ -32,11 +32,11 @@ fun GameModeDropdownSelector(
     var expanded by remember { mutableStateOf(false) }
 
     val displayModes = remember(availableModes, selectedMode) {
-        val list = availableModes.toMutableList()
-        if (selectedMode != null && list.none { it.name.equals(selectedMode.name, ignoreCase = true) }) {
-            list.add(0, selectedMode)
+        if (selectedMode != null && availableModes.none { it.name.equals(selectedMode.name, ignoreCase = true) }) {
+            listOf(selectedMode) + availableModes
+        } else {
+            availableModes
         }
-        list
     }
 
     ExposedDropdownMenuBox(

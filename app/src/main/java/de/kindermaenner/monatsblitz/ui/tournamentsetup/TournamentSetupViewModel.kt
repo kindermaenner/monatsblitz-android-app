@@ -16,6 +16,7 @@ import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncModesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.toDetailedErrorMessage
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -89,9 +90,8 @@ class TournamentSetupViewModel(
                     settingsRepository.isServerConfigured,
                     settingsRepository.standaloneOfflineMode
                 ) { serverConfigured, offline ->
-                    val effectiveServerActive = serverConfigured && !offline
-                    Triple(serverConfigured, offline, effectiveServerActive)
-                }.collect { (serverConfigured, offline, effectiveServerActive) ->
+                    offline to (serverConfigured && !offline)
+                }.collect { (offline, effectiveServerActive) ->
                     _uiState.update { state ->
                         val wasOfflineOrUnconfigured = !state.isServerConfigured || state.isStandaloneOffline
                         val nowServerActive = effectiveServerActive
@@ -388,7 +388,7 @@ class TournamentSetupViewModel(
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(addPlayerError = e.message ?: "Fehler beim Anlegen des Spielers.")
+                    it.copy(addPlayerError = e.toDetailedErrorMessage())
                 }
             }
         }
@@ -455,7 +455,7 @@ class TournamentSetupViewModel(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        addModeError = e.message ?: "Fehler beim Anlegen des Modus.",
+                        addModeError = e.toDetailedErrorMessage(),
                         showConfirmAddModeDialog = false
                     )
                 }
@@ -503,7 +503,7 @@ class TournamentSetupViewModel(
                 val localId = repo.adoptRemoteTournament(info.id)
                 _navigationEffect.emit(localId)
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, adoptError = e.message ?: "Fehler beim Laden des Turniers") }
+                _uiState.update { it.copy(isLoading = false, adoptError = e.toDetailedErrorMessage()) }
             }
         }
     }

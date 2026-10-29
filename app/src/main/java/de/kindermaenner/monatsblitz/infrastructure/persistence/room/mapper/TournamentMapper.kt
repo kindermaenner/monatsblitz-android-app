@@ -65,7 +65,7 @@ fun TournamentWithDetails.toDomain(): Tournament {
         mode = tournament.mode,
         date = tournament.date,
         rounds = tournament.rounds,
-        players = players.map { it -> it.toDomain() },
+        players = players.map { it.toDomain() },
         games = games.associate { gameEntity ->
             gameEntity.id to gameEntity.toDomain()
         },
@@ -101,14 +101,11 @@ fun PlayerRankingEntry.toEntity() : TournamentPlayerCrossRef =
     )
 
 fun TournamentPlayerCrossRef.toDomain() : PlayerRankingEntry {
-    if (rank == null) {
-        throw IllegalArgumentException("Points and rank must not be null for PlayerRankingEntry")
-    } else {
-        return PlayerRankingEntry(
-            tournamentId = tournamentId,
-            playerId = playerId,
-            points = points ?: 0.0,
-            rank = rank
-        )
-    }
+    val nonNullRank = requireNotNull(rank) { "Points and rank must not be null for PlayerRankingEntry" }
+    return PlayerRankingEntry(
+        tournamentId = tournamentId,
+        playerId = playerId,
+        points = points ?: 0.0,
+        rank = nonNullRank
+    )
 }

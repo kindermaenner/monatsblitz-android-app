@@ -491,6 +491,46 @@ fun SettingsScreen(
                 }
             }
 
+            // Sektion 5: Hilfe & Feedback (Card)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Hilfe & Feedback",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Probleme oder Fragen? Sende einen Fehlerbericht oder Feedback direkt an den Entwickler.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    OutlinedButton(
+                        onClick = {
+                            de.kindermaenner.monatsblitz.ui.util.ErrorReportSender.sendErrorReport(
+                                context = context,
+                                actionTitle = "Allgemeines Feedback / Fehlerbericht",
+                                errorMessage = "Aus den Einstellungen gesendet",
+                                serverUrl = serverUrl
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Fehlerbericht / Feedback senden")
+                    }
+                }
+            }
+
 
         }
     }

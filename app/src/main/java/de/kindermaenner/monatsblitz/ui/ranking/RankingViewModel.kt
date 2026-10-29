@@ -10,6 +10,7 @@ import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
 import de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase
 import de.kindermaenner.monatsblitz.domain.util.PlayerNameFormatter
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.toDetailedErrorMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -152,7 +153,7 @@ class RankingViewModel(
                 Log.e("RankingViewModel", "Error finalizing tournament", e)
                 _uiState.value = (_uiState.value as? RankingUiState.Ready)?.copy(
                     isFinalizing = false,
-                    finalizeError = e.message ?: "Unbekannter Fehler bei der Finalisierung"
+                    finalizeError = e.toDetailedErrorMessage()
                 ) ?: currentState
             }
         }

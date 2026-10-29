@@ -7,14 +7,14 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.Playe
 import java.util.Locale
 
 fun String.toGameResult(): GameResult {
-    val s = trim().replace(',', '.').lowercase(Locale.getDefault())
+    val s = trim().replace(',', '.').replace(" ", "").lowercase(Locale.getDefault())
     return when (s) {
         "1:0" -> GameResult.Win
         "0:1" -> GameResult.Loss
         "0.5:0.5" -> GameResult.Remis
         "+:-" -> GameResult.ForfeitWin
         "-:+" -> GameResult.ForfeitLoss
-        "=" -> GameResult.ForfeitDraw
+        "=:=", "=" -> GameResult.ForfeitDraw
         else -> GameResult.Open
     }
 }
@@ -25,7 +25,7 @@ fun GameResult.toResultString(): String = when (this) {
     GameResult.Remis -> "0.5:0.5"
     GameResult.ForfeitWin -> "+:-"
     GameResult.ForfeitLoss -> "-:+"
-    GameResult.ForfeitDraw -> "="
+    GameResult.ForfeitDraw -> "=:="
     GameResult.Open -> "offen"
 }
 

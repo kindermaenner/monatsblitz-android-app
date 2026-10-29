@@ -14,8 +14,8 @@ class AddPlayerUseCase(private val playerRepository: PlayerRepository) {
         }
 
         val existingPlayers = playerRepository.findPlayersByName(trimmedVorname, trimmedName)
-        if (existingPlayers.isNotEmpty()) {
-            throw IllegalArgumentException("Ein Spieler mit dem Namen '$trimmedVorname $trimmedName' existiert bereits.")
+        require(existingPlayers.isEmpty()) {
+            "Ein Spieler mit dem Namen '$trimmedVorname $trimmedName' existiert bereits."
         }
 
         return playerRepository.createPlayer(

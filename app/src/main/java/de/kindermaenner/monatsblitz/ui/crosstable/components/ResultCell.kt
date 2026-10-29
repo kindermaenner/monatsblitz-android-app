@@ -89,14 +89,19 @@ fun ResultCell(
                 textAlign = TextAlign.Center
             )
 
-            if (params.isDirty && params.showDetailedSyncIndicator && params.value.isNotBlank() && params.value != " ") {
+            if (params.showDetailedSyncIndicator && params.value.isNotBlank() && params.value != " ") {
+                val dotColor = if (params.isDirty) {
+                    MaterialTheme.colorScheme.tertiary
+                } else {
+                    androidx.compose.ui.graphics.Color(0xFF2E7D32)
+                }
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(3.dp)
                         .size(6.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.tertiary)
+                        .background(dotColor)
                 )
             }
         }

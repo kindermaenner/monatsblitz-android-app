@@ -25,3 +25,19 @@ data class ApiErrorDto(
         }
     }
 }
+
+fun Throwable.toDetailedErrorMessage(): String {
+    if (this is retrofit2.HttpException) {
+        val rawBody = try { response()?.errorBody()?.string() } catch (_: Exception) { null }
+        val pluginMessage = ApiErrorDto.extractMessage(rawBody)
+        val httpInfo = "HTTP ${code()}" + (message().takeIf { it.isNotBlank() }?.let { " $it" } ?: "")
+        return if (!pluginMessage.isNullOrBlank()) {
+            "$httpInfo: $pluginMessage"
+        } else if (!rawBody.isNullOrBlank()) {
+            "$httpInfo: $rawBody"
+        } else {
+            httpInfo
+        }
+    }
+    return message?.takeIf { it.isNotBlank() } ?: javaClass.simpleName
+}

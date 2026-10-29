@@ -264,6 +264,7 @@ private fun FinalizeErrorDialog(
     onDismiss: () -> Unit
 ) {
     if (error == null) return
+    val context = androidx.compose.ui.platform.LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Fehler beim Abschluss") },
@@ -271,6 +272,19 @@ private fun FinalizeErrorDialog(
         confirmButton = {
             Button(onClick = onDismiss) {
                 Text("OK")
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = {
+                    de.kindermaenner.monatsblitz.ui.util.ErrorReportSender.sendErrorReport(
+                        context = context,
+                        actionTitle = "Turnier abschließen / finalisieren",
+                        errorMessage = error
+                    )
+                }
+            ) {
+                Text("Fehler melden")
             }
         }
     )

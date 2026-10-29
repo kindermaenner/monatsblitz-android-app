@@ -221,6 +221,7 @@ fun TournamentSetupScreen(
     }
 
     state.adoptError?.let { err ->
+        val context = androidx.compose.ui.platform.LocalContext.current
         AlertDialog(
             onDismissRequest = viewModel::dismissRemoteTournamentDialog,
             title = { Text("Fehler") },
@@ -228,6 +229,19 @@ fun TournamentSetupScreen(
             confirmButton = {
                 Button(onClick = viewModel::dismissRemoteTournamentDialog) {
                     Text("OK")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        de.kindermaenner.monatsblitz.ui.util.ErrorReportSender.sendErrorReport(
+                            context = context,
+                            actionTitle = "Offenes Turnier fortsetzen",
+                            errorMessage = err
+                        )
+                    }
+                ) {
+                    Text("Fehler melden")
                 }
             }
         )

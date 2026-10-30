@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: "Existing version tag to build and publish (e.g. v1.2.3)"
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,3 +31,4 @@ jobs:
       java-version: "21"
       run-unit-tests: true
       run-ftp-upload: true
+      release-tag: ${{ inputs.release-tag || '' }}

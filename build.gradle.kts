@@ -32,24 +32,6 @@ tasks.named("assemble") {
     dependsOn("generateDiagrams")
 }
 
-kover {
-    reports {
-        filters {
-            excludes {
-                classes(
-                    "**/R.class", "**/R$*.class", "**/BuildConfig.*", "**/Manifest*.*",
-                    "android/**/*.*", "**/databinding/*", "**/androidx/*",
-                    "**/*MapperImpl*.*", "**/*Component*.*", "**/*BR*.*",
-                    "**/*Module*.*", "**/*Dagger*.*", "**/*Hilt*.*",
-                    "**/*_Factory*.*", "**/*_Provide*Factory*.*",
-                    "**/*_Impl*.*", "**/*_Impl$*.*",
-                    "**/ui/theme/**"
-                )
-            }
-        }
-    }
-}
-
 sonar {
     properties {
         val appBuildDir = project(":app").layout.buildDirectory.get().asFile
@@ -60,12 +42,6 @@ sonar {
         property("sonar.sourceEncoding", "UTF-8")
         property("sonar.sources", "app/src/main/java")
         property("sonar.android.lint.reportPaths", "app/build/reports/lint-results-debug.xml")
-        property("sonar.coverage.exclusions", listOf(
-            "**/ui/theme/**",
-            "**/*_Impl*.*",
-            "**/infrastructure/persistence/room/dao/*_Impl*.*",
-            "**/infrastructure/persistence/room/*_Impl*.*"
-        ).joinToString(","))
         property("sonar.coverage.jacoco.xmlReportPaths", listOf(
             "$appBuildDir/reports/kover/reportDebug.xml",
             "$appBuildDir/reports/kover/report.xml",

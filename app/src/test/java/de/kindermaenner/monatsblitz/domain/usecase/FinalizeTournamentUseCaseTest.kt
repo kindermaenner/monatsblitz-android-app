@@ -99,5 +99,50 @@ class FinalizeTournamentUseCaseTest {
         }
         coVerify(exactly = 0) { tournamentRepository.submitResultsAndFinalize(any()) }
     }
+
+    @Test
+    fun `invoke finalizes local-only tournament without syncing`() = runTest {
+        val tournamentId = 5L
+        val tournament = Tournament(
+            id = tournamentId,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = emptyList(),
+            isLocalOnly = true
+        )
+        coEvery { tournamentRepository.getTournamentById(tournamentId) } returns tournament
+
+        useCase(tournamentId)
+
+        coVerify { createTournamentRankingsUseCase(tournament) }
+        coVerify { tournamentRepository.finalizeLocalTournament(tournamentId) }
+        coVerify(exactly = 0) { syncPlayersUseCase() }
+        coVerify(exactly = 0) { syncTournamentUseCase() }
+        coVerify(exactly = 0) { syncGameResultsUseCase() }
+        coVerify(exactly = 0) { tournamentRepository.submitResultsAndFinalize(any()) }
+    }
+
+    @Test
+    fun `invoke with null sync use cases completes without throwing`() = runTest {
+        val minimalUseCase = FinalizeTournamentUseCase(
+            tournamentRepository = tournamentRepository,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase
+        )
+        val tournamentId = 6L
+        val tournament = Tournament(
+            id = tournamentId,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = emptyList(),
+            isLocalOnly = false
+        )
+        coEvery { tournamentRepository.getTournamentById(tournamentId) } returns tournament
+
+        minimalUseCase(tournamentId)
+
+        coVerify { tournamentRepository.submitResultsAndFinalize(tournamentId) }
+    }
 }
 

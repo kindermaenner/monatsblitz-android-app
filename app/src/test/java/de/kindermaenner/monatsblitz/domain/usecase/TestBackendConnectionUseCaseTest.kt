@@ -93,4 +93,45 @@ class TestBackendConnectionUseCaseTest {
         assertTrue(result is ConnectionTestResult.Error)
         assertEquals("Server nicht gefunden. Bitte Adresse prüfen.", (result as ConnectionTestResult.Error).message)
     }
+
+    @Test
+    fun `returns error when connect exception occurs`() = runTest {
+        coEvery { api.getPlayers() } throws java.net.ConnectException("connection refused")
+        val result = useCase("https://example.com", "key123")
+        assertTrue(result is ConnectionTestResult.Error)
+        assertEquals("Verbindung fehlgeschlagen. Bitte Server-Adresse und Netzwerk prüfen.", (result as ConnectionTestResult.Error).message)
+    }
+
+    @Test
+    fun `returns error when timeout occurs`() = runTest {
+        coEvery { api.getPlayers() } throws java.net.SocketTimeoutException("timeout")
+        val result = useCase("https://example.com", "key123")
+        assertTrue(result is ConnectionTestResult.Error)
+        assertEquals("Zeitüberschreitung bei Verbindung zum Server.", (result as ConnectionTestResult.Error).message)
+    }
+
+    @Test
+    fun `returns error when io exception occurs`() = runTest {
+        coEvery { api.getPlayers() } throws java.io.IOException("disk error")
+        val result = useCase("https://example.com", "key123")
+        assertTrue(result is ConnectionTestResult.Error)
+        assertTrue((result as ConnectionTestResult.Error).message.contains("Netzwerkfehler: disk error"))
+    }
+
+    @Test
+    fun `returns error when other generic exception occurs`() = runTest {
+        coEvery { api.getPlayers() } throws IllegalStateException("unexpected state")
+        val result = useCase("https://example.com", "key123")
+        assertTrue(result is ConnectionTestResult.Error)
+        assertTrue((result as ConnectionTestResult.Error).message.contains("Fehler: unexpected state"))
+    }
+
+    @Test
+    fun `returns error when 500 http exception occurs`() = runTest {
+        val response = Response.error<List<PlayerDto>>(500, "".toResponseBody(null))
+        coEvery { api.getPlayers() } throws HttpException(response)
+        val result = useCase("https://example.com", "key123")
+        assertTrue(result is ConnectionTestResult.Error)
+        assertTrue((result as ConnectionTestResult.Error).message.contains("Server meldete HTTP 500"))
+    }
 }

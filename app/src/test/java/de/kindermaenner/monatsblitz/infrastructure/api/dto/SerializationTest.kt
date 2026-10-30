@@ -270,4 +270,21 @@ class SerializationTest {
         org.junit.Assert.assertTrue(response.success)
         org.junit.Assert.assertEquals(42L, response.playerId)
     }
+
+    @Test
+    fun `WithdrawPlayerDto and WithdrawPlayerResponseDto serialize and deserialize correctly`() {
+        val request = WithdrawPlayerDto(tournamentId = 5, playerId = 12, hasLeft = 1)
+        val reqJson = json.encodeToString(request)
+        val decodedReq = json.decodeFromString<WithdrawPlayerDto>(reqJson)
+        org.junit.Assert.assertEquals(5, decodedReq.tournamentId)
+        org.junit.Assert.assertEquals(12, decodedReq.playerId)
+        org.junit.Assert.assertEquals(1, decodedReq.hasLeft)
+
+        val responseJson = """{"success": true, "tournament_id": 5, "player_id": 12, "has_left": 1}"""
+        val decodedRes = json.decodeFromString<WithdrawPlayerResponseDto>(responseJson)
+        org.junit.Assert.assertTrue(decodedRes.success)
+        org.junit.Assert.assertEquals(5, decodedRes.tournamentId)
+        org.junit.Assert.assertEquals(12, decodedRes.playerId)
+        org.junit.Assert.assertEquals(1, decodedRes.hasLeft)
+    }
 }

@@ -65,6 +65,16 @@ class AddPlayerUseCaseTest {
     }
 
     @Test
+    fun `invoke with isLocal true passes flag to NewPlayer`() = runTest {
+        val expected = Player(1, "Meier", "Alice", isLocal = true)
+        coEvery { repository.findPlayersByName("Alice", "Meier") } returns emptyList()
+        coEvery { repository.createPlayer(NewPlayer(vorname = "Alice", name = "Meier", isLocal = true)) } returns expected
+
+        val result = useCase("Alice", "Meier", isLocal = true)
+        assertEquals(expected, result)
+    }
+
+    @Test
     fun `invoke with blank vorname or name should throw IllegalArgumentException`() = runTest {
         try {
             useCase("", "Meier")

@@ -196,4 +196,122 @@ class AppSettingsStorageTest {
 
         assertEquals(6, updatedPrefs?.get(activePlayersCutoffMonthsKey))
     }
+
+    @Test
+    fun `playerSortField and playerSortOrder return default and stored values`() = runTest {
+        val sortFieldKey = stringPreferencesKey("player_sort_field")
+        val sortOrderKey = stringPreferencesKey("player_sort_order")
+
+        val initialPrefs = mutablePreferencesOf()
+        var updatedPrefs: Preferences? = null
+        every { dataStore.data } returns flowOf(initialPrefs)
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
+        val storage = AppSettingsStorage(dataStore)
+
+        assertEquals(de.kindermaenner.monatsblitz.domain.model.PlayerSortField.FIRST_NAME, storage.playerSortField.first())
+        assertEquals(de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder.ASCENDING, storage.playerSortOrder.first())
+
+        storage.setPlayerSortField(de.kindermaenner.monatsblitz.domain.model.PlayerSortField.LAST_NAME)
+        assertEquals(de.kindermaenner.monatsblitz.domain.model.PlayerSortField.LAST_NAME.name, updatedPrefs?.get(sortFieldKey))
+
+        storage.setPlayerSortOrder(de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder.DESCENDING)
+        assertEquals(de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder.DESCENDING.name, updatedPrefs?.get(sortOrderKey))
+    }
+
+    @Test
+    fun `useShortPlayerNames and autoAdoptOpenTournament read and write correctly`() = runTest {
+        val shortNamesKey = booleanPreferencesKey("use_short_player_names")
+        val autoAdoptKey = booleanPreferencesKey("auto_adopt_open_tournament")
+
+        val initialPrefs = mutablePreferencesOf()
+        var updatedPrefs: Preferences? = null
+        every { dataStore.data } returns flowOf(initialPrefs)
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
+        val storage = AppSettingsStorage(dataStore)
+
+        assertTrue(storage.useShortPlayerNames.first())
+        assertFalse(storage.autoAdoptOpenTournament.first())
+
+        storage.setUseShortPlayerNames(false)
+        assertEquals(false, updatedPrefs?.get(shortNamesKey))
+
+        storage.setAutoAdoptOpenTournament(true)
+        assertEquals(true, updatedPrefs?.get(autoAdoptKey))
+    }
+
+    @Test
+    fun `mode preselection and rotation settings read and write correctly`() = runTest {
+        val modeTypeKey = stringPreferencesKey("mode_preselection_type")
+        val fixedModeKey = stringPreferencesKey("fixed_mode")
+        val rotationModesKey = stringPreferencesKey("rotation_modes")
+
+        val initialPrefs = mutablePreferencesOf()
+        var updatedPrefs: Preferences? = null
+        every { dataStore.data } returns flowOf(initialPrefs)
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
+        val storage = AppSettingsStorage(dataStore)
+
+        assertEquals(de.kindermaenner.monatsblitz.domain.model.ModePreselectionType.NONE, storage.modePreselectionType.first())
+        assertEquals("", storage.fixedMode.first())
+        assertEquals(emptyList<String>(), storage.rotationModes.first())
+
+        storage.setModePreselectionType(de.kindermaenner.monatsblitz.domain.model.ModePreselectionType.ROTATION)
+        assertEquals(de.kindermaenner.monatsblitz.domain.model.ModePreselectionType.ROTATION.name, updatedPrefs?.get(modeTypeKey))
+
+        storage.setFixedMode("3+2")
+        assertEquals("3+2", updatedPrefs?.get(fixedModeKey))
+
+        storage.setRotationModes(listOf("3+2", "5+0"))
+        assertEquals("3+2;5+0", updatedPrefs?.get(rotationModesKey))
+    }
+
+    @Test
+    fun `setStandaloneOfflineMode and isServerConfigured suspend helper operate as expected`() = runTest {
+        val initialPrefs = mutablePreferencesOf()
+        var updatedPrefs: Preferences? = null
+        every { dataStore.data } returns flowOf(initialPrefs)
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
+        val storage = AppSettingsStorage(dataStore)
+
+        storage.setStandaloneOfflineMode(true)
+        assertEquals(true, updatedPrefs?.get(standaloneOfflineModeKey))
+
+        assertFalse(storage.isServerConfigured())
+    }
+
+    @Test
+    fun `getServerUrlSync and getApiKeySync return cached or datastore values`() = runTest {
+        val prefs = mockk<Preferences>()
+        every { prefs[serverUrlKey] } returns "https://sync.example.com"
+        every { prefs[apiKeyKey] } returns "sync-key"
+        every { dataStore.data } returns flowOf(prefs)
+
+        val storage = AppSettingsStorage(dataStore)
+        assertEquals("https://sync.example.com", storage.getServerUrlSync())
+        assertEquals("sync-key", storage.getApiKeySync())
+
+        // Subsequent call returns cached value
+        assertEquals("https://sync.example.com", storage.getServerUrlSync())
+        assertEquals("sync-key", storage.getApiKeySync())
+    }
 }

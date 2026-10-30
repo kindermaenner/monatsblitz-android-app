@@ -49,6 +49,8 @@ class TournamentRepositoryImplTest {
     fun setup() {
         mockkStatic(Log::class)
         every { Log.i(any(), any()) } returns 0
+        every { Log.w(any(), any<String>()) } returns 0
+        every { Log.w(any(), any<String>(), any<Throwable>()) } returns 0
         every { Log.e(any(), any()) } returns 0
         every { Log.e(any(), any(), any()) } returns 0
         
@@ -445,6 +447,177 @@ class TournamentRepositoryImplTest {
 
         coVerify { tournamentStorage.saveTournamentState(77L, false) }
         coVerify { gameDao.insertAll(match { it.size == 1 && it.first().result == de.kindermaenner.monatsblitz.domain.model.GameResult.Win }) }
+    }
+
+    @Test
+    fun `withdrawPlayer with YOUTH_DRAW sets open games to ForfeitDraw and calls remote api`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>(relaxed = true)
+        val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>(relaxed = true)
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDaoMock,
+            monatsblitzApi = api
+        )
+
+        val g1 = GameEntity(id = 10, tournamentId = 1L, player1Id = 5L, player2Id = 6L, leg = 1, result = GameResult.Open, dirty = false)
+        val g2 = GameEntity(id = 11, tournamentId = 1L, player1Id = 7L, player2Id = 5L, leg = 1, result = GameResult.Win, dirty = false)
+        val g3 = GameEntity(id = 12, tournamentId = 1L, player1Id = 7L, player2Id = 5L, leg = 2, result = GameResult.Open, dirty = false)
+        coEvery { gameDao.getGamesForTournament(1L) } returns listOf(g1, g2, g3)
+
+        val tEntity = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 100L)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(tournament = tEntity, players = emptyList(), games = emptyList())
+        val pEntity = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 5L, name = "Meier", vorname = "Max", remoteId = 500L)
+        coEvery { playerDaoMock.getPlayerById(5L) } returns pEntity
+
+        repo.withdrawPlayer(1L, 5L, de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule.YOUTH_DRAW)
+
+        coVerify { tournamentPlayerDao.setPlayerWithdrawn(1L, 5L, true) }
+        coVerify { gameDao.update(match { it.id == 10L && it.result == GameResult.ForfeitDraw && it.dirty }) }
+        coVerify { gameDao.update(match { it.id == 12L && it.result == GameResult.ForfeitDraw && it.dirty }) }
+        coVerify(exactly = 0) { gameDao.update(match { it.id == 11L }) }
+        coVerify {
+            api.withdrawPlayer(
+                de.kindermaenner.monatsblitz.infrastructure.api.dto.WithdrawPlayerDto(
+                    tournamentId = 100,
+                    playerId = 500,
+                    hasLeft = 1
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `withdrawPlayer with REGULAR_LOSS sets open games to ForfeitLoss when player1 or ForfeitWin when player2`() = runTest {
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage
+        )
+
+        val g1 = GameEntity(id = 20, tournamentId = 2L, player1Id = 5L, player2Id = 6L, leg = 1, result = GameResult.Open, dirty = false)
+        val g2 = GameEntity(id = 21, tournamentId = 2L, player1Id = 6L, player2Id = 5L, leg = 1, result = GameResult.Open, dirty = false)
+        coEvery { gameDao.getGamesForTournament(2L) } returns listOf(g1, g2)
+        coEvery { tournamentDao.getTournament(2L) } returns null
+
+        repo.withdrawPlayer(2L, 5L, de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule.REGULAR_LOSS)
+
+        coVerify { tournamentPlayerDao.setPlayerWithdrawn(2L, 5L, true) }
+        coVerify { gameDao.update(match { it.id == 20L && it.result == GameResult.ForfeitLoss && it.dirty }) }
+        coVerify { gameDao.update(match { it.id == 21L && it.result == GameResult.ForfeitWin && it.dirty }) }
+    }
+
+    @Test
+    fun `withdrawPlayer logs warning and does not throw when remote api fails`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>(relaxed = true)
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDaoMock,
+            monatsblitzApi = api
+        )
+
+        coEvery { gameDao.getGamesForTournament(3L) } returns emptyList()
+        val tEntity = TournamentEntity(id = 3L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 100L)
+        coEvery { tournamentDao.getTournament(3L) } returns TournamentWithDetails(tournament = tEntity, players = emptyList(), games = emptyList())
+        val pEntity = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 5L, name = "Meier", vorname = "Max", remoteId = 500L)
+        coEvery { playerDaoMock.getPlayerById(5L) } returns pEntity
+        coEvery { api.withdrawPlayer(any()) } throws RuntimeException("Network down")
+
+        repo.withdrawPlayer(3L, 5L, de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule.YOUTH_DRAW)
+
+        coVerify { tournamentPlayerDao.setPlayerWithdrawn(3L, 5L, true) }
+    }
+
+    @Test
+    fun `getRecentTournamentModes returns remote modes when available`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        coEvery { api.getTournaments() } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(id = 1, date = "2026-10-10", mode = "Blitz 5+0", roundCount = 1, status = "open"),
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(id = 2, date = "2026-10-11", mode = "Blitz 3+2", roundCount = 1, status = "open")
+        )
+
+        val modes = repo.getRecentTournamentModes()
+        assertEquals(listOf("Blitz 5+0", "Blitz 3+2"), modes)
+    }
+
+    @Test
+    fun `getRecentTournamentModes falls back to local tournaments when api is null or fails`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        coEvery { api.getTournaments() } throws RuntimeException("Remote error")
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+
+        val date1 = LocalDate.of(2026, 10, 1)
+        val date2 = LocalDate.of(2026, 10, 15)
+        val t1 = TournamentEntity(id = 1, mode = GameMode.BLITZ_5_0, date = date1, rounds = 1, remoteId = null)
+        val t2 = TournamentEntity(id = 2, mode = GameMode.BLITZ_3_2, date = date2, rounds = 1, remoteId = null)
+        coEvery { tournamentDao.observeTournaments() } returns flowOf(
+            listOf(
+                TournamentWithDetails(tournament = t1, players = emptyList(), games = emptyList()),
+                TournamentWithDetails(tournament = t2, players = emptyList(), games = emptyList())
+            )
+        )
+
+        val modes = repo.getRecentTournamentModes()
+        assertEquals(listOf(GameMode.BLITZ_3_2.name, GameMode.BLITZ_5_0.name), modes)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun `syncDirtyTournaments throws IllegalStateException when api is null`() = runTest {
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = null
+        )
+        repo.syncDirtyTournaments()
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun `submitResultsAndFinalize throws IllegalStateException when playerDao is null`() = runTest {
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = null,
+            monatsblitzApi = mockk()
+        )
+        val newTournament = NewTournament(
+            date = LocalDate.now(),
+            mode = GameMode.BLITZ_3_2,
+            rounds = 1,
+            players = listOf(Player(1L, "Meier", "Max")),
+            games = emptyList()
+        )
+        repo.submitResultsAndFinalize(1L)
     }
 }
 

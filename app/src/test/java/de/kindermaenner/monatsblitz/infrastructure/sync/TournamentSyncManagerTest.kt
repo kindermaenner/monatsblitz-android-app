@@ -277,4 +277,66 @@ class TournamentSyncManagerTest {
         assertEquals(SyncStatus.FAILED, syncManager.syncStatus.value)
         org.junit.Assert.assertEquals("Server nicht erreichbar. Bitte Internetverbindung und Server-Adresse prüfen.", syncManager.lastSyncError.value)
     }
+
+    @Test
+    fun `triggerSync populates lastSyncError on ConnectException and SocketTimeoutException`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
+        coEvery { syncPlayersUseCase() } throws java.net.ConnectException("Connection refused")
+
+        syncManager.triggerSync(1L)
+        assertEquals(SyncStatus.FAILED, syncManager.syncStatus.value)
+        assertEquals("Verbindung fehlgeschlagen. Bitte Server-Adresse und Netzwerk prüfen.", syncManager.lastSyncError.value)
+
+        coEvery { syncPlayersUseCase() } throws java.net.SocketTimeoutException("Timeout")
+        syncManager.triggerSync(1L)
+        assertEquals(SyncStatus.FAILED, syncManager.syncStatus.value)
+        assertEquals("Zeitüberschreitung bei Verbindung zum Server.", syncManager.lastSyncError.value)
+    }
+
+    @Test
+    fun `triggerSync populates lastSyncError on HTTP 401, 404, 409, 426 and generic error`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
+
+        // 401
+        coEvery { syncPlayersUseCase() } throws HttpException(Response.error<Any>(401, "".toResponseBody(null)))
+        syncManager.triggerSync(1L)
+        org.junit.Assert.assertTrue(syncManager.lastSyncError.value!!.contains("401"))
+
+        // 404
+        coEvery { syncPlayersUseCase() } throws HttpException(Response.error<Any>(404, "".toResponseBody(null)))
+        syncManager.triggerSync(1L)
+        org.junit.Assert.assertTrue(syncManager.lastSyncError.value!!.contains("404"))
+
+        // 409 with message
+        val json409 = """{"message":"Already exists"}"""
+        coEvery { syncPlayersUseCase() } throws HttpException(Response.error<Any>(409, json409.toResponseBody(null)))
+        syncManager.triggerSync(1L)
+        org.junit.Assert.assertTrue(syncManager.lastSyncError.value!!.contains("Already exists"))
+
+        // 426
+        coEvery { syncPlayersUseCase() } throws HttpException(Response.error<Any>(426, "".toResponseBody(null)))
+        syncManager.triggerSync(1L)
+        org.junit.Assert.assertTrue(syncManager.lastSyncError.value!!.contains("Inkompatible API-Version"))
+
+        // Generic Exception
+        coEvery { syncPlayersUseCase() } throws IllegalStateException("Custom failure")
+        syncManager.triggerSync(1L)
+        org.junit.Assert.assertTrue(syncManager.lastSyncError.value!!.contains("Custom failure"))
+    }
+
+    @Test
+    fun `resolvePostSyncStatus sets default error when tournament not synced and no prior error`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
+        val unsyncedEntity = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(unsyncedEntity, emptyList(), emptyList())
+        coEvery { gameDao.getDirtyGamesForTournament(1L) } returns emptyList()
+        coEvery { syncPlayersUseCase() } returns Unit
+        coEvery { syncTournamentUseCase() } returns Unit
+        coEvery { syncGameResultsUseCase() } returns Unit
+
+        syncManager.triggerSync(1L)
+
+        assertEquals(SyncStatus.FAILED, syncManager.syncStatus.value)
+        assertEquals("Turnier konnte nicht mit dem Server abgeglichen werden.", syncManager.lastSyncError.value)
+    }
 }

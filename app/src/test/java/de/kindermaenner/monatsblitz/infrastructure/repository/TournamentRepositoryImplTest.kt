@@ -325,6 +325,44 @@ class TournamentRepositoryImplTest {
     }
 
     @Test
+    fun `syncDirtyGames keeps a game dirty when the server returns no valid game id`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repoWithApi = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        val syncData = de.kindermaenner.monatsblitz.infrastructure.persistence.room.projection.GameSyncData(
+            localGameId = 1,
+            tournamentRemoteId = 100,
+            player1Id = 10,
+            player2Id = 20,
+            leg = 1,
+            result = GameResult.Win,
+            remoteGameId = null
+        )
+        coEvery { gameDao.getGamesForSync() } returns listOf(syncData)
+        coEvery { api.createGames(any()) } returns
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGamesResponseDto(
+                success = true,
+                count = 1,
+                items = listOf(
+                    de.kindermaenner.monatsblitz.infrastructure.api.dto.GameSyncResponseItemDto(
+                        success = true,
+                        gameId = 0
+                    )
+                )
+            )
+
+        repoWithApi.syncDirtyGames()
+
+        coVerify(exactly = 0) { gameDao.markGameAsSynced(any(), any()) }
+    }
+
+    @Test
     fun `submitResultsAndFinalize sends results, calls finalize on API, and marks storage finalized`() = runTest {
         val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
         val playerDao = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>()
@@ -353,6 +391,64 @@ class TournamentRepositoryImplTest {
         coVerify { api.createResults(match { it.tournamentId == 50 && it.results.first().playerId == 101 }) }
         coVerify { api.finalize(de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeRequestDto(tournamentId = 50)) }
         coVerify { tournamentStorage.finalizeTournament() }
+    }
+
+    @Test
+    fun `submitResultsAndFinalize does not finalize locally when result upload is rejected`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val playerDao = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>()
+        val repoFull = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDao,
+            monatsblitzApi = api
+        )
+        val tournamentEntity = TournamentEntity(
+            id = 1L,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            remoteId = 50L
+        )
+        coEvery { tournamentDao.getTournament(1L) } returns
+            TournamentWithDetails(tournamentEntity, emptyList(), emptyList())
+        coEvery { tournamentPlayerDao.getRankingForTournament(1L) } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef(
+                1L,
+                10L,
+                3.0,
+                1
+            )
+        )
+        coEvery { playerDao.getPlayersByIds(listOf(10L)) } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(
+                id = 10L,
+                name = "Meier",
+                vorname = "Alice",
+                remoteId = 101L
+            )
+        )
+        coEvery { api.createResults(any()) } returns
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.BatchResponseDto(
+                success = false,
+                count = 0,
+                items = emptyList(),
+                errors = listOf("Ergebnisse konnten nicht gespeichert werden")
+            )
+
+        val error = try {
+            repoFull.submitResultsAndFinalize(1L)
+            null
+        } catch (exception: IllegalStateException) {
+            exception
+        }
+
+        assertEquals("Ergebnisse konnten nicht gespeichert werden", error?.message)
+        coVerify(exactly = 0) { api.finalize(any()) }
+        coVerify(exactly = 0) { tournamentStorage.finalizeTournament() }
     }
 
     @Test
@@ -620,4 +716,3 @@ class TournamentRepositoryImplTest {
         repo.submitResultsAndFinalize(1L)
     }
 }
-

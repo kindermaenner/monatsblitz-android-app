@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import de.kindermaenner.monatsblitz.domain.model.GameMode
@@ -73,6 +74,34 @@ class TournamentSetupScreenTest {
         // Select second player -> Start button becomes active
         composeTestRule.onNodeWithText("Bob Mueller").assertExists().performClick()
         composeTestRule.onNodeWithText("Turnier starten (2 Spieler)").assertExists().assertIsEnabled()
+    }
+
+    @Test
+    fun setupScreen_addPlayerDialog_requiresBothNamesAndShowsCreationError() {
+        val errorMessage = "Ein Spieler mit diesem Namen existiert bereits."
+        coEvery {
+            addPlayerUseCase("Max", "Mustermann", isLocal = false)
+        } throws IllegalArgumentException(errorMessage)
+        val viewModel = TournamentSetupViewModel(
+            playerRepository,
+            createTournamentUseCase,
+            addPlayerUseCase
+        )
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Neuer Spieler").performClick()
+        composeTestRule.onNodeWithText("Neuen Spieler anlegen").assertExists()
+        composeTestRule.onNodeWithText("Anlegen").assertIsNotEnabled()
+
+        composeTestRule.onNodeWithText("Vorname").performTextInput("Max")
+        composeTestRule.onNodeWithText("Nachname").performTextInput("Mustermann")
+        composeTestRule.onNodeWithText("Anlegen").assertIsEnabled().performClick()
+
+        composeTestRule.onNodeWithText(errorMessage).assertExists()
+        composeTestRule.onNodeWithText("Neuen Spieler anlegen").assertExists()
     }
 
     @Test

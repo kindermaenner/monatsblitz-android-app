@@ -202,6 +202,28 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun settingsScreen_apiKeyVisibilityCanBeToggled() {
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onBack = {}
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Schlüssel anzeigen")
+            .performClick()
+        composeTestRule.onNodeWithContentDescription("Schlüssel verbergen")
+            .assertExists()
+
+        composeTestRule.onNodeWithContentDescription("Schlüssel verbergen")
+            .performClick()
+        composeTestRule.onNodeWithContentDescription("Schlüssel anzeigen")
+            .assertExists()
+    }
+
+    @Test
     fun settingsScreen_offlineMode_hidesServerSettingsAndShowsContinueButton() {
         offlineFlow.value = true
         serverUrlFlow.value = ""

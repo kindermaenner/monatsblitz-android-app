@@ -198,7 +198,9 @@ class CrosstableScreenTest {
             ) {}
         }
 
-        composeTestRule.onNodeWithTag("crosstable_add_player_button").assertExists().performClick()
+        composeTestRule.onNodeWithTag("crosstable_add_player_button").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Weitere Optionen").performClick()
+        composeTestRule.onNodeWithTag("crosstable_add_player_menu_item").assertExists().performClick()
         composeTestRule.onNodeWithText("Spieler zum Turnier hinzufügen").assertExists()
         composeTestRule.onNodeWithTag("add_player_item_2").assertExists().performClick()
         composeTestRule.waitForIdle()
@@ -244,7 +246,8 @@ class CrosstableScreenTest {
             ) {}
         }
 
-        composeTestRule.onNodeWithTag("crosstable_add_player_button").performClick()
+        composeTestRule.onNodeWithContentDescription("Weitere Optionen").performClick()
+        composeTestRule.onNodeWithTag("crosstable_add_player_menu_item").performClick()
         composeTestRule.onNodeWithTag("tab_new_player").performClick()
 
         composeTestRule.onNodeWithTag("new_player_vorname_input")

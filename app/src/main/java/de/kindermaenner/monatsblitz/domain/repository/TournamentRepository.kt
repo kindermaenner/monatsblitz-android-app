@@ -54,6 +54,11 @@ interface TournamentRepository {
         tournamentId: Long,
         playerId: Long
     )
+
+    suspend fun updateTournamentRounds(
+        tournamentId: Long,
+        rounds: Int
+    )
 }
 
 data class RemoteOpenTournamentInfo(

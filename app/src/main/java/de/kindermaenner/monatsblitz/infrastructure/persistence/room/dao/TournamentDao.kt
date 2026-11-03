@@ -58,4 +58,11 @@ interface TournamentDao {
 """)
     suspend fun markTournamentAsClean(tournamentId: Long)
 
+    @Query("""
+    UPDATE tournaments
+    SET rounds = :rounds, dirty = 1
+    WHERE id = :tournamentId
+""")
+    suspend fun updateTournamentRounds(tournamentId: Long, rounds: Int)
+
 }

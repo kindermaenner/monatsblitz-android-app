@@ -308,6 +308,90 @@ class TournamentRepositoryImpl(
         }
     }
 
+    override suspend fun updateTournamentRounds(tournamentId: Long, rounds: Int) {
+        require(rounds in 1..2) { "Nur 1 oder 2 Runden werden unterstützt" }
+
+        val tournamentWithDetails = tournamentDao.getTournament(tournamentId)
+            ?: throw IllegalArgumentException("Turnier mit ID $tournamentId nicht gefunden")
+
+        val currentRounds = tournamentWithDetails.tournament.rounds
+        if (currentRounds == rounds) {
+            return
+        }
+
+        database.withTransaction {
+            if (rounds == 2) {
+                val withdrawnPlayerIds = tournamentWithDetails.playerRefs
+                    .filter { it.hasLeft }
+                    .map { it.playerId }
+                    .toSet()
+
+                val existingLeg2Games = tournamentWithDetails.games.filter { it.leg == 2 }
+                val newGames = mutableListOf<GameEntity>()
+                val players = tournamentWithDetails.players
+
+                for (i in players.indices) {
+                    for (j in i + 1 until players.size) {
+                        val p1 = players[i]
+                        val p2 = players[j]
+                        val minId = minOf(p1.id, p2.id)
+                        val maxId = maxOf(p1.id, p2.id)
+                        val alreadyExists = existingLeg2Games.any { it.player1Id == minId && it.player2Id == maxId }
+                        if (!alreadyExists) {
+                            val isP1Withdrawn = withdrawnPlayerIds.contains(minId)
+                            val isP2Withdrawn = withdrawnPlayerIds.contains(maxId)
+                            val initialResult = when {
+                                isP1Withdrawn && isP2Withdrawn -> GameResult.ForfeitDraw
+                                isP1Withdrawn -> {
+                                    val past = tournamentWithDetails.games.firstOrNull {
+                                        (it.player1Id == minId || it.player2Id == minId) &&
+                                            (it.result == GameResult.ForfeitDraw || it.result == GameResult.ForfeitLoss || it.result == GameResult.ForfeitWin)
+                                    }
+                                    if (past?.result == GameResult.ForfeitDraw) GameResult.ForfeitDraw else GameResult.ForfeitLoss
+                                }
+                                isP2Withdrawn -> {
+                                    val past = tournamentWithDetails.games.firstOrNull {
+                                        (it.player1Id == maxId || it.player2Id == maxId) &&
+                                            (it.result == GameResult.ForfeitDraw || it.result == GameResult.ForfeitLoss || it.result == GameResult.ForfeitWin)
+                                    }
+                                    if (past?.result == GameResult.ForfeitDraw) GameResult.ForfeitDraw else GameResult.ForfeitWin
+                                }
+                                else -> GameResult.Open
+                            }
+
+                            newGames.add(
+                                GameEntity(
+                                    tournamentId = tournamentId,
+                                    player1Id = minId,
+                                    player2Id = maxId,
+                                    leg = 2,
+                                    result = initialResult,
+                                    dirty = initialResult != GameResult.Open
+                                )
+                            )
+                        }
+                    }
+                }
+
+                if (newGames.isNotEmpty()) {
+                    gameDao.insertAll(newGames)
+                }
+            } else {
+                gameDao.deleteGamesForLegGreaterThan(tournamentId, 1)
+            }
+
+            tournamentDao.updateTournamentRounds(tournamentId, rounds)
+        }
+
+        if (!tournamentWithDetails.tournament.isLocalOnly && monatsblitzApi != null) {
+            try {
+                syncDirtyTournaments()
+            } catch (e: Exception) {
+                Log.w(TAG, "updateTournamentRounds: Failed to sync tournament update to remote backend", e)
+            }
+        }
+    }
+
     override suspend fun syncDirtyTournaments() {
         val api = requireApi()
 
@@ -430,7 +514,8 @@ class TournamentRepositoryImpl(
         val finalizeResponse = api.finalize(
             FinalizeRequestDto(
                 tournamentId = remoteId.toInt(),
-                withdrawnPlayerIds = withdrawnRemoteIds.ifEmpty { null }
+                withdrawnPlayerIds = withdrawnRemoteIds.ifEmpty { null },
+                roundCount = tournamentWithDetails.tournament.rounds
             )
         )
         check(finalizeResponse.success) { "Finalisierung auf dem Server fehlgeschlagen" }

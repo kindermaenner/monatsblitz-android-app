@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SyncProblem
 import androidx.compose.material3.AlertDialog
@@ -92,6 +93,7 @@ fun CrosstableScreen(
     val coroutineScope = rememberCoroutineScope()
     var showBackDialog by remember { mutableStateOf(false) }
     var showAddPlayerDialog by remember { mutableStateOf(false) }
+    var showChangeRoundsDialog by remember { mutableStateOf(false) }
     var playerToWithdraw by remember { mutableStateOf<Triple<Long, String, Boolean>?>(null) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -159,6 +161,21 @@ fun CrosstableScreen(
         onDismiss = { showAddPlayerDialog = false }
     )
 
+    ChangeTournamentRoundsDialog(
+        show = showChangeRoundsDialog,
+        currentRounds = state.tournament?.rounds ?: 1,
+        playedGamesInRound2 = state.tournament?.games?.values?.count { it.leg == 2 && it.result != GameResult.Open } ?: 0,
+        onConfirm = { targetRounds ->
+            viewModel.updateTournamentRounds(targetRounds)
+            showChangeRoundsDialog = false
+            coroutineScope.launch {
+                val msg = if (targetRounds == 2) "Auf Doppelrunde erweitert" else "Auf Einfachrunde reduziert"
+                snackbarHostState.showSnackbar(msg)
+            }
+        },
+        onDismiss = { showChangeRoundsDialog = false }
+    )
+
     val tournament = state.tournament
     val allGamesPlayed = tournament != null &&
         tournament.games.isNotEmpty() &&
@@ -184,7 +201,8 @@ fun CrosstableScreen(
                         onNavigateToRanking(tournamentId)
                     }
                 },
-                onAddPlayerClick = { showAddPlayerDialog = true }
+                onAddPlayerClick = { showAddPlayerDialog = true },
+                onChangeRoundsClick = { showChangeRoundsDialog = true }
             )
         },
         bottomBar = {
@@ -305,7 +323,8 @@ private fun CrosstableTopBar(
     onShowSyncedSnackbar: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToRanking: (Long) -> Unit,
-    onAddPlayerClick: () -> Unit
+    onAddPlayerClick: () -> Unit,
+    onChangeRoundsClick: () -> Unit
 ) {
     TopAppBar(
         title = {
@@ -345,18 +364,6 @@ private fun CrosstableTopBar(
                 }
             }
 
-            if (tournament != null && syncStatus != SyncStatus.FINALIZED) {
-                IconButton(
-                    onClick = onAddPlayerClick,
-                    modifier = Modifier.testTag("crosstable_add_player_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PersonAdd,
-                        contentDescription = "Spieler hinzufügen"
-                    )
-                }
-            }
-
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
                     Icon(
@@ -371,6 +378,24 @@ private fun CrosstableTopBar(
                 ) {
                     if (tournament != null && syncStatus != SyncStatus.FINALIZED) {
                         DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (tournament.rounds == 1) "Auf Doppelrunde erweitern" else "Auf Einfachrunde reduzieren"
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = null
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onChangeRoundsClick()
+                            },
+                            modifier = Modifier.testTag("crosstable_change_rounds_menu_item")
+                        )
+                        DropdownMenuItem(
                             text = { Text("Spieler hinzufügen") },
                             leadingIcon = {
                                 Icon(
@@ -381,7 +406,8 @@ private fun CrosstableTopBar(
                             onClick = {
                                 menuExpanded = false
                                 onAddPlayerClick()
-                            }
+                            },
+                            modifier = Modifier.testTag("crosstable_add_player_menu_item")
                         )
                     }
                     DropdownMenuItem(
@@ -632,6 +658,53 @@ private fun PlayerWithdrawDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        }
+    )
+}
+
+@Composable
+private fun ChangeTournamentRoundsDialog(
+    show: Boolean,
+    currentRounds: Int,
+    playedGamesInRound2: Int,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (!show) return
+
+    val targetRounds = if (currentRounds == 1) 2 else 1
+    val title = if (targetRounds == 2) "Auf Doppelrunde erweitern" else "Auf Einfachrunde reduzieren"
+    val confirmText = if (targetRounds == 2) "Erweitern" else "Reduzieren"
+    val text = when {
+        targetRounds == 2 -> "Möchtest du das Turnier auf eine Doppelrunde (2 Runden) erweitern? Es werden neue Paarungen für Runde 2 erstellt."
+        playedGamesInRound2 > 0 -> "In Runde 2 wurden bereits $playedGamesInRound2 Ergebnis(se) erfasst. Wenn du auf eine Einfachrunde umstellst, werden diese Ergebnisse gelöscht und annulliert.\n\nMöchtest du wirklich fortfahren?"
+        else -> "Möchtest du das Turnier auf eine Einfachrunde (1 Runde) reduzieren? Die noch nicht gespielten Partien von Runde 2 werden entfernt."
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(targetRounds) },
+                colors = if (targetRounds == 1 && playedGamesInRound2 > 0) {
+                    ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                } else {
+                    ButtonDefaults.buttonColors()
+                },
+                modifier = Modifier.testTag("confirm_change_rounds_dialog_button")
+            ) {
+                Text(confirmText)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag("cancel_change_rounds_dialog_button")
+            ) {
                 Text("Abbrechen")
             }
         }

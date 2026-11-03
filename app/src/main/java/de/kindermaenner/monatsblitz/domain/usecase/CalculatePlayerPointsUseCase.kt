@@ -4,7 +4,7 @@ import de.kindermaenner.monatsblitz.domain.model.Tournament
 
 class CalculatePlayerPointsUseCase {
     operator fun invoke(tournament: Tournament, playerId: Long): Double {
-        val allGames = tournament.games.values
+        val allGames = tournament.games.values.filter { it.leg <= tournament.rounds }
         val asPlayer1Points = allGames
             .filter { it.player1Id == playerId }
             .sumOf { it.result.points }

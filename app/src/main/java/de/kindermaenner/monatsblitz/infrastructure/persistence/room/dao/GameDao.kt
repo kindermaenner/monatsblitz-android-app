@@ -107,4 +107,7 @@ interface GameDao {
 
     @Query("DELETE FROM games WHERE tournamentId = :tournamentId")
     suspend fun deleteForTournament(tournamentId: Long)
+
+    @Query("DELETE FROM games WHERE tournamentId = :tournamentId AND leg > :maxLeg")
+    suspend fun deleteGamesForLegGreaterThan(tournamentId: Long, maxLeg: Int)
 }

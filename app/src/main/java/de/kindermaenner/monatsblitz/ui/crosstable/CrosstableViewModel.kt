@@ -114,10 +114,12 @@ class CrosstableViewModel(
                 player.id to calculatePlayerPointsUseCase(tournament, player.id)
             } ?: emptyMap()
 
+            val effectiveLeg = if (tournament != null && leg > tournament.rounds) 1 else leg
+
             val rows = if (tournament != null) {
                 buildRows(
                     tournament = tournament,
-                    leg = leg,
+                    leg = effectiveLeg,
                     pointsMap = pointsMap,
                     showDetailedSyncIndicators = showDetailedSyncIndicators,
                     useShortNames = useShortNames,
@@ -140,7 +142,7 @@ class CrosstableViewModel(
 
             CrosstableUiState(
                 tournament = tournament,
-                leg = leg,
+                leg = effectiveLeg,
                 playerPoints = pointsMap,
                 rows = rows,
                 isLoading = false,
@@ -302,6 +304,20 @@ class CrosstableViewModel(
         val tournament = uiState.value.tournament ?: return
         if (leg in 1..tournament.rounds) {
             _selectedLeg.value = leg
+        }
+    }
+
+    fun updateTournamentRounds(rounds: Int) {
+        val tournament = uiState.value.tournament ?: return
+        if (uiState.value.syncStatus == SyncStatus.FINALIZED) return
+        if (rounds !in 1..2) return
+        if (rounds == tournament.rounds) return
+        viewModelScope.launch {
+            if (rounds < _selectedLeg.value) {
+                _selectedLeg.value = 1
+            }
+            repository.updateTournamentRounds(tournament.id, rounds)
+            tournamentSyncService?.triggerSync(tournament.id)
         }
     }
 

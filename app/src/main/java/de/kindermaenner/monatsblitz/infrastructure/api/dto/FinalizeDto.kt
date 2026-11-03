@@ -8,7 +8,9 @@ data class FinalizeRequestDto(
     @SerialName("tournament_id")
     val tournamentId: Int,
     @SerialName("withdrawn_player_ids")
-    val withdrawnPlayerIds: List<Int>? = null
+    val withdrawnPlayerIds: List<Int>? = null,
+    @SerialName("round_count")
+    val roundCount: Int? = null
 )
 
 typealias FinalizeDto = FinalizeRequestDto

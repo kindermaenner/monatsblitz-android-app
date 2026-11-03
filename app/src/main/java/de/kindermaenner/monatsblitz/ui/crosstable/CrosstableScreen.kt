@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SyncProblem
 import androidx.compose.material3.AlertDialog
@@ -72,6 +73,7 @@ import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule
 import de.kindermaenner.monatsblitz.domain.model.SyncStatus
 import de.kindermaenner.monatsblitz.domain.model.Tournament
+import de.kindermaenner.monatsblitz.ui.crosstable.components.AddPlayerToTournamentDialog
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableHeader
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableRow
 import kotlinx.coroutines.launch
@@ -89,6 +91,7 @@ fun CrosstableScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var showBackDialog by remember { mutableStateOf(false) }
+    var showAddPlayerDialog by remember { mutableStateOf(false) }
     var playerToWithdraw by remember { mutableStateOf<Triple<Long, String, Boolean>?>(null) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -128,6 +131,34 @@ fun CrosstableScreen(
         onDismiss = { playerToWithdraw = null }
     )
 
+    AddPlayerToTournamentDialog(
+        show = showAddPlayerDialog,
+        availablePlayers = state.availablePlayers,
+        isTournamentLocalOnly = state.tournament?.isLocalOnly == true,
+        onAddExistingPlayer = { player ->
+            viewModel.addExistingPlayer(player.id)
+            showAddPlayerDialog = false
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("${player.fullName} hinzugefügt")
+            }
+        },
+        onAddNewPlayer = { vorname, name, isLocal, onSuccess, onError ->
+            viewModel.addNewPlayer(
+                vorname = vorname,
+                name = name,
+                isLocal = isLocal,
+                onSuccess = {
+                    onSuccess()
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("$vorname $name hinzugefügt")
+                    }
+                },
+                onError = onError
+            )
+        },
+        onDismiss = { showAddPlayerDialog = false }
+    )
+
     val tournament = state.tournament
     val allGamesPlayed = tournament != null &&
         tournament.games.isNotEmpty() &&
@@ -152,7 +183,8 @@ fun CrosstableScreen(
                     viewModel.prepareRankingsAndNavigate {
                         onNavigateToRanking(tournamentId)
                     }
-                }
+                },
+                onAddPlayerClick = { showAddPlayerDialog = true }
             )
         },
         bottomBar = {
@@ -272,7 +304,8 @@ private fun CrosstableTopBar(
     onTriggerSync: () -> Unit,
     onShowSyncedSnackbar: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToRanking: (Long) -> Unit
+    onNavigateToRanking: (Long) -> Unit,
+    onAddPlayerClick: () -> Unit
 ) {
     TopAppBar(
         title = {
@@ -312,6 +345,18 @@ private fun CrosstableTopBar(
                 }
             }
 
+            if (tournament != null && syncStatus != SyncStatus.FINALIZED) {
+                IconButton(
+                    onClick = onAddPlayerClick,
+                    modifier = Modifier.testTag("crosstable_add_player_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PersonAdd,
+                        contentDescription = "Spieler hinzufügen"
+                    )
+                }
+            }
+
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
                     Icon(
@@ -324,6 +369,21 @@ private fun CrosstableTopBar(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false }
                 ) {
+                    if (tournament != null && syncStatus != SyncStatus.FINALIZED) {
+                        DropdownMenuItem(
+                            text = { Text("Spieler hinzufügen") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.PersonAdd,
+                                    contentDescription = null
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onAddPlayerClick()
+                            }
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text("Einstellungen") },
                         leadingIcon = {

@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.ui.crosstable
 
+import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.SyncStatus
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableRowData
@@ -12,5 +13,6 @@ data class CrosstableUiState(
     val isLoading: Boolean = true,
     val syncStatus: SyncStatus = SyncStatus.SYNCED,
     val showDetailedSyncIndicators: Boolean = true,
+    val availablePlayers: List<Player> = emptyList(),
     val error: String? = null
 )

@@ -5,6 +5,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import de.kindermaenner.monatsblitz.domain.model.Game
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.GameResult
@@ -162,6 +163,101 @@ class CrosstableScreenTest {
 
         coVerify(exactly = 1) {
             repository.withdrawPlayer(42L, 1L, PlayerWithdrawRule.REGULAR_LOSS)
+        }
+    }
+
+    @Test
+    fun crosstableScreen_addPlayerButton_opensDialogAndCanAddExistingPlayer() {
+        val p1 = Player(1, "Meier", "Alice")
+        val p2 = Player(2, "Mueller", "Bob")
+        val tournament = Tournament(
+            id = 42,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = listOf(p1)
+        )
+        val playerRepo = mockk<de.kindermaenner.monatsblitz.domain.repository.PlayerRepository>()
+        coEvery { repository.observeTournament(42) } returns flowOf(tournament)
+        coEvery { playerRepo.observePlayers() } returns flowOf(listOf(p1, p2))
+        coEvery { repository.addPlayerToTournament(42L, 2L) } returns Unit
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase(),
+            tournamentId = 42L,
+            playerRepository = playerRepo
+        )
+
+        composeTestRule.setContent {
+            CrosstableScreen(
+                viewModel = viewModel,
+                onNavigateToRanking = {}
+            ) {}
+        }
+
+        composeTestRule.onNodeWithTag("crosstable_add_player_button").assertExists().performClick()
+        composeTestRule.onNodeWithText("Spieler zum Turnier hinzufügen").assertExists()
+        composeTestRule.onNodeWithTag("add_player_item_2").assertExists().performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify(exactly = 1) {
+            repository.addPlayerToTournament(42L, 2L)
+        }
+    }
+
+    @Test
+    fun crosstableScreen_addPlayerDialog_canCreateAndAddNewPlayer() {
+        val p1 = Player(1, "Meier", "Alice")
+        val tournament = Tournament(
+            id = 42,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = listOf(p1)
+        )
+        val playerRepo = mockk<de.kindermaenner.monatsblitz.domain.repository.PlayerRepository>()
+        val addPlayerUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase>()
+        val createdPlayer = Player(99L, "Neu", "Charlie")
+
+        coEvery { repository.observeTournament(42) } returns flowOf(tournament)
+        coEvery { playerRepo.observePlayers() } returns flowOf(listOf(p1))
+        coEvery { addPlayerUseCase.invoke("Charlie", "Neu", isLocal = false) } returns createdPlayer
+        coEvery { repository.addPlayerToTournament(42L, 99L) } returns Unit
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase(),
+            tournamentId = 42L,
+            playerRepository = playerRepo,
+            addPlayerUseCase = addPlayerUseCase
+        )
+
+        composeTestRule.setContent {
+            CrosstableScreen(
+                viewModel = viewModel,
+                onNavigateToRanking = {}
+            ) {}
+        }
+
+        composeTestRule.onNodeWithTag("crosstable_add_player_button").performClick()
+        composeTestRule.onNodeWithTag("tab_new_player").performClick()
+
+        composeTestRule.onNodeWithTag("new_player_vorname_input")
+            .performTextInput("Charlie")
+        composeTestRule.onNodeWithTag("new_player_name_input")
+            .performTextInput("Neu")
+
+        composeTestRule.onNodeWithTag("submit_new_player_button").performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify(exactly = 1) {
+            addPlayerUseCase.invoke("Charlie", "Neu", isLocal = false)
+            repository.addPlayerToTournament(42L, 99L)
         }
     }
 }

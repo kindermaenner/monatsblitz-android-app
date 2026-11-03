@@ -155,7 +155,10 @@ class AppContainer(context: Context) {
             calculatePlayerPointsUseCase,
             tournamentId,
             tournamentSyncManager,
-            appSettingsStorage
+            appSettingsStorage,
+            playerRepository,
+            addPlayerUseCase,
+            syncPlayersUseCase
         )
 
     val rootViewModelFactory =

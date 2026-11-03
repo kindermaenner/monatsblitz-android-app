@@ -7,18 +7,21 @@ import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule
 import de.kindermaenner.monatsblitz.domain.model.SyncStatus
 import de.kindermaenner.monatsblitz.domain.model.Tournament
+import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
+import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.domain.util.PlayerNameFormatter
 import de.kindermaenner.monatsblitz.ui.crosstable.components.CrosstableRowData
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
@@ -34,7 +37,10 @@ class CrosstableViewModel(
     private val calculatePlayerPointsUseCase: CalculatePlayerPointsUseCase,
     tournamentId: Long,
     private val tournamentSyncService: TournamentSyncService? = null,
-    private val settingsRepository: SettingsRepository? = null
+    private val settingsRepository: SettingsRepository? = null,
+    private val playerRepository: PlayerRepository? = null,
+    private val addPlayerUseCase: AddPlayerUseCase? = null,
+    private val syncPlayersUseCase: SyncPlayersUseCase? = null
 ) : ViewModel() {
 
     constructor(
@@ -49,6 +55,9 @@ class CrosstableViewModel(
         CalculatePlayerPointsUseCase(),
         tournamentId,
         null,
+        null,
+        null,
+        null,
         null
     )
 
@@ -60,15 +69,20 @@ class CrosstableViewModel(
     
     private val _selectedLeg = MutableStateFlow(1)
     val selectedLeg = _selectedLeg.asStateFlow()
+
+    private val settingsFlow = combine(
+        settingsRepository?.showDetailedSyncIndicators ?: flowOf(true),
+        settingsRepository?.useShortPlayerNames ?: flowOf(true)
+    ) { showDetailed, useShort -> showDetailed to useShort }
     
     val uiState =
         combine(
             repository.observeTournament(tournamentId),
             _selectedLeg,
             tournamentSyncService?.syncStatus ?: flowOf(SyncStatus.SYNCED),
-            settingsRepository?.showDetailedSyncIndicators ?: flowOf(true),
-            settingsRepository?.useShortPlayerNames ?: flowOf(true)
-        ) { rawTournament, leg, syncStatus, showDetailedSyncIndicators, useShortNames ->
+            settingsFlow,
+            playerRepository?.observePlayers() ?: flowOf(emptyList())
+        ) { rawTournament, leg, syncStatus, (showDetailedSyncIndicators, useShortNames), allPlayers ->
             val tournament = rawTournament?.let { t ->
                 val playerDisplayNames = t.players.associate { player ->
                     player.id to PlayerNameFormatter.formatDisplayName(
@@ -113,6 +127,17 @@ class CrosstableViewModel(
                 emptyList()
             }
 
+            val participatingIds = tournament?.playerIds?.toSet() ?: emptySet()
+            val germanCollator = Collator.getInstance(Locale.GERMAN).apply { strength = Collator.SECONDARY }
+            val availablePlayers = allPlayers
+                .filter { it.id !in participatingIds }
+                .sortedWith(
+                    Comparator { p1, p2 ->
+                        val res = germanCollator.compare(p1.name, p2.name)
+                        if (res != 0) res else germanCollator.compare(p1.vorname, p2.vorname)
+                    }
+                )
+
             CrosstableUiState(
                 tournament = tournament,
                 leg = leg,
@@ -120,7 +145,8 @@ class CrosstableViewModel(
                 rows = rows,
                 isLoading = false,
                 syncStatus = syncStatus,
-                showDetailedSyncIndicators = showDetailedSyncIndicators
+                showDetailedSyncIndicators = showDetailedSyncIndicators,
+                availablePlayers = availablePlayers
             )
         }
         .stateIn(
@@ -198,6 +224,48 @@ class CrosstableViewModel(
             Log.i("CrosstableViewModel", "withdrawPlayer: tournament=${tournament.id}, playerId=$playerId, rule=$rule")
             repository.withdrawPlayer(tournament.id, playerId, rule)
             tournamentSyncService?.triggerSync(tournament.id)
+        }
+    }
+
+    fun addExistingPlayer(playerId: Long) {
+        val tournament = uiState.value.tournament ?: return
+        if (uiState.value.syncStatus == SyncStatus.FINALIZED) return
+        viewModelScope.launch {
+            Log.i("CrosstableViewModel", "addExistingPlayer: tournament=${tournament.id}, playerId=$playerId")
+            if (!tournament.isLocalOnly) {
+                runCatching { syncPlayersUseCase?.invoke() }
+            }
+            repository.addPlayerToTournament(tournament.id, playerId)
+            tournamentSyncService?.triggerSync(tournament.id)
+        }
+    }
+
+    fun addNewPlayer(
+        vorname: String,
+        name: String,
+        isLocal: Boolean = false,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        val tournament = uiState.value.tournament ?: return
+        if (uiState.value.syncStatus == SyncStatus.FINALIZED) return
+        val addPlayer = addPlayerUseCase ?: run {
+            onError("Spieler anlegen nicht verfügbar")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                Log.i("CrosstableViewModel", "addNewPlayer: tournament=${tournament.id}, vorname=$vorname, name=$name, isLocal=$isLocal")
+                val createdPlayer = addPlayer(vorname, name, isLocal = isLocal)
+                if (!isLocal) {
+                    runCatching { syncPlayersUseCase?.invoke() }
+                }
+                repository.addPlayerToTournament(tournament.id, createdPlayer.id)
+                tournamentSyncService?.triggerSync(tournament.id)
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: "Fehler beim Anlegen des Spielers")
+            }
         }
     }
 

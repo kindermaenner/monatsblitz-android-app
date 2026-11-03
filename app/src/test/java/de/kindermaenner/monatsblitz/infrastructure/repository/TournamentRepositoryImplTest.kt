@@ -14,6 +14,7 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.Tourname
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.relation.TournamentWithDetails
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -714,5 +715,142 @@ class TournamentRepositoryImplTest {
             games = emptyList()
         )
         repo.submitResultsAndFinalize(1L)
+    }
+
+    @Test
+    fun `addPlayerToTournament adds crossref and open games for each existing player and notifies api`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>(relaxed = true)
+        val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>(relaxed = true)
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDaoMock,
+            monatsblitzApi = api
+        )
+
+        val existingPlayer = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1L, name = "Meier", vorname = "Max", remoteId = 101L)
+        val newPlayer = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 2L, name = "Schulz", vorname = "Anna", remoteId = 102L)
+        val tEntity = TournamentEntity(id = 5L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 50L)
+
+        coEvery { tournamentDao.getTournament(5L) } returns TournamentWithDetails(
+            tournament = tEntity,
+            players = listOf(existingPlayer),
+            games = emptyList(),
+            playerRefs = listOf(TournamentPlayerCrossRef(tournamentId = 5L, playerId = 1L))
+        )
+        coEvery { playerDaoMock.getPlayerById(2L) } returns newPlayer
+
+        repo.addPlayerToTournament(5L, 2L)
+
+        coVerify {
+            tournamentPlayerDao.insertAll(match { refs ->
+                refs.size == 1 && refs.first().tournamentId == 5L && refs.first().playerId == 2L && !refs.first().hasLeft
+            })
+        }
+        coVerify {
+            gameDao.insertAll(match { games ->
+                games.size == 1 && games.first().player1Id == 1L && games.first().player2Id == 2L &&
+                    games.first().leg == 1 && games.first().result == GameResult.Open && !games.first().dirty
+            })
+        }
+        coVerify {
+            api.addTournamentPlayer(
+                de.kindermaenner.monatsblitz.infrastructure.api.dto.AddTournamentPlayerDto(
+                    tournamentId = 50,
+                    playerId = 102
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `addPlayerToTournament does nothing when player already participating`() = runTest {
+        val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>(relaxed = true)
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDaoMock
+        )
+
+        val existingPlayer = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1L, name = "Meier", vorname = "Max")
+        val tEntity = TournamentEntity(id = 5L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
+
+        coEvery { tournamentDao.getTournament(5L) } returns TournamentWithDetails(
+            tournament = tEntity,
+            players = listOf(existingPlayer),
+            games = emptyList()
+        )
+
+        repo.addPlayerToTournament(5L, 1L)
+
+        coVerify(exactly = 0) { tournamentPlayerDao.insertAll(any()) }
+        coVerify(exactly = 0) { gameDao.insertAll(any()) }
+    }
+
+    @Test
+    fun `addPlayerToTournament promotes local player when tournament is not local-only`() = runTest {
+        val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>(relaxed = true)
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDaoMock
+        )
+
+        val localPlayer = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 2L, name = "Lokal", vorname = "Spieler", isLocal = true)
+        val tEntity = TournamentEntity(id = 5L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null, isLocalOnly = false)
+
+        coEvery { tournamentDao.getTournament(5L) } returns TournamentWithDetails(
+            tournament = tEntity,
+            players = emptyList(),
+            games = emptyList()
+        )
+        coEvery { playerDaoMock.getPlayerById(2L) } returns localPlayer
+
+        repo.addPlayerToTournament(5L, 2L)
+
+        coVerify(exactly = 1) { playerDaoMock.promoteLocalPlayer(2L) }
+    }
+
+    @Test
+    fun `addPlayerToTournament with withdrawn player assigns appropriate forfeit result`() = runTest {
+        val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>(relaxed = true)
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDaoMock
+        )
+
+        val withdrawnPlayer = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1L, name = "Alt", vorname = "Spieler")
+        val newPlayer = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 2L, name = "Neu", vorname = "Spieler")
+        val tEntity = TournamentEntity(id = 5L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
+        val withdrawnGame = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity(id = 11, tournamentId = 5L, player1Id = 1L, player2Id = 9L, leg = 1, result = GameResult.ForfeitDraw)
+
+        coEvery { tournamentDao.getTournament(5L) } returns TournamentWithDetails(
+            tournament = tEntity,
+            players = listOf(withdrawnPlayer),
+            games = listOf(withdrawnGame),
+            playerRefs = listOf(TournamentPlayerCrossRef(tournamentId = 5L, playerId = 1L, hasLeft = true))
+        )
+        coEvery { playerDaoMock.getPlayerById(2L) } returns newPlayer
+
+        repo.addPlayerToTournament(5L, 2L)
+
+        coVerify {
+            gameDao.insertAll(match { games ->
+                games.size == 1 && games.first().result == GameResult.ForfeitDraw && games.first().dirty
+            })
+        }
     }
 }

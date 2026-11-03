@@ -12,6 +12,7 @@ import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
 import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGamesDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.AddTournamentPlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateResultsDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeRequestDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDtoData
@@ -212,6 +213,97 @@ class TournamentRepositoryImpl(
                 )
             } catch (e: Exception) {
                 Log.w(TAG, "withdrawPlayer: Failed to notify remote backend", e)
+            }
+        }
+    }
+
+    override suspend fun addPlayerToTournament(
+        tournamentId: Long,
+        playerId: Long
+    ) {
+        val tournamentWithDetails = tournamentDao.getTournament(tournamentId)
+            ?: throw IllegalArgumentException("Turnier mit ID $tournamentId nicht gefunden")
+
+        val existingPlayerIds = tournamentWithDetails.players.map { it.id }.toSet()
+        if (playerId in existingPlayerIds) {
+            return
+        }
+
+        val resolvedPlayerDao = requirePlayerDao()
+        val playerEntity = resolvedPlayerDao.getPlayerById(playerId)
+            ?: throw IllegalArgumentException("Spieler mit ID $playerId nicht gefunden")
+
+        if (!tournamentWithDetails.tournament.isLocalOnly && playerEntity.isLocal) {
+            resolvedPlayerDao.promoteLocalPlayer(playerId)
+        }
+
+        val rounds = maxOf(1, tournamentWithDetails.tournament.rounds)
+        val withdrawnPlayerIds = tournamentWithDetails.playerRefs
+            .filter { it.hasLeft }
+            .map { it.playerId }
+            .toSet()
+
+        database.withTransaction {
+            tournamentPlayerDao.insertAll(
+                listOf(
+                    TournamentPlayerCrossRef(
+                        tournamentId = tournamentId,
+                        playerId = playerId,
+                        hasLeft = false
+                    )
+                )
+            )
+
+            val newGames = mutableListOf<GameEntity>()
+            for (existingPlayer in tournamentWithDetails.players) {
+                val isWithdrawn = withdrawnPlayerIds.contains(existingPlayer.id)
+                val initialResult = if (isWithdrawn) {
+                    val pastWithdrawnGame = tournamentWithDetails.games.firstOrNull {
+                        (it.player1Id == existingPlayer.id || it.player2Id == existingPlayer.id) &&
+                            (it.result == GameResult.ForfeitDraw || it.result == GameResult.ForfeitLoss || it.result == GameResult.ForfeitWin)
+                    }
+                    if (pastWithdrawnGame?.result == GameResult.ForfeitDraw) {
+                        GameResult.ForfeitDraw
+                    } else {
+                        val minId = minOf(playerId, existingPlayer.id)
+                        if (minId == playerId) GameResult.ForfeitWin else GameResult.ForfeitLoss
+                    }
+                } else {
+                    GameResult.Open
+                }
+
+                for (leg in 1..rounds) {
+                    newGames.add(
+                        GameEntity(
+                            tournamentId = tournamentId,
+                            player1Id = minOf(playerId, existingPlayer.id),
+                            player2Id = maxOf(playerId, existingPlayer.id),
+                            leg = leg,
+                            result = initialResult,
+                            dirty = initialResult != GameResult.Open
+                        )
+                    )
+                }
+            }
+
+            if (newGames.isNotEmpty()) {
+                gameDao.insertAll(newGames)
+            }
+        }
+
+        val remoteTournamentId = tournamentWithDetails.tournament.remoteId
+        val updatedPlayerEntity = resolvedPlayerDao.getPlayerById(playerId) ?: playerEntity
+        val remotePlayerId = updatedPlayerEntity.remoteId
+        if (remoteTournamentId != null && remotePlayerId != null && monatsblitzApi != null) {
+            try {
+                monatsblitzApi.addTournamentPlayer(
+                    AddTournamentPlayerDto(
+                        tournamentId = remoteTournamentId.toInt(),
+                        playerId = remotePlayerId.toInt()
+                    )
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "addPlayerToTournament: Failed to notify remote backend", e)
             }
         }
     }

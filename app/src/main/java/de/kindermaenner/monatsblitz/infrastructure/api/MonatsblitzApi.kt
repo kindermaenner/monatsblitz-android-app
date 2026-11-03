@@ -1,5 +1,7 @@
 package de.kindermaenner.monatsblitz.infrastructure.api
 
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.AddTournamentPlayerDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.AddTournamentPlayerResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGameDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGamesDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.CreateGamesResponseDto
@@ -141,4 +143,9 @@ interface MonatsblitzApi {
     suspend fun withdrawPlayer(
         @Body request: WithdrawPlayerDto
     ): WithdrawPlayerResponseDto
+
+    @POST(value = "tournament/player")
+    suspend fun addTournamentPlayer(
+        @Body request: AddTournamentPlayerDto
+    ): AddTournamentPlayerResponseDto
 }

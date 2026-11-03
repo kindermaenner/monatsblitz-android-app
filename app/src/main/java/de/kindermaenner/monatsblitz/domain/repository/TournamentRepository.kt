@@ -49,6 +49,11 @@ interface TournamentRepository {
         playerId: Long,
         rule: de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule
     )
+
+    suspend fun addPlayerToTournament(
+        tournamentId: Long,
+        playerId: Long
+    )
 }
 
 data class RemoteOpenTournamentInfo(

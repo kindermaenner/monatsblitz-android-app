@@ -7,10 +7,14 @@ import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule
 import de.kindermaenner.monatsblitz.domain.model.Tournament
+import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
+import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -391,5 +395,110 @@ class CrosstableViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { repository.withdrawPlayer(1L, 1L, PlayerWithdrawRule.YOUTH_DRAW) }
+    }
+
+    @Test
+    fun `availablePlayers in uiState filters out players already in the tournament`() = runTest {
+        val p1 = Player(1, "Schmidt", "Bob")
+        val p2 = Player(2, "Meier", "Alice")
+        val p3 = Player(3, "Müller", "Charlie")
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1))
+        val playerRepo = mockk<PlayerRepository>()
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        every { playerRepo.observePlayers() } returns flowOf(listOf(p1, p2, p3))
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = calculatePlayerPointsUseCase,
+            tournamentId = 1L,
+            playerRepository = playerRepo
+        )
+
+        val state = viewModel.uiState.first { it.tournament != null && it.availablePlayers.isNotEmpty() }
+        assertEquals(2, state.availablePlayers.size)
+        assertEquals(listOf(2L, 3L), state.availablePlayers.map { it.id })
+    }
+
+    @Test
+    fun `addExistingPlayer delegates to repository and triggers sync`() = runTest {
+        val p1 = Player(1, "Schmidt", "Bob")
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1))
+        val syncService = mockk<TournamentSyncService>()
+        every { syncService.syncStatus } returns kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.domain.model.SyncStatus.SYNCED)
+        coEvery { syncService.checkInitialStatus(any()) } returns Unit
+        coEvery { syncService.triggerSync(any()) } returns Unit
+
+        val syncPlayersUseCase = mockk<SyncPlayersUseCase>()
+        coEvery { syncPlayersUseCase.invoke() } returns Unit
+
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        coEvery { repository.addPlayerToTournament(1L, 2L) } returns Unit
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = calculatePlayerPointsUseCase,
+            tournamentId = 1L,
+            tournamentSyncService = syncService,
+            syncPlayersUseCase = syncPlayersUseCase
+        )
+
+        viewModel.uiState.first { it.tournament != null }
+        viewModel.addExistingPlayer(2L)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { syncPlayersUseCase.invoke() }
+        coVerify(exactly = 1) { repository.addPlayerToTournament(1L, 2L) }
+        coVerify(exactly = 1) { syncService.triggerSync(1L) }
+    }
+
+    @Test
+    fun `addNewPlayer calls addPlayerUseCase, syncs, adds to tournament and triggers sync`() = runTest {
+        val p1 = Player(1, "Schmidt", "Bob")
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1))
+        val syncService = mockk<TournamentSyncService>()
+        every { syncService.syncStatus } returns kotlinx.coroutines.flow.MutableStateFlow(de.kindermaenner.monatsblitz.domain.model.SyncStatus.SYNCED)
+        coEvery { syncService.checkInitialStatus(any()) } returns Unit
+        coEvery { syncService.triggerSync(any()) } returns Unit
+
+        val addPlayerUseCase = mockk<AddPlayerUseCase>()
+        val syncPlayersUseCase = mockk<SyncPlayersUseCase>()
+        coEvery { syncPlayersUseCase.invoke() } returns Unit
+
+        val createdPlayer = Player(99L, "Neu", "Spieler")
+
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        coEvery { addPlayerUseCase.invoke("Spieler", "Neu", isLocal = false) } returns createdPlayer
+        coEvery { repository.addPlayerToTournament(1L, 99L) } returns Unit
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = calculatePlayerPointsUseCase,
+            tournamentId = 1L,
+            tournamentSyncService = syncService,
+            addPlayerUseCase = addPlayerUseCase,
+            syncPlayersUseCase = syncPlayersUseCase
+        )
+
+        viewModel.uiState.first { it.tournament != null }
+        var successCalled = false
+        viewModel.addNewPlayer(
+            vorname = "Spieler",
+            name = "Neu",
+            isLocal = false,
+            onSuccess = { successCalled = true }
+        )
+        advanceUntilIdle()
+
+        org.junit.Assert.assertTrue(successCalled)
+        coVerify(exactly = 1) { addPlayerUseCase.invoke("Spieler", "Neu", isLocal = false) }
+        coVerify(exactly = 1) { syncPlayersUseCase.invoke() }
+        coVerify(exactly = 1) { repository.addPlayerToTournament(1L, 99L) }
+        coVerify(exactly = 1) { syncService.triggerSync(1L) }
     }
 }

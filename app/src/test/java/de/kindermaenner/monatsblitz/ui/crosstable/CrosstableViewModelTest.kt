@@ -6,6 +6,7 @@ import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule
+import de.kindermaenner.monatsblitz.domain.model.SyncStatus
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
@@ -22,6 +23,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -504,10 +506,11 @@ class CrosstableViewModelTest {
 
     @Test
     fun `updateTournamentRounds updates repository and triggers sync`() = runTest {
+        val testTournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
         val syncService = mockk<TournamentSyncService>(relaxed = true)
         coEvery { syncService.syncStatus } returns MutableStateFlow(SyncStatus.SYNCED)
         coEvery { syncService.triggerSync(any()) } returns Unit
-        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        coEvery { repository.observeTournament(1) } returns flowOf(testTournament)
         coEvery { repository.updateTournamentRounds(1L, 2) } returns Unit
 
         val viewModel = CrosstableViewModel(

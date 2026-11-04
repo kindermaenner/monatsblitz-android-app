@@ -501,4 +501,29 @@ class CrosstableViewModelTest {
         coVerify(exactly = 1) { repository.addPlayerToTournament(1L, 99L) }
         coVerify(exactly = 1) { syncService.triggerSync(1L) }
     }
+
+    @Test
+    fun `updateTournamentRounds updates repository and triggers sync`() = runTest {
+        val syncService = mockk<TournamentSyncService>(relaxed = true)
+        coEvery { syncService.syncStatus } returns MutableStateFlow(SyncStatus.SYNCED)
+        coEvery { syncService.triggerSync(any()) } returns Unit
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        coEvery { repository.updateTournamentRounds(1L, 2) } returns Unit
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = calculatePlayerPointsUseCase,
+            tournamentId = 1L,
+            tournamentSyncService = syncService
+        )
+
+        viewModel.uiState.first { it.tournament != null }
+        viewModel.updateTournamentRounds(2)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { repository.updateTournamentRounds(1L, 2) }
+        coVerify(exactly = 1) { syncService.triggerSync(1L) }
+    }
 }

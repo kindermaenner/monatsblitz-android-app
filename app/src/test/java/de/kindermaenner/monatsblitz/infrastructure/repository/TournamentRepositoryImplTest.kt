@@ -390,7 +390,7 @@ class TournamentRepositoryImplTest {
         repoFull.submitResultsAndFinalize(1L)
 
         coVerify { api.createResults(match { it.tournamentId == 50 && it.results.first().playerId == 101 }) }
-        coVerify { api.finalize(de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeRequestDto(tournamentId = 50)) }
+        coVerify { api.finalize(de.kindermaenner.monatsblitz.infrastructure.api.dto.FinalizeRequestDto(tournamentId = 50, roundCount = 1)) }
         coVerify { tournamentStorage.finalizeTournament() }
     }
 
@@ -851,6 +851,62 @@ class TournamentRepositoryImplTest {
             gameDao.insertAll(match { games ->
                 games.size == 1 && games.first().result == GameResult.ForfeitDraw && games.first().dirty
             })
+        }
+    }
+
+    @Test
+    fun `updateTournamentRounds increases rounds to 2 and inserts leg 2 games`() = runTest {
+        val p1 = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1L, name = "A", vorname = "Alice")
+        val p2 = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 2L, name = "B", vorname = "Bob")
+        val tEntity = TournamentEntity(id = 5L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
+        val leg1Game = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity(id = 10, tournamentId = 5L, player1Id = 1L, player2Id = 2L, leg = 1, result = GameResult.Win)
+
+        coEvery { tournamentDao.getTournament(5L) } returns TournamentWithDetails(
+            tournament = tEntity,
+            players = listOf(p1, p2),
+            games = listOf(leg1Game),
+            playerRefs = listOf(
+                TournamentPlayerCrossRef(tournamentId = 5L, playerId = 1L),
+                TournamentPlayerCrossRef(tournamentId = 5L, playerId = 2L)
+            )
+        )
+
+        repository.updateTournamentRounds(5L, 2)
+
+        coVerify {
+            gameDao.insertAll(match { games ->
+                games.size == 1 && games.first().leg == 2 && games.first().result == GameResult.Open
+            })
+        }
+        coVerify { tournamentDao.updateTournamentRounds(5L, 2) }
+    }
+
+    @Test
+    fun `updateTournamentRounds decreases rounds to 1 and deletes leg 2 games`() = runTest {
+        val p1 = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1L, name = "A", vorname = "Alice")
+        val p2 = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 2L, name = "B", vorname = "Bob")
+        val tEntity = TournamentEntity(id = 5L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 2, remoteId = null)
+
+        coEvery { tournamentDao.getTournament(5L) } returns TournamentWithDetails(
+            tournament = tEntity,
+            players = listOf(p1, p2),
+            games = emptyList(),
+            playerRefs = emptyList()
+        )
+
+        repository.updateTournamentRounds(5L, 1)
+
+        coVerify { gameDao.deleteGamesForLegGreaterThan(5L, 1) }
+        coVerify { tournamentDao.updateTournamentRounds(5L, 1) }
+    }
+
+    @Test
+    fun `updateTournamentRounds throws on unsupported rounds`() = runTest {
+        try {
+            repository.updateTournamentRounds(5L, 3)
+            org.junit.Assert.fail("Should throw IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            org.junit.Assert.assertTrue(e.message!!.contains("Nur 1 oder 2 Runden"))
         }
     }
 }

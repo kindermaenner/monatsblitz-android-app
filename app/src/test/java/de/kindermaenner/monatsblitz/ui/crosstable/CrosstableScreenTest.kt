@@ -263,4 +263,46 @@ class CrosstableScreenTest {
             repository.addPlayerToTournament(42L, 99L)
         }
     }
+
+    @Test
+    fun `crosstableScreen changeRounds showsConfirmationDialogAndUpdates`() {
+        val tournament = Tournament(
+            id = 42,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = listOf(Player(1, "Meier", "Alice"))
+        )
+        coEvery { repository.observeTournament(42) } returns flowOf(tournament)
+        coEvery { repository.updateTournamentRounds(42L, 2) } returns Unit
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase(),
+            tournamentId = 42L
+        )
+
+        composeTestRule.setContent {
+            CrosstableScreen(
+                viewModel = viewModel,
+                onNavigateToRanking = {}
+            ) {}
+        }
+
+        // Open overflow menu
+        composeTestRule.onNodeWithContentDescription("Weitere Optionen").performClick()
+        composeTestRule.onNodeWithTag("crosstable_change_rounds_menu_item").assertExists()
+        composeTestRule.onNodeWithText("Auf Doppelrunde erweitern").performClick()
+
+        // Confirmation dialog is shown
+        composeTestRule.onNodeWithText("Möchtest du das Turnier auf eine Doppelrunde (2 Runden) erweitern? Es werden neue Paarungen für Runde 2 erstellt.").assertExists()
+        composeTestRule.onNodeWithTag("confirm_change_rounds_dialog_button").performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify(exactly = 1) {
+            repository.updateTournamentRounds(42L, 2)
+        }
+    }
 }

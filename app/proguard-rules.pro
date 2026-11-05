@@ -28,3 +28,13 @@
 
 # Room
 -dontwarn androidx.room.paging.**
+
+# Google Play Services Code Scanner (ML Kit)
+-keep class com.google.android.gms.internal.mlkit_code_scanner.** { *; }
+-keep class com.google.mlkit.vision.codescanner.** { *; }
+-keep class com.google.mlkit.vision.barcode.** { *; }
+-keep class com.google.mlkit.vision.common.** { *; }
+-keep class com.google.mlkit.common.** { *; }
+-dontwarn com.google.android.gms.internal.mlkit_code_scanner.**
+-dontwarn com.google.mlkit.vision.codescanner.**
+

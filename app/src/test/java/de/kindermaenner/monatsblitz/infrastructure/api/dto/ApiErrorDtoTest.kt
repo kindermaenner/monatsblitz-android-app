@@ -1,5 +1,6 @@
 package de.kindermaenner.monatsblitz.infrastructure.api.dto
 
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -29,7 +30,7 @@ class ApiErrorDtoTest {
     @Test
     fun `toDetailedErrorMessage formats HttpException with plugin message`() {
         val json = """{"message":"Turnier ist bereits beendet"}"""
-        val response = retrofit2.Response.error<Any>(400, okhttp3.ResponseBody.create(null, json))
+        val response = retrofit2.Response.error<Any>(400, json.toResponseBody(null))
         val exception = retrofit2.HttpException(response)
 
         val result = exception.toDetailedErrorMessage()
@@ -40,7 +41,7 @@ class ApiErrorDtoTest {
     @Test
     fun `toDetailedErrorMessage formats HttpException with raw body when not structured json`() {
         val raw = "Bad Gateway"
-        val response = retrofit2.Response.error<Any>(502, okhttp3.ResponseBody.create(null, raw))
+        val response = retrofit2.Response.error<Any>(502, raw.toResponseBody(null))
         val exception = retrofit2.HttpException(response)
 
         val result = exception.toDetailedErrorMessage()
@@ -50,7 +51,7 @@ class ApiErrorDtoTest {
 
     @Test
     fun `toDetailedErrorMessage formats HttpException without body`() {
-        val response = retrofit2.Response.error<Any>(404, okhttp3.ResponseBody.create(null, ""))
+        val response = retrofit2.Response.error<Any>(404, "".toResponseBody(null))
         val exception = retrofit2.HttpException(response)
 
         val result = exception.toDetailedErrorMessage()

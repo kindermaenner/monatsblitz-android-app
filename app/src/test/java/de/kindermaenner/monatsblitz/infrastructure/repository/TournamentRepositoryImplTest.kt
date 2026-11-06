@@ -884,9 +884,9 @@ class TournamentRepositoryImplTest {
         // P2: 0.5 + 0.0 = 0.5 (Rank 4? Wait, let's calculate: P1=1.0, P2=0.5, P3=0.5, P4=2.0)
         // P2 and P3 both have 0.5 points! They should both get Rank 3!
         coEvery { api.getGames(80) } returns listOf(
-            de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto(id = 1, tournamentId = 80, leg = 1, player1Id = 101, player2Id = 102, result = "1/2:1/2"),
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto(id = 1, tournamentId = 80, leg = 1, player1Id = 101, player2Id = 102, result = "0.5:0.5"),
             de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto(id = 2, tournamentId = 80, leg = 1, player1Id = 103, player2Id = 104, result = "0:1"),
-            de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto(id = 3, tournamentId = 80, leg = 1, player1Id = 101, player2Id = 103, result = "0:0"),
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto(id = 3, tournamentId = 80, leg = 1, player1Id = 101, player2Id = 103, result = "=:="),
             de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto(id = 4, tournamentId = 80, leg = 1, player1Id = 102, player2Id = 104, result = "-:+")
         )
         coEvery { api.getPlayers() } returns emptyList()

@@ -324,11 +324,6 @@ class TournamentSyncManagerTest {
         syncManager.triggerSync(1L)
         assertEquals("Version 2.0 erforderlich", syncManager.lastSyncError.value)
 
-        // 403
-        coEvery { syncPlayersUseCase() } throws HttpException(Response.error<Any>(403, "".toResponseBody(null)))
-        syncManager.triggerSync(1L)
-        assertEquals("Turnier ist auf dem Server bereits abgeschlossen (HTTP 403).", syncManager.lastSyncError.value)
-
         // 409 without message
         coEvery { syncPlayersUseCase() } throws HttpException(Response.error<Any>(409, "".toResponseBody(null)))
         syncManager.triggerSync(1L)
@@ -343,6 +338,19 @@ class TournamentSyncManagerTest {
         coEvery { syncPlayersUseCase() } throws IllegalStateException("Custom failure")
         syncManager.triggerSync(1L)
         org.junit.Assert.assertTrue(syncManager.lastSyncError.value!!.contains("Custom failure"))
+    }
+
+    @Test
+    fun `triggerSync with HTTP 403 sets FINALIZED status and error message`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
+        val regularTournament = TournamentEntity(id = 1L, remoteId = 10L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, isLocalOnly = false)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(regularTournament, emptyList(), emptyList())
+        coEvery { syncPlayersUseCase() } throws HttpException(Response.error<Any>(403, "".toResponseBody(null)))
+
+        syncManager.triggerSync(1L)
+
+        assertEquals(SyncStatus.FINALIZED, syncManager.syncStatus.value)
+        assertEquals("Turnier ist auf dem Server bereits abgeschlossen (HTTP 403).", syncManager.lastSyncError.value)
     }
 
     @Test

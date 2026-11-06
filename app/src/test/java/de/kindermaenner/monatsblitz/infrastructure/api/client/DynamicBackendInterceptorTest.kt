@@ -103,7 +103,7 @@ class DynamicBackendInterceptorTest {
         every { chain.request() } returns request
         every { chain.proceed(any()) } answers {
             val intercepted = arg<Request>(0)
-            assertEquals("https://sg-koenigslutter.de/custom-endpoint/ping", intercepted.url.toString())
+            assertEquals("https://sg-koenigslutter.de/wp-json/monatsblitz/v1/custom-endpoint/ping", intercepted.url.toString())
             mockk<Response>()
         }
 

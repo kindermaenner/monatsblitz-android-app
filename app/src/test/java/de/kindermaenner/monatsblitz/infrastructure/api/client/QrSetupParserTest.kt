@@ -96,6 +96,35 @@ class QrSetupParserTest {
     }
 
     @Test
+    fun `normalizes blank optional json fields and none mode`() {
+        val json = """{"url":"https://example.com","key":"secret","mode_type":"none","fixed_mode":"  ","rotation_modes":[" ",""]}"""
+
+        val config = QrSetupParser.parse(json)
+
+        assertNotNull(config)
+        assertEquals(ModePreselectionType.NONE, config?.modePreselectionType)
+        assertNull(config?.fixedMode)
+        assertNull(config?.rotationModes)
+    }
+
+    @Test
+    fun `returns null for malformed json and malformed encoded uri`() {
+        assertNull(QrSetupParser.parse("""{"url":42,"key":"secret"}"""))
+        assertNull(QrSetupParser.parse("monatsblitz://setup?url=%ZZ&key=secret"))
+    }
+
+    @Test
+    fun `ignores unknown uri mode type and empty rotation entries`() {
+        val uri = "monatsblitz://setup?url=https%3A%2F%2Fexample.com&key=secret&mode_type=unexpected&rotation_modes=%20%2C%20"
+
+        val config = QrSetupParser.parse(uri)
+
+        assertNotNull(config)
+        assertNull(config?.modePreselectionType)
+        assertNull(config?.rotationModes)
+    }
+
+    @Test
     fun `returns null for empty or blank input`() {
         assertNull(QrSetupParser.parse(""))
         assertNull(QrSetupParser.parse("   "))

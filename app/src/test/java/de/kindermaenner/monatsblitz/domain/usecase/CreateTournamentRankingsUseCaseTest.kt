@@ -162,5 +162,48 @@ class CreateTournamentRankingsUseCaseTest {
         assertEquals(3, results[2].rank) // Bob (1.0)
         assertEquals(4, results[3].rank) // Diana (0.5)
     }
+
+    @Test
+    fun `createCompetitionHandling with 3-way tie for 1st place assigns rank 1 to all three and rank 4 to next player`() {
+        val rankings = listOf(
+            PlayerRankingEntry(1, 100, 5.0),
+            PlayerRankingEntry(2, 100, 5.0),
+            PlayerRankingEntry(3, 100, 5.0),
+            PlayerRankingEntry(4, 100, 2.0)
+        )
+
+        val result = useCase.createCompetitionHandling(rankings)
+
+        assertEquals(1, result[0].rank)
+        assertEquals(1, result[1].rank)
+        assertEquals(1, result[2].rank)
+        assertEquals(4, result[3].rank) // Skips 2 and 3!
+    }
+
+    @Test
+    fun `createCompetitionHandling when all players have 0 points assigns rank 1 to everyone`() {
+        val rankings = listOf(
+            PlayerRankingEntry(1, 100, 0.0),
+            PlayerRankingEntry(2, 100, 0.0),
+            PlayerRankingEntry(3, 100, 0.0)
+        )
+
+        val result = useCase.createCompetitionHandling(rankings)
+
+        assertEquals(1, result[0].rank)
+        assertEquals(1, result[1].rank)
+        assertEquals(1, result[2].rank)
+    }
+
+    @Test
+    fun `invoke with empty tournament players list saves empty rankings without error`() = runTest {
+        val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 1, emptyList(), emptyMap())
+
+        useCase(tournament)
+
+        val capturedEntries = slot<List<PlayerRankingEntry>>()
+        coVerify { tournamentRepository.saveRankings(capture(capturedEntries)) }
+        assertEquals(0, capturedEntries.captured.size)
+    }
 }
 

@@ -495,16 +495,152 @@ class TournamentRepositoryImplTest {
             de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(id = 1, date = "2026-10-10", mode = "3+2", roundCount = 1, status = "finalized"),
             de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(id = 2, date = "2026-10-21", mode = "3+2", roundCount = 1, status = "open", playerIds = listOf(10L, 20L))
         )
+        coEvery { api.getTournament(2) } returns
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(
+                id = 2,
+                date = "2026-10-21",
+                mode = "5+0",
+                roundCount = 2,
+                status = "open",
+                playerIds = listOf(10L, 20L, 30L),
+                dailyNumber = 4,
+                label = "Finale",
+                countsForRanking = false
+            )
         coEvery { tournamentStorage.getTournamentState() } returns flowOf(null)
 
         val result = repo.getRemoteOpenTournament()
         org.junit.Assert.assertNotNull(result)
         org.junit.Assert.assertEquals(2, result!!.id)
         org.junit.Assert.assertEquals("2026-10-21", result.date)
-        org.junit.Assert.assertEquals(2, result.playerCount)
-        org.junit.Assert.assertEquals(1, result.dailyNumber)
-        org.junit.Assert.assertEquals("", result.label)
-        org.junit.Assert.assertEquals(true, result.countsForRanking)
+        org.junit.Assert.assertEquals("5+0", result.mode)
+        org.junit.Assert.assertEquals(2, result.roundCount)
+        org.junit.Assert.assertEquals(3, result.playerCount)
+        org.junit.Assert.assertEquals(4, result.dailyNumber)
+        org.junit.Assert.assertEquals("Finale", result.label)
+        org.junit.Assert.assertEquals(false, result.countsForRanking)
+    }
+
+    @Test
+    fun `getRemoteOpenTournament returns null when local active tournament matches remote open tournament`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        coEvery { api.getTournaments() } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(
+                id = 50,
+                date = "2026-10-21",
+                mode = "3+2",
+                roundCount = 1,
+                status = "open"
+            )
+        )
+        coEvery { tournamentStorage.getTournamentState() } returns
+            flowOf(de.kindermaenner.monatsblitz.infrastructure.TournamentState(5L, finalized = false))
+        coEvery { tournamentDao.getTournament(5L) } returns TournamentWithDetails(
+            TournamentEntity(
+                id = 5L,
+                mode = GameMode.BLITZ_3_2,
+                date = LocalDate.of(2026, 10, 21),
+                rounds = 1,
+                remoteId = 50L
+            ),
+            emptyList(),
+            emptyList()
+        )
+
+        assertEquals(null, repo.getRemoteOpenTournament())
+        coVerify(exactly = 0) { api.getTournament(any()) }
+    }
+
+    @Test
+    fun `getRemoteOpenTournament returns null when no remote tournament is open`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        coEvery { api.getTournaments() } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(
+                id = 50,
+                date = "2026-10-21",
+                mode = "3+2",
+                roundCount = 1,
+                status = "finalized"
+            )
+        )
+
+        assertEquals(null, repo.getRemoteOpenTournament())
+        coVerify(exactly = 0) { tournamentStorage.getTournamentState() }
+    }
+
+    @Test
+    fun `getRemoteOpenTournament falls back to summary when details cannot be fetched`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        val openSummary = de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(
+            id = 50,
+            date = "2026-10-21",
+            mode = "3+2",
+            roundCount = 1,
+            status = "open",
+            playerIds = listOf(10L)
+        )
+        coEvery { api.getTournaments() } returns listOf(openSummary)
+        coEvery { api.getTournament(50) } throws IllegalStateException("Details unavailable")
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(null)
+
+        val result = repo.getRemoteOpenTournament()
+
+        assertEquals(50, result?.id)
+        assertEquals(1, result?.playerCount)
+    }
+
+    @Test
+    fun `getRemoteOpenTournament returns null when listing remote tournaments fails`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        coEvery { api.getTournaments() } throws IllegalStateException("Backend unavailable")
+
+        assertEquals(null, repo.getRemoteOpenTournament())
+    }
+
+    @Test
+    fun `getRemoteOpenTournament returns null when API is not configured`() = runTest {
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = null
+        )
+
+        assertEquals(null, repo.getRemoteOpenTournament())
     }
 
     @Test
@@ -951,6 +1087,86 @@ class TournamentRepositoryImplTest {
 
         coVerify { gameDao.deleteGamesForLegGreaterThan(5L, 1) }
         coVerify { tournamentDao.updateTournamentRounds(5L, 1) }
+    }
+
+    @Test
+    fun `updateTournamentRounds does not write when requested rounds are unchanged`() = runTest {
+        val tEntity = TournamentEntity(id = 5L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
+        coEvery { tournamentDao.getTournament(5L) } returns
+            TournamentWithDetails(tEntity, emptyList(), emptyList())
+
+        repository.updateTournamentRounds(5L, 1)
+
+        coVerify(exactly = 0) { gameDao.insertAll(any()) }
+        coVerify(exactly = 0) { gameDao.deleteGamesForLegGreaterThan(any(), any()) }
+        coVerify(exactly = 0) { tournamentDao.updateTournamentRounds(any(), any()) }
+    }
+
+    @Test
+    fun `updateTournamentRounds creates missing second legs with correct withdrawn results`() = runTest {
+        val players = (1L..4L).map { id ->
+            de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(
+                id = id,
+                name = "Player $id",
+                vorname = "Player"
+            )
+        }
+        val tEntity = TournamentEntity(id = 5L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
+        val existingLeg2 = GameEntity(
+            id = 100L,
+            tournamentId = 5L,
+            player1Id = 1L,
+            player2Id = 2L,
+            leg = 2,
+            result = GameResult.Open
+        )
+        val pastDraw = GameEntity(
+            id = 101L,
+            tournamentId = 5L,
+            player1Id = 1L,
+            player2Id = 99L,
+            leg = 1,
+            result = GameResult.ForfeitDraw
+        )
+        val pastLoss = GameEntity(
+            id = 102L,
+            tournamentId = 5L,
+            player1Id = 2L,
+            player2Id = 99L,
+            leg = 1,
+            result = GameResult.ForfeitLoss
+        )
+        coEvery { tournamentDao.getTournament(5L) } returns TournamentWithDetails(
+            tournament = tEntity,
+            players = players,
+            games = listOf(existingLeg2, pastDraw, pastLoss),
+            playerRefs = players.take(3).map {
+                TournamentPlayerCrossRef(tournamentId = 5L, playerId = it.id, hasLeft = true)
+            }
+        )
+
+        repository.updateTournamentRounds(5L, 2)
+
+        coVerify {
+            gameDao.insertAll(match { games ->
+                games.size == 5 &&
+                    games.all { it.leg == 2 } &&
+                    games.none { it.player1Id == 1L && it.player2Id == 2L } &&
+                    games.first { it.player1Id == 1L && it.player2Id == 3L }.result == GameResult.ForfeitDraw &&
+                    games.first { it.player1Id == 1L && it.player2Id == 4L }.result == GameResult.ForfeitDraw &&
+                    games.first { it.player1Id == 2L && it.player2Id == 3L }.result == GameResult.ForfeitDraw &&
+                    games.first { it.player1Id == 2L && it.player2Id == 4L }.result == GameResult.ForfeitLoss &&
+                    games.first { it.player1Id == 3L && it.player2Id == 4L }.result == GameResult.ForfeitLoss &&
+                    games.all { it.dirty }
+            })
+        }
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `updateTournamentRounds fails when tournament does not exist`() = runTest {
+        coEvery { tournamentDao.getTournament(5L) } returns null
+
+        repository.updateTournamentRounds(5L, 2)
     }
 
     @Test

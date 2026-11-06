@@ -92,4 +92,65 @@ class CreateTournamentUseCaseTest {
 
         coVerify(exactly = 0) { playerRepo.promotePlayer(any()) }
     }
+
+    @Test
+    fun `invoke passes countsForRanking and label to NewTournament`() = runTest {
+        val players = listOf(Player(1, "A", "A"))
+        val date = LocalDate.of(2026, 11, 6)
+
+        every { createNewGamesUseCase(players, 1) } returns emptyList()
+        coEvery { tournamentRepository.createTournament(any()) } returns Tournament(
+            id = 1,
+            mode = GameMode.BLITZ_3_2,
+            date = date,
+            rounds = 1,
+            players = players,
+            countsForRanking = false,
+            label = "Gruppe B"
+        )
+
+        useCase(
+            players = players,
+            mode = GameMode.BLITZ_3_2,
+            date = date,
+            rounds = 1,
+            isLocalOnly = false,
+            countsForRanking = false,
+            label = "Gruppe B"
+        )
+
+        coVerify {
+            tournamentRepository.createTournament(match {
+                !it.countsForRanking && it.label == "Gruppe B"
+            })
+        }
+    }
+
+    @Test
+    fun `invoke defaults countsForRanking to true and label to empty string`() = runTest {
+        val players = listOf(Player(1, "A", "A"))
+        val date = LocalDate.of(2026, 11, 6)
+
+        every { createNewGamesUseCase(players, 1) } returns emptyList()
+        coEvery { tournamentRepository.createTournament(any()) } returns Tournament(
+            id = 1,
+            mode = GameMode.BLITZ_3_2,
+            date = date,
+            rounds = 1,
+            players = players
+        )
+
+        useCase(
+            players = players,
+            mode = GameMode.BLITZ_3_2,
+            date = date,
+            rounds = 1
+        )
+
+        coVerify {
+            tournamentRepository.createTournament(match {
+                it.countsForRanking && it.label == ""
+            })
+        }
+    }
 }

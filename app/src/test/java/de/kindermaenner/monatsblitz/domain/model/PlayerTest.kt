@@ -43,4 +43,21 @@ class PlayerTest {
 
         assertFalse(player.isActive(cutoff))
     }
+
+    @Test
+    fun `isActive handles malformed date string gracefully by returning true`() {
+        val cutoff = LocalDate.of(2025, 10, 1)
+        val player = Player(id = 7, name = "C", vorname = "C", lastParticipated = "not-a-valid-date")
+        assertTrue(player.isActive(cutoff))
+    }
+
+    @Test
+    fun `isActive boundary check exactly one day before and after cutoff`() {
+        val cutoff = LocalDate.of(2025, 10, 1)
+        val dayBefore = Player(id = 8, name = "D", vorname = "D", lastParticipated = "2025-09-30")
+        val dayAfter = Player(id = 9, name = "E", vorname = "E", lastParticipated = "2025-10-02")
+
+        assertFalse(dayBefore.isActive(cutoff))
+        assertTrue(dayAfter.isActive(cutoff))
+    }
 }

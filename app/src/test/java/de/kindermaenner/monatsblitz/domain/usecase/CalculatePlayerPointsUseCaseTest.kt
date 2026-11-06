@@ -81,4 +81,51 @@ class CalculatePlayerPointsUseCaseTest {
         assertEquals(0.5, useCase(tournament, 2L), 0.0)
         assertEquals(1.0, useCase(tournament, 3L), 0.0)
     }
+
+    @Test
+    fun `invoke should aggregate points across both legs in 2-round tournament`() {
+        val players = listOf(
+            Player(1, "A", "A"),
+            Player(2, "B", "B")
+        )
+        val games = mapOf(
+            1L to Game(id = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Win),    // P1: +1.0, P2: 0.0
+            2L to Game(id = 2, player1Id = 1, player2Id = 2, leg = 2, result = GameResult.Remis)   // P1: +0.5, P2: +0.5
+        )
+        val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 2, players, games)
+
+        assertEquals(1.5, useCase(tournament, 1L), 0.0)
+        assertEquals(0.5, useCase(tournament, 2L), 0.0)
+    }
+
+    @Test
+    fun `invoke should award zero points for open unplayed games`() {
+        val players = listOf(
+            Player(1, "A", "A"),
+            Player(2, "B", "B")
+        )
+        val games = mapOf(
+            1L to Game(id = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Open)
+        )
+        val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 1, players, games)
+
+        assertEquals(0.0, useCase(tournament, 1L), 0.0)
+        assertEquals(0.0, useCase(tournament, 2L), 0.0)
+    }
+
+    @Test
+    fun `invoke calculates points correctly when player is player2 in stored canonical pairing`() {
+        val players = listOf(
+            Player(1, "A", "A"),
+            Player(2, "B", "B")
+        )
+        // P1 loses to P2 (stored canonically as 1 vs 2, Result.Loss) -> P2 should get 1.0 pt
+        val games = mapOf(
+            1L to Game(id = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Loss)
+        )
+        val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 1, players, games)
+
+        assertEquals(0.0, useCase(tournament, 1L), 0.0)
+        assertEquals(1.0, useCase(tournament, 2L), 0.0)
+    }
 }

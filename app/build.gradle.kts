@@ -14,6 +14,19 @@ configure<JacocoPluginExtension> {
     toolVersion = "0.8.12"
 }
 
+kover {
+    reports {
+        filters {
+            excludes {
+                classes(
+                    "de.kindermaenner.monatsblitz.infrastructure.persistence.room.*_Impl*",
+                    "de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.*_Impl*"
+                )
+            }
+        }
+    }
+}
+
 android {
     namespace = "de.kindermaenner.monatsblitz"
     compileSdk = 37

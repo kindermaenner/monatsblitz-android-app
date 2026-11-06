@@ -628,7 +628,114 @@ class TournamentSetupViewModelTest {
             mode = GameMode.BLITZ_3_2,
             date = any(),
             rounds = 1,
-            isLocalOnly = true
+            isLocalOnly = true,
+            countsForRanking = true,
+            label = ""
         ) }
+    }
+
+    @Test
+    fun `createTournament passes countsForRanking and tournamentLabel to CreateTournamentUseCase`() = runTest {
+        val p1 = Player(1, "A", "A")
+        val mockTournament = mockk<Tournament>()
+        io.mockk.every { mockTournament.id } returns 555L
+
+        coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1))
+        coEvery {
+            createTournamentUseCase(
+                any(), any(), any(), any(),
+                isLocalOnly = false,
+                countsForRanking = false,
+                label = "Gruppe B"
+            )
+        } returns mockTournament
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository,
+            createTournamentUseCase,
+            addPlayerUseCase,
+            settingsRepository = settingsRepository
+        )
+        viewModel.onPlayerChecked(1L, true)
+        viewModel.onModeChanged(GameMode.BLITZ_3_2)
+        viewModel.onCountsForRankingChanged(false)
+        viewModel.onTournamentLabelChanged("Gruppe B")
+
+        assertEquals(false, viewModel.uiState.value.countsForRanking)
+        assertEquals("Gruppe B", viewModel.uiState.value.tournamentLabel)
+
+        viewModel.createTournament()
+        advanceUntilIdle()
+
+        coVerify {
+            createTournamentUseCase(
+                players = listOf(p1),
+                mode = GameMode.BLITZ_3_2,
+                date = any(),
+                rounds = 1,
+                isLocalOnly = false,
+                countsForRanking = false,
+                label = "Gruppe B"
+            )
+        }
+    }
+
+    @Test
+    fun `parallel tournament prompts confirmation and confirms creation`() = runTest {
+        val p1 = Player(1, "A", "A")
+        val mockTournament = mockk<Tournament>()
+        io.mockk.every { mockTournament.id } returns 777L
+        val tournamentRepo = mockk<TournamentRepository>(relaxed = true)
+
+        val today = LocalDate.now()
+        val openInfo = RemoteOpenTournamentInfo(
+            id = 42,
+            date = today.toString(),
+            mode = "Blitz 5+0",
+            roundCount = 1,
+            playerCount = 8,
+            dailyNumber = 1,
+            label = "Hauptturnier",
+            countsForRanking = true
+        )
+        coEvery { tournamentRepo.getRemoteOpenTournament() } returns openInfo
+        coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1))
+        coEvery { createTournamentUseCase(any(), any(), any(), any(), any(), any(), any()) } returns mockTournament
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            tournamentRepository = tournamentRepo,
+            settingsRepository = settingsRepository
+        )
+        advanceUntilIdle()
+
+        viewModel.onPlayerChecked(1L, true)
+        viewModel.onModeChanged(GameMode.BLITZ_3_2)
+        viewModel.onDateChanged(today)
+
+        // Try creating tournament without confirming first
+        viewModel.createTournament()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.showConfirmParallelTournamentDialog)
+        assertTrue(viewModel.uiState.value.parallelTournamentWarningText?.contains("Hauptturnier") == true)
+        coVerify(exactly = 0) { createTournamentUseCase(any(), any(), any(), any(), any(), any(), any()) }
+
+        // Dismiss dialog
+        viewModel.dismissConfirmParallelDialog()
+        assertFalse(viewModel.uiState.value.showConfirmParallelTournamentDialog)
+
+        // Trigger again and confirm
+        viewModel.createTournament()
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.showConfirmParallelTournamentDialog)
+
+        viewModel.confirmCreateParallelTournament()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.showConfirmParallelTournamentDialog)
+        coVerify(exactly = 1) { createTournamentUseCase(any(), any(), any(), any(), any(), any(), any()) }
     }
 }

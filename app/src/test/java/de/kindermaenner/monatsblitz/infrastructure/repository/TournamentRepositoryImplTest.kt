@@ -502,6 +502,9 @@ class TournamentRepositoryImplTest {
         org.junit.Assert.assertEquals(2, result!!.id)
         org.junit.Assert.assertEquals("2026-10-21", result.date)
         org.junit.Assert.assertEquals(2, result.playerCount)
+        org.junit.Assert.assertEquals(1, result.dailyNumber)
+        org.junit.Assert.assertEquals("", result.label)
+        org.junit.Assert.assertEquals(true, result.countsForRanking)
     }
 
     @Test
@@ -653,6 +656,56 @@ class TournamentRepositoryImplTest {
 
         val modes = repo.getRecentTournamentModes()
         assertEquals(listOf("Blitz 5+0", "Blitz 3+2"), modes)
+    }
+
+    @Test
+    fun `getRecentTournamentModes ignores non-ranking tournaments from remote API`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        coEvery { api.getTournaments() } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(id = 1, date = "2026-10-10", mode = "Blitz 5+0", roundCount = 1, status = "finalized", countsForRanking = true),
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(id = 2, date = "2026-10-10", mode = "Blitz 3+0", roundCount = 1, status = "finalized", countsForRanking = false, label = "Nachblitz"),
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(id = 3, date = "2026-10-11", mode = "Blitz 3+2", roundCount = 1, status = "finalized", countsForRanking = true)
+        )
+
+        val modes = repo.getRecentTournamentModes()
+        assertEquals(listOf("Blitz 5+0", "Blitz 3+2"), modes)
+    }
+
+    @Test
+    fun `getRecentTournamentModes ignores non-ranking tournaments in local fallback`() = runTest {
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = null
+        )
+
+        val date1 = LocalDate.of(2026, 10, 1)
+        val date2 = LocalDate.of(2026, 10, 1)
+        val date3 = LocalDate.of(2026, 10, 15)
+        val t1 = TournamentEntity(id = 1, mode = GameMode.BLITZ_5_0, date = date1, rounds = 1, remoteId = null, countsForRanking = true)
+        val t2 = TournamentEntity(id = 2, mode = GameMode.HANDICAP, date = date2, rounds = 1, remoteId = null, countsForRanking = false, label = "Side")
+        val t3 = TournamentEntity(id = 3, mode = GameMode.BLITZ_3_2, date = date3, rounds = 1, remoteId = null, countsForRanking = true)
+        coEvery { tournamentDao.observeTournaments() } returns flowOf(
+            listOf(
+                TournamentWithDetails(tournament = t1, players = emptyList(), games = emptyList()),
+                TournamentWithDetails(tournament = t2, players = emptyList(), games = emptyList()),
+                TournamentWithDetails(tournament = t3, players = emptyList(), games = emptyList())
+            )
+        )
+
+        val modes = repo.getRecentTournamentModes()
+        assertEquals(listOf(GameMode.BLITZ_3_2.name, GameMode.BLITZ_5_0.name), modes)
     }
 
     @Test

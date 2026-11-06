@@ -10,7 +10,9 @@ data class Tournament(
     val players: List<Player>,
     val games: Map<Long, Game> = mapOf(),
     val withdrawnPlayerIds: Set<Long> = emptySet(),
-    val isLocalOnly: Boolean = false
+    val isLocalOnly: Boolean = false,
+    val countsForRanking: Boolean = true,
+    val label: String = ""
 ) {
     val playerIds: List<Long>
         get() = players.map { it.id }

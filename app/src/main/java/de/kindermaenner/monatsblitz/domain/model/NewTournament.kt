@@ -8,5 +8,7 @@ data class NewTournament(
     val rounds: Int,
     val players: List<Player>,
     val games: List<NewGame>,
-    val isLocalOnly: Boolean = false
+    val isLocalOnly: Boolean = false,
+    val countsForRanking: Boolean = true,
+    val label: String = ""
 )

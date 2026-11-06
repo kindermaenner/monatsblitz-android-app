@@ -18,7 +18,9 @@ class CreateTournamentUseCase(
         mode: GameMode,
         date: LocalDate,
         rounds: Int,
-        isLocalOnly: Boolean = false
+        isLocalOnly: Boolean = false,
+        countsForRanking: Boolean = true,
+        label: String = ""
     ): Tournament {
         if (!isLocalOnly && playerRepository != null) {
             players.filter { it.isLocal }.forEach { localPlayer ->
@@ -32,7 +34,9 @@ class CreateTournamentUseCase(
             rounds = rounds,
             players = players,
             games = games,
-            isLocalOnly = isLocalOnly
+            isLocalOnly = isLocalOnly,
+            countsForRanking = countsForRanking,
+            label = label
         )
         return tournamentRepository.createTournament(newTournament)
     }

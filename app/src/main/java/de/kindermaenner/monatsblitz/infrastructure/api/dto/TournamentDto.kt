@@ -11,6 +11,13 @@ data class TournamentDto(
     @SerialName("round_count")
     val roundCount: Int,
     val status: String = "open",
+    @SerialName("daily_number")
+    val dailyNumber: Int = 1,
+    val label: String = "",
+    @SerialName("counts_for_ranking")
+    val countsForRanking: Boolean = true,
+    @SerialName("start_time")
+    val startTime: String? = null,
     @SerialName("player_ids")
     val playerIds: List<Long> = emptyList(),
     @SerialName("withdrawn_player_ids")
@@ -23,6 +30,13 @@ data class NewTournamentDto(
     val mode: String,
     @SerialName("round_count")
     val roundCount: Int = 1,
+    @SerialName("daily_number")
+    val dailyNumber: Int? = null,
+    val label: String = "",
+    @SerialName("counts_for_ranking")
+    val countsForRanking: Boolean = true,
+    @SerialName("confirm_parallel")
+    val confirmParallel: Boolean = false,
     @SerialName("player_ids")
     val playerIds: List<Long> = emptyList()
 )

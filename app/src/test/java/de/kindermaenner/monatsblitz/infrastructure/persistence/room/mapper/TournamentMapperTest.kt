@@ -19,7 +19,15 @@ class TournamentMapperTest {
     @Test
     fun `toDomain maps TournamentEntity and details correctly`() {
         val date = LocalDate.now()
-        val tournamentEntity = TournamentEntity(id = 1, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = null)
+        val tournamentEntity = TournamentEntity(
+            id = 1,
+            mode = GameMode.BLITZ_3_2,
+            date = date,
+            rounds = 1,
+            remoteId = null,
+            countsForRanking = false,
+            label = "Gruppe B"
+        )
         val gameEntity = GameEntity(id = 10, tournamentId = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Win)
         val player = Player(1, "N", "V")
         
@@ -30,12 +38,22 @@ class TournamentMapperTest {
         assertEquals(1, domain.games.size)
         assertEquals(GameResult.Win, domain.games[10L]?.result)
         assertEquals(1, domain.players.size)
+        assertEquals(false, domain.countsForRanking)
+        assertEquals("Gruppe B", domain.label)
     }
 
     @Test
     fun `toDomain from TournamentWithDetails maps correctly`() {
         val date = LocalDate.now()
-        val tournamentEntity = TournamentEntity(id = 1, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = 100L)
+        val tournamentEntity = TournamentEntity(
+            id = 1,
+            mode = GameMode.BLITZ_3_2,
+            date = date,
+            rounds = 1,
+            remoteId = 100L,
+            countsForRanking = true,
+            label = "Hauptturnier"
+        )
         val gameEntity = GameEntity(id = 10, tournamentId = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Win)
         val playerEntity = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1, name = "Doe", vorname = "John")
         val details = TournamentWithDetails(
@@ -51,29 +69,51 @@ class TournamentMapperTest {
         assertEquals("Doe", domain.players[0].name)
         assertEquals(1, domain.games.size)
         assertEquals(GameResult.Win, domain.games[10L]?.result)
+        assertEquals(true, domain.countsForRanking)
+        assertEquals("Hauptturnier", domain.label)
     }
 
     @Test
     fun `Tournament toEntities maps correctly`() {
         val date = LocalDate.now()
-        val domain = Tournament(id = 1, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, players = listOf())
+        val domain = Tournament(
+            id = 1,
+            mode = GameMode.BLITZ_3_2,
+            date = date,
+            rounds = 1,
+            players = listOf(),
+            countsForRanking = false,
+            label = "Fun Blitz"
+        )
         
         val (entity, games) = domain.toEntities()
         
         assertEquals(1L, entity.id)
         assertEquals(GameMode.BLITZ_3_2, entity.mode)
         assertEquals(0, games.size)
+        assertEquals(false, entity.countsForRanking)
+        assertEquals("Fun Blitz", entity.label)
     }
 
     @Test
     fun `NewTournament toEntity maps correctly`() {
         val date = LocalDate.now()
-        val domain = NewTournament(mode = GameMode.BLITZ_5_0, date = date, rounds = 2, players = listOf(), games = listOf())
+        val domain = NewTournament(
+            mode = GameMode.BLITZ_5_0,
+            date = date,
+            rounds = 2,
+            players = listOf(),
+            games = listOf(),
+            countsForRanking = false,
+            label = "Nachblitz"
+        )
         
         val entity = domain.toEntity()
         
         assertEquals(GameMode.BLITZ_5_0, entity.mode)
         assertEquals(2, entity.rounds)
+        assertEquals(false, entity.countsForRanking)
+        assertEquals("Nachblitz", entity.label)
     }
 
     @Test

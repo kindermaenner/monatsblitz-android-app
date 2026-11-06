@@ -336,13 +336,63 @@ class TournamentSetupViewModel(
         }
     }
 
+    fun onCountsForRankingChanged(enabled: Boolean) {
+        _uiState.update {
+            it.copy(countsForRanking = enabled)
+        }
+    }
+
+    fun onTournamentLabelChanged(label: String) {
+        _uiState.update {
+            it.copy(tournamentLabel = label)
+        }
+    }
+
     fun onNewPlayerIsLocalChanged(isLocal: Boolean) {
         _uiState.update {
             it.copy(newPlayerIsLocal = isLocal)
         }
     }
 
+    fun dismissConfirmParallelDialog() {
+        _uiState.update {
+            it.copy(
+                showConfirmParallelTournamentDialog = false,
+                parallelTournamentWarningText = null
+            )
+        }
+    }
+
+    fun confirmCreateParallelTournament() {
+        _uiState.update {
+            it.copy(
+                showConfirmParallelTournamentDialog = false,
+                parallelTournamentWarningText = null
+            )
+        }
+        executeCreateTournament()
+    }
+
     fun createTournament() {
+        val state = uiState.value
+        if (!state.isLocalOnly && state.isServerConfigured && !state.isStandaloneOffline) {
+            val remoteOpen = state.remoteOpenTournament
+            if (remoteOpen != null && remoteOpen.date == state.selectedDate.toString()) {
+                val openLabel = if (remoteOpen.label.isNotBlank()) " (\"${remoteOpen.label}\")" else ""
+                _uiState.update {
+                    it.copy(
+                        showConfirmParallelTournamentDialog = true,
+                        parallelTournamentWarningText = "Es existiert für diesen Tag bereits ein offenes Turnier${openLabel} mit Modus ${remoteOpen.mode}.\n\nMöchtest du wirklich ein weiteres paralleles Turnier starten?"
+                    )
+                }
+                return
+            }
+        }
+
+        executeCreateTournament()
+    }
+
+    private fun executeCreateTournament() {
         viewModelScope.launch {
             val state = uiState.value
 
@@ -362,7 +412,9 @@ class TournamentSetupViewModel(
                     mode = mode,
                     date = state.selectedDate,
                     rounds = if (state.doubleRound) 2 else 1,
-                    isLocalOnly = state.isLocalOnly
+                    isLocalOnly = state.isLocalOnly,
+                    countsForRanking = state.countsForRanking,
+                    label = state.tournamentLabel.trim()
                 )
                 _navigationEffect.emit(tournament.id)
             } catch (e: Exception) {

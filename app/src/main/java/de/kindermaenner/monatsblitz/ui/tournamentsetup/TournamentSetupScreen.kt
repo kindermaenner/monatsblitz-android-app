@@ -328,6 +328,28 @@ fun TournamentSetupScreen(
         )
     }
 
+    val parallelWarning = state.parallelTournamentWarningText
+    if (state.showConfirmParallelTournamentDialog && parallelWarning != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissConfirmParallelDialog,
+            title = { Text("Paralleles Turnier starten?") },
+            text = { Text(parallelWarning) },
+            confirmButton = {
+                Button(
+                    onClick = viewModel::confirmCreateParallelTournament,
+                    modifier = Modifier.testTag("confirm_parallel_tournament_button")
+                ) {
+                    Text("Ja, neues Turnier starten")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = viewModel::dismissConfirmParallelDialog) {
+                    Text("Abbrechen")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TournamentSetupTopBar(
@@ -362,6 +384,8 @@ fun TournamentSetupScreen(
                     availableModes = state.availableModes,
                     doubleRound = state.doubleRound,
                     isLocalOnly = state.isLocalOnly,
+                    countsForRanking = state.countsForRanking,
+                    tournamentLabel = state.tournamentLabel,
                     isServerConfigured = state.isServerConfigured,
                     isStandaloneOffline = state.isStandaloneOffline
                 ),
@@ -371,7 +395,9 @@ fun TournamentSetupScreen(
                     onModeChanged = viewModel::onModeChanged,
                     onAddNewMode = { viewModel.onShowAddModeDialog(true) },
                     onDoubleRoundChanged = viewModel::onDoubleRoundChanged,
-                    onLocalOnlyChanged = viewModel::onLocalOnlyChanged
+                    onLocalOnlyChanged = viewModel::onLocalOnlyChanged,
+                    onCountsForRankingChanged = viewModel::onCountsForRankingChanged,
+                    onTournamentLabelChanged = viewModel::onTournamentLabelChanged
                 )
             )
 
@@ -643,6 +669,8 @@ data class TournamentSettingsState(
     val availableModes: List<GameMode> = emptyList(),
     val doubleRound: Boolean = false,
     val isLocalOnly: Boolean = false,
+    val countsForRanking: Boolean = true,
+    val tournamentLabel: String = "",
     val isServerConfigured: Boolean = true,
     val isStandaloneOffline: Boolean = false
 )
@@ -653,7 +681,9 @@ data class TournamentSettingsActions(
     val onModeChanged: (GameMode) -> Unit,
     val onAddNewMode: (() -> Unit)? = null,
     val onDoubleRoundChanged: (Boolean) -> Unit,
-    val onLocalOnlyChanged: (Boolean) -> Unit = {}
+    val onLocalOnlyChanged: (Boolean) -> Unit = {},
+    val onCountsForRankingChanged: (Boolean) -> Unit = {},
+    val onTournamentLabelChanged: (String) -> Unit = {}
 )
 
 @Composable
@@ -690,6 +720,8 @@ internal fun TournamentSettingsCard(
                 formattedDate = formattedDate,
                 modeLabel = modeLabel,
                 roundLabel = roundLabel,
+                countsForRanking = state.countsForRanking,
+                tournamentLabel = state.tournamentLabel,
                 onToggleExpanded = actions.onToggleExpanded
             )
         } else {
@@ -732,7 +764,11 @@ internal fun TournamentSettingsCard(
                     isServerConfigured = state.isServerConfigured,
                     isStandaloneOffline = state.isStandaloneOffline,
                     isLocalOnly = state.isLocalOnly,
-                    onLocalOnlyChanged = actions.onLocalOnlyChanged
+                    countsForRanking = state.countsForRanking,
+                    tournamentLabel = state.tournamentLabel,
+                    onLocalOnlyChanged = actions.onLocalOnlyChanged,
+                    onCountsForRankingChanged = actions.onCountsForRankingChanged,
+                    onTournamentLabelChanged = actions.onTournamentLabelChanged
                 )
             }
         }
@@ -745,6 +781,8 @@ private fun TournamentSettingsCollapsedRow(
     formattedDate: String,
     modeLabel: String,
     roundLabel: String,
+    countsForRanking: Boolean,
+    tournamentLabel: String,
     onToggleExpanded: () -> Unit
 ) {
     Row(
@@ -764,8 +802,10 @@ private fun TournamentSettingsCollapsedRow(
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(2.dp))
+            val rankingSuffix = if (!countsForRanking) " • Freies Turnier" else ""
+            val labelSuffix = if (tournamentLabel.isNotBlank()) " • $tournamentLabel" else ""
             Text(
-                text = "${if (isToday) "Heute" else formattedDate} • $modeLabel • $roundLabel",
+                text = "${if (isToday) "Heute" else formattedDate} • $modeLabel • $roundLabel$rankingSuffix$labelSuffix",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -852,7 +892,11 @@ private fun TournamentSettingsServerOption(
     isServerConfigured: Boolean,
     isStandaloneOffline: Boolean,
     isLocalOnly: Boolean,
-    onLocalOnlyChanged: (Boolean) -> Unit
+    countsForRanking: Boolean,
+    tournamentLabel: String,
+    onLocalOnlyChanged: (Boolean) -> Unit,
+    onCountsForRankingChanged: (Boolean) -> Unit,
+    onTournamentLabelChanged: (String) -> Unit
 ) {
     if (isServerConfigured && !isStandaloneOffline) {
         Row(
@@ -876,6 +920,41 @@ private fun TournamentSettingsServerOption(
                 modifier = Modifier.testTag("tournament_local_only_switch")
             )
         }
+
+        if (!isLocalOnly) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onCountsForRankingChanged(!countsForRanking) },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Für Jahreswertung werten", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Zählt für die Jahres-Blitzmeisterschaft",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = countsForRanking,
+                    onCheckedChange = onCountsForRankingChanged,
+                    modifier = Modifier.testTag("tournament_counts_for_ranking_switch")
+                )
+            }
+        }
+
+        OutlinedTextField(
+            value = tournamentLabel,
+            onValueChange = onTournamentLabelChanged,
+            label = { Text("Zusatzbezeichnung / Gruppe (optional)") },
+            placeholder = { Text("z. B. Gruppe A, Gruppe B, Nachblitz") },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("tournament_label_field")
+        )
     }
 }
 

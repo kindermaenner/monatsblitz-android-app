@@ -38,7 +38,10 @@ fun NewPlayer.toDto(): NewPlayerDto = NewPlayerDto(
 fun NewTournament.toDto() : NewTournamentDto = NewTournamentDto(
     date = date.toString(),
     mode = mode.displayName,
-    roundCount = rounds
+    roundCount = rounds,
+    label = label,
+    countsForRanking = countsForRanking,
+    confirmParallel = true
 )
 
 fun PlayerEntity.toNewPlayerDto() : NewPlayerDto =

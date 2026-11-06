@@ -29,7 +29,10 @@ fun Tournament.toEntities() : Pair<TournamentEntity, List<GameEntity>> {
         date = date,
         rounds = rounds,
         dirty = true,
-        remoteId = null
+        remoteId = null,
+        isLocalOnly = isLocalOnly,
+        countsForRanking = countsForRanking,
+        label = label
     )
     val gameEntities = games.values.map {
         GameEntity(
@@ -56,7 +59,10 @@ fun TournamentEntity.toDomain(games: List<GameEntity>, players : List<Player>): 
             .mapValues { (_, gameEntity) ->
                 gameEntity.toDomain()
             },
-        players = players
+        players = players,
+        isLocalOnly = isLocalOnly,
+        countsForRanking = countsForRanking,
+        label = label
     )
 
 fun TournamentWithDetails.toDomain(): Tournament {
@@ -70,7 +76,9 @@ fun TournamentWithDetails.toDomain(): Tournament {
             gameEntity.id to gameEntity.toDomain()
         },
         withdrawnPlayerIds = playerRefs.filter { it.hasLeft }.map { it.playerId }.toSet(),
-        isLocalOnly = tournament.isLocalOnly
+        isLocalOnly = tournament.isLocalOnly,
+        countsForRanking = tournament.countsForRanking,
+        label = tournament.label
     )
 }
 
@@ -81,7 +89,9 @@ fun NewTournament.toEntity() : TournamentEntity =
         rounds = rounds,
         dirty = !isLocalOnly,
         remoteId = null,
-        isLocalOnly = isLocalOnly
+        isLocalOnly = isLocalOnly,
+        countsForRanking = countsForRanking,
+        label = label
     )
 fun NewGame.toEntity(tournamentId : Long) : GameEntity = GameEntity(
     tournamentId = tournamentId,

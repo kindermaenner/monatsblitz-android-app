@@ -66,5 +66,8 @@ data class RemoteOpenTournamentInfo(
     val date: String,
     val mode: String,
     val roundCount: Int,
-    val playerCount: Int
+    val playerCount: Int,
+    val dailyNumber: Int = 1,
+    val label: String = "",
+    val countsForRanking: Boolean = true
 )

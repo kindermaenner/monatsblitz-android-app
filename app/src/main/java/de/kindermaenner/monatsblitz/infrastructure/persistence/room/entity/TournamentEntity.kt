@@ -20,5 +20,9 @@ data class TournamentEntity(
 
     val dirty : Boolean = true,
 
-    val isLocalOnly: Boolean = false
+    val isLocalOnly: Boolean = false,
+
+    val countsForRanking: Boolean = true,
+
+    val label: String = ""
 )

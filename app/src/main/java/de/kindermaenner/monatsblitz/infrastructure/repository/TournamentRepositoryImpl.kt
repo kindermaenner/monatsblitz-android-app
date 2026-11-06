@@ -402,6 +402,9 @@ class TournamentRepositoryImpl(
                 date = it.tournament.date.toString(),
                 mode = it.tournament.mode.displayName,
                 roundCount = it.tournament.rounds,
+                label = it.tournament.label,
+                countsForRanking = it.tournament.countsForRanking,
+                confirmParallel = true,
                 playerIds = it.players.mapNotNull { player -> player.remoteId }
             )
             try {
@@ -578,7 +581,10 @@ class TournamentRepositoryImpl(
                 date = fullTournament.date,
                 mode = fullTournament.mode,
                 roundCount = fullTournament.roundCount,
-                playerCount = fullTournament.playerIds.size
+                playerCount = fullTournament.playerIds.size,
+                dailyNumber = fullTournament.dailyNumber,
+                label = fullTournament.label,
+                countsForRanking = fullTournament.countsForRanking
             )
         } catch (e: Exception) {
             Log.e(TAG, "getRemoteOpenTournament failed: ${e.message}", e)
@@ -800,7 +806,7 @@ class TournamentRepositoryImpl(
             try {
                 val remoteTournaments = api.getTournaments()
                 if (remoteTournaments.isNotEmpty()) {
-                    return remoteTournaments.map { it.mode }
+                    return remoteTournaments.filter { it.countsForRanking }.map { it.mode }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "getRecentTournamentModes: failed to fetch remote tournaments: ${e.message}")
@@ -808,7 +814,9 @@ class TournamentRepositoryImpl(
         }
         return try {
             val local = tournamentDao.observeTournaments().first()
-            local.sortedByDescending { it.tournament.date }.map { it.tournament.mode.name }
+            local.sortedByDescending { it.tournament.date }
+                .filter { it.tournament.countsForRanking }
+                .map { it.tournament.mode.name }
         } catch (e: Exception) {
             emptyList()
         }

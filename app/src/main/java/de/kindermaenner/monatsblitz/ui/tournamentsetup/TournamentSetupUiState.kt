@@ -23,8 +23,13 @@ data class TournamentSetupUiState(
     val availableModes: List<GameMode> = emptyList(),
     val doubleRound: Boolean = false,
     val isLocalOnly: Boolean = false,
+    val countsForRanking: Boolean = true,
+    val tournamentLabel: String = "",
     val isServerConfigured: Boolean = true,
     val isStandaloneOffline: Boolean = false,
+
+    val showConfirmParallelTournamentDialog: Boolean = false,
+    val parallelTournamentWarningText: String? = null,
 
     val showAddPlayerDialog: Boolean = false,
     val newPlayerVorname: String = "",

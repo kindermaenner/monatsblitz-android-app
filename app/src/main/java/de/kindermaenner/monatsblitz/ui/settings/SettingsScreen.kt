@@ -140,36 +140,12 @@ fun SettingsScreen(
     }
 
     if (showExitWithoutConfigDialog) {
-        AlertDialog(
-            onDismissRequest = { showExitWithoutConfigDialog = false },
-            icon = {
-                Icon(
-                    Icons.Default.Error,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
-                )
-            },
-            title = { Text("Betriebsmodus erforderlich") },
-            text = {
-                Text(
-                    "Du hast bisher keinen gültigen Betriebsmodus ausgewählt bzw. eingerichtet. Bitte entscheide dich für den dauerhaften Offline-Modus oder schließe die WordPress-Verbindung ab, bevor du fortfährst."
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.setStandaloneOfflineMode(true)
-                        showExitWithoutConfigDialog = false
-                        onBack()
-                    }
-                ) {
-                    Text("Offline-Modus nutzen")
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { showExitWithoutConfigDialog = false }) {
-                    Text("Hier bleiben & einrichten")
-                }
+        ExitWithoutConfigDialog(
+            onDismiss = { showExitWithoutConfigDialog = false },
+            onUseOfflineMode = {
+                viewModel.setStandaloneOfflineMode(true)
+                showExitWithoutConfigDialog = false
+                onBack()
             }
         )
     }
@@ -233,315 +209,444 @@ fun SettingsScreen(
         ) {
             WelcomeBanner(isConfigured = isConfigured)
 
-            // Sektion 1: Betriebsmodus
+            OperatingModeSection(
+                standaloneOfflineMode = standaloneOfflineMode,
+                onStandaloneOfflineModeChanged = { viewModel.setStandaloneOfflineMode(it) }
+            )
+
+            WordPressServerSection(
+                standaloneOfflineMode = standaloneOfflineMode,
+                serverUrl = serverUrl,
+                apiKey = apiKey,
+                isPasswordVisible = isPasswordVisible,
+                onPasswordVisibilityToggle = { isPasswordVisible = !isPasswordVisible },
+                isTesting = isTesting,
+                isServerConfigured = isServerConfigured,
+                testResult = testResult,
+                autoAdoptOpenTournament = autoAdoptOpenTournament,
+                showDetailedSync = showDetailedSync,
+                onScanQr = {
+                    barcodeScanner.startScan()
+                        .addOnSuccessListener { barcode ->
+                            val raw = barcode.rawValue
+                            val config = raw?.let { QrSetupParser.parse(it) }
+                            if (config != null) {
+                                viewModel.applyQrConfig(config)
+                            } else {
+                                viewModel.onQrScanError("Der gescannte QR-Code enthält keine gültigen Monatsblitz-Daten.")
+                            }
+                        }
+                },
+                onServerUrlChanged = { viewModel.onServerUrlChanged(it) },
+                onApiKeyChanged = { viewModel.onApiKeyChanged(it) },
+                onTestConnection = { viewModel.testConnection() },
+                onSaveSettings = { viewModel.saveSettings() },
+                onToggleAutoAdopt = { viewModel.setAutoAdoptOpenTournament(it) },
+                onToggleDetailedSync = { viewModel.setShowDetailedSyncIndicators(it) }
+            )
+
+            DisplaySettingsSection(
+                useShortPlayerNames = useShortPlayerNames,
+                preferRufnameAsShortName = preferRufnameAsShortName,
+                playerSortField = playerSortField,
+                playerSortOrder = playerSortOrder,
+                activePlayersCutoffMonths = activePlayersCutoffMonths,
+                onUseShortNamesChanged = { viewModel.setUseShortPlayerNames(it) },
+                onPreferRufnameChanged = { viewModel.setPreferRufnameAsShortName(it) },
+                onSortFieldChanged = { viewModel.setPlayerSortField(it) },
+                onSortOrderChanged = { viewModel.setPlayerSortOrder(it) },
+                onMonthsSelected = { viewModel.setActivePlayersCutoffMonths(it) }
+            )
+
+            TournamentPreselectionCard(
+                modePreselectionType = modePreselectionType,
+                fixedMode = fixedMode,
+                rotationModes = rotationModes,
+                availableModes = availableModes,
+                onTypeChanged = { viewModel.setModePreselectionType(it) },
+                onFixedModeChanged = { viewModel.setFixedMode(it) },
+                onToggleRotationMode = { viewModel.toggleRotationMode(it) }
+            )
+
+            HelpAndFeedbackSection(serverUrl = serverUrl)
+        }
+    }
+}
+
+@Composable
+private fun ExitWithoutConfigDialog(
+    onDismiss: () -> Unit,
+    onUseOfflineMode: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Default.Error,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+        },
+        title = { Text("Betriebsmodus erforderlich") },
+        text = {
+            Text(
+                "Du hast bisher keinen gültigen Betriebsmodus ausgewählt bzw. eingerichtet. Bitte entscheide dich für den dauerhaften Offline-Modus oder schließe die WordPress-Verbindung ab, bevor du fortfährst."
+            )
+        },
+        confirmButton = {
+            Button(onClick = onUseOfflineMode) {
+                Text("Offline-Modus nutzen")
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text("Hier bleiben & einrichten")
+            }
+        }
+    )
+}
+
+@Composable
+private fun OperatingModeSection(
+    standaloneOfflineMode: Boolean,
+    onStandaloneOfflineModeChanged: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Betriebsmodus",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Wähle aus, wie Monatsblitz auf diesem Gerät betrieben werden soll:",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Option A: WordPress-Vereinswebsite
             Card(
+                onClick = { onStandaloneOfflineModeChanged(false) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
+                    containerColor = if (!standaloneOfflineMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                ),
+                border = if (!standaloneOfflineMode) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Betriebsmodus",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Wähle aus, wie Monatsblitz auf diesem Gerät betrieben werden soll:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Option A: WordPress-Vereinswebsite
-                    Card(
-                        onClick = { viewModel.setStandaloneOfflineMode(false) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (!standaloneOfflineMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                        ),
-                        border = if (!standaloneOfflineMode) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = !standaloneOfflineMode,
-                                onClick = { viewModel.setStandaloneOfflineMode(false) }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "WordPress-Vereinswebsite",
-                                    style = MaterialTheme.typography.titleSmall
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "Synchronisiert Spieler, Turniere und Ergebnisse mit dem Monatsblitz-WordPress-Plugin.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Option B: Dauerhafter Offline-Betrieb
-                    Card(
-                        onClick = { viewModel.setStandaloneOfflineMode(true) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (standaloneOfflineMode) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
-                        ),
-                        border = if (standaloneOfflineMode) BorderStroke(2.dp, MaterialTheme.colorScheme.secondary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = standaloneOfflineMode,
-                                    onClick = { viewModel.setStandaloneOfflineMode(true) }
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        text = "Dauerhafter Offline-Betrieb",
-                                        style = MaterialTheme.typography.titleSmall
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = "App komplett ohne WordPress-Server nutzen (z. B. für Vereinsfeste, Jugend- oder private Turniere).",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Switch(
-                                checked = standaloneOfflineMode,
-                                onCheckedChange = { viewModel.setStandaloneOfflineMode(it) },
-                                modifier = Modifier.testTag("standalone_offline_switch")
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Sektion 2: WordPress & Synchronisation (in eigener Card, animiert ausgeblendet bei Offline-Betrieb)
-            AnimatedVisibility(
-                visible = !standaloneOfflineMode,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        ServerConnectionHeader(
-                            onScanQr = {
-                                barcodeScanner.startScan()
-                                    .addOnSuccessListener { barcode ->
-                                        val raw = barcode.rawValue
-                                        val config = raw?.let { QrSetupParser.parse(it) }
-                                        if (config != null) {
-                                            viewModel.applyQrConfig(config)
-                                        } else {
-                                            viewModel.onQrScanError("Der gescannte QR-Code enthält keine gültigen Monatsblitz-Daten.")
-                                        }
-                                    }
-                            }
-                        )
-
-                        ServerUrlField(
-                            serverUrl = serverUrl,
-                            onValueChange = { viewModel.onServerUrlChanged(it) }
-                        )
-
-                        ApiKeyField(
-                            apiKey = apiKey,
-                            isVisible = isPasswordVisible,
-                            onVisibilityToggle = { isPasswordVisible = !isPasswordVisible },
-                            onValueChange = { viewModel.onApiKeyChanged(it) }
-                        )
-
-                        ServerActionButtons(
-                            isTesting = isTesting,
-                            canSubmit = !isTesting && serverUrl.isNotBlank() && apiKey.isNotBlank(),
-                            isServerConfigured = isServerConfigured,
-                            onTest = { viewModel.testConnection() },
-                            onSave = { viewModel.saveSettings() }
-                        )
-
-                        testResult?.let { result ->
-                            ConnectionTestResultCard(result = result)
-                        }
-
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
+                    RadioButton(
+                        selected = !standaloneOfflineMode,
+                        onClick = { onStandaloneOfflineModeChanged(false) }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Synchronisation",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary
+                            text = "WordPress-Vereinswebsite",
+                            style = MaterialTheme.typography.titleSmall
                         )
-
-                        SettingToggleItem(
-                            title = "Offene Server-Turniere automatisch fortsetzen",
-                            description = "Übernimmt ein offenes Turnier vom Server beim App-Start automatisch ohne Nachfrage.",
-                            checked = autoAdoptOpenTournament,
-                            onToggle = { viewModel.setAutoAdoptOpenTournament(it) }
-                        )
-
-                        SettingToggleItem(
-                            title = "Detaillierte Sync-Indikatoren",
-                            description = "Zeigt kleine Statuspunkte an ungespeicherten Zellen und neuen Spielern, bis sie synchronisiert sind.",
-                            checked = showDetailedSync,
-                            onToggle = { viewModel.setShowDetailedSyncIndicators(it) }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Synchronisiert Spieler, Turniere und Ergebnisse mit dem Monatsblitz-WordPress-Plugin.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
 
-            // Sektion 3: Darstellung (Card)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Option B: Dauerhafter Offline-Betrieb
             Card(
+                onClick = { onStandaloneOfflineModeChanged(true) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
+                    containerColor = if (standaloneOfflineMode) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
+                ),
+                border = if (standaloneOfflineMode) BorderStroke(2.dp, MaterialTheme.colorScheme.secondary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
-                Column(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Darstellung",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    SettingToggleItem(
-                        title = "Kurznamen in Tabellen & Rangliste",
-                        description = "Spart Platz auf kleinen Displays (z. B. 'Peter M.' statt 'Peter Müller').",
-                        checked = useShortPlayerNames,
-                        onToggle = { viewModel.setUseShortPlayerNames(it) }
-                    )
-
-                    if (useShortPlayerNames) {
-                        SettingToggleItem(
-                            title = "Hinterlegte Rufnamen bevorzugen",
-                            description = "Verwendet den Rufnamen als Kurznamen (z. B. 'Thien' statt 'Pham D.'), falls vorhanden.",
-                            checked = preferRufnameAsShortName,
-                            onToggle = { viewModel.setPreferRufnameAsShortName(it) }
-                        )
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                    PlayerSortingSection(
-                        playerSortField = playerSortField,
-                        playerSortOrder = playerSortOrder,
-                        onSortFieldChanged = { viewModel.setPlayerSortField(it) },
-                        onSortOrderChanged = { viewModel.setPlayerSortOrder(it) }
-                    )
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                    ActivePlayersCutoffSection(
-                        selectedMonths = activePlayersCutoffMonths,
-                        onMonthsSelected = { viewModel.setActivePlayersCutoffMonths(it) }
-                    )
-                }
-            }
-
-            // Sektion 4: Turnier-Vorauswahl (Card)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ModePreselectionSection(
-                        modePreselectionType = modePreselectionType,
-                        fixedMode = fixedMode,
-                        rotationModes = rotationModes,
-                        availableModes = availableModes,
-                        onTypeChanged = { viewModel.setModePreselectionType(it) },
-                        onFixedModeChanged = { viewModel.setFixedMode(it) },
-                        onToggleRotationMode = { viewModel.toggleRotationMode(it) }
-                    )
-                }
-            }
-
-            // Sektion 5: Hilfe & Feedback (Card)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Hilfe & Feedback",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Probleme oder Fragen? Sende einen Fehlerbericht oder Feedback direkt an den Entwickler.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    val context = androidx.compose.ui.platform.LocalContext.current
-                    OutlinedButton(
-                        onClick = {
-                            de.kindermaenner.monatsblitz.ui.util.ErrorReportSender.sendErrorReport(
-                                context = context,
-                                actionTitle = "Allgemeines Feedback / Fehlerbericht",
-                                errorMessage = "Aus den Einstellungen gesendet",
-                                serverUrl = serverUrl
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth()
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Fehlerbericht / Feedback senden")
+                        RadioButton(
+                            selected = standaloneOfflineMode,
+                            onClick = { onStandaloneOfflineModeChanged(true) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Dauerhafter Offline-Betrieb",
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "App komplett ohne WordPress-Server nutzen (z. B. für Vereinsfeste, Jugend- oder private Turniere).",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Switch(
+                        checked = standaloneOfflineMode,
+                        onCheckedChange = onStandaloneOfflineModeChanged,
+                        modifier = Modifier.testTag("standalone_offline_switch")
+                    )
                 }
             }
+        }
+    }
+}
 
+@Composable
+private fun WordPressServerSection(
+    standaloneOfflineMode: Boolean,
+    serverUrl: String,
+    apiKey: String,
+    isPasswordVisible: Boolean,
+    onPasswordVisibilityToggle: () -> Unit,
+    isTesting: Boolean,
+    isServerConfigured: Boolean,
+    testResult: ConnectionTestResult?,
+    autoAdoptOpenTournament: Boolean,
+    showDetailedSync: Boolean,
+    onScanQr: () -> Unit,
+    onServerUrlChanged: (String) -> Unit,
+    onApiKeyChanged: (String) -> Unit,
+    onTestConnection: () -> Unit,
+    onSaveSettings: () -> Unit,
+    onToggleAutoAdopt: (Boolean) -> Unit,
+    onToggleDetailedSync: (Boolean) -> Unit
+) {
+    AnimatedVisibility(
+        visible = !standaloneOfflineMode,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically()
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ServerConnectionHeader(onScanQr = onScanQr)
 
+                ServerUrlField(
+                    serverUrl = serverUrl,
+                    onValueChange = onServerUrlChanged
+                )
+
+                ApiKeyField(
+                    apiKey = apiKey,
+                    isVisible = isPasswordVisible,
+                    onVisibilityToggle = onPasswordVisibilityToggle,
+                    onValueChange = onApiKeyChanged
+                )
+
+                ServerActionButtons(
+                    isTesting = isTesting,
+                    canSubmit = !isTesting && serverUrl.isNotBlank() && apiKey.isNotBlank(),
+                    isServerConfigured = isServerConfigured,
+                    onTest = onTestConnection,
+                    onSave = onSaveSettings
+                )
+
+                testResult?.let { result ->
+                    ConnectionTestResultCard(result = result)
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text(
+                    text = "Synchronisation",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                SettingToggleItem(
+                    title = "Offene Server-Turniere automatisch fortsetzen",
+                    description = "Übernimmt ein offenes Turnier vom Server beim App-Start automatisch ohne Nachfrage.",
+                    checked = autoAdoptOpenTournament,
+                    onToggle = onToggleAutoAdopt
+                )
+
+                SettingToggleItem(
+                    title = "Detaillierte Sync-Indikatoren",
+                    description = "Zeigt kleine Statuspunkte an ungespeicherten Zellen und neuen Spielern, bis sie synchronisiert sind.",
+                    checked = showDetailedSync,
+                    onToggle = onToggleDetailedSync
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DisplaySettingsSection(
+    useShortPlayerNames: Boolean,
+    preferRufnameAsShortName: Boolean,
+    playerSortField: PlayerSortField,
+    playerSortOrder: PlayerSortOrder,
+    activePlayersCutoffMonths: Int,
+    onUseShortNamesChanged: (Boolean) -> Unit,
+    onPreferRufnameChanged: (Boolean) -> Unit,
+    onSortFieldChanged: (PlayerSortField) -> Unit,
+    onSortOrderChanged: (PlayerSortOrder) -> Unit,
+    onMonthsSelected: (Int) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Darstellung",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            SettingToggleItem(
+                title = "Kurznamen in Tabellen & Rangliste",
+                description = "Spart Platz auf kleinen Displays (z. B. 'Peter M.' statt 'Peter Müller').",
+                checked = useShortPlayerNames,
+                onToggle = onUseShortNamesChanged
+            )
+
+            if (useShortPlayerNames) {
+                SettingToggleItem(
+                    title = "Hinterlegte Rufnamen bevorzugen",
+                    description = "Verwendet den Rufnamen als Kurznamen (z. B. 'Thien' statt 'Pham D.'), falls vorhanden.",
+                    checked = preferRufnameAsShortName,
+                    onToggle = onPreferRufnameChanged
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            PlayerSortingSection(
+                playerSortField = playerSortField,
+                playerSortOrder = playerSortOrder,
+                onSortFieldChanged = onSortFieldChanged,
+                onSortOrderChanged = onSortOrderChanged
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            ActivePlayersCutoffSection(
+                selectedMonths = activePlayersCutoffMonths,
+                onMonthsSelected = onMonthsSelected
+            )
+        }
+    }
+}
+
+@Composable
+private fun TournamentPreselectionCard(
+    modePreselectionType: ModePreselectionType,
+    fixedMode: String,
+    rotationModes: List<String>,
+    availableModes: List<GameMode>,
+    onTypeChanged: (ModePreselectionType) -> Unit,
+    onFixedModeChanged: (String) -> Unit,
+    onToggleRotationMode: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ModePreselectionSection(
+                modePreselectionType = modePreselectionType,
+                fixedMode = fixedMode,
+                rotationModes = rotationModes,
+                availableModes = availableModes,
+                onTypeChanged = onTypeChanged,
+                onFixedModeChanged = onFixedModeChanged,
+                onToggleRotationMode = onToggleRotationMode
+            )
+        }
+    }
+}
+
+@Composable
+private fun HelpAndFeedbackSection(serverUrl: String) {
+    val context = LocalContext.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Hilfe & Feedback",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "Probleme oder Fragen? Sende einen Fehlerbericht oder Feedback direkt an den Entwickler.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(
+                onClick = {
+                    de.kindermaenner.monatsblitz.ui.util.ErrorReportSender.sendErrorReport(
+                        context = context,
+                        actionTitle = "Allgemeines Feedback / Fehlerbericht",
+                        errorMessage = "Aus den Einstellungen gesendet",
+                        serverUrl = serverUrl
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Fehlerbericht / Feedback senden")
+            }
         }
     }
 }

@@ -33,6 +33,7 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDa
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.relation.TournamentWithDetails
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.mapper.toDomain
@@ -237,12 +238,6 @@ class TournamentRepositoryImpl(
             resolvedPlayerDao.promoteLocalPlayer(playerId)
         }
 
-        val rounds = maxOf(1, tournamentWithDetails.tournament.rounds)
-        val withdrawnPlayerIds = tournamentWithDetails.playerRefs
-            .filter { it.hasLeft }
-            .map { it.playerId }
-            .toSet()
-
         database.withTransaction {
             tournamentPlayerDao.insertAll(
                 listOf(
@@ -254,57 +249,87 @@ class TournamentRepositoryImpl(
                 )
             )
 
-            val newGames = mutableListOf<GameEntity>()
-            for (existingPlayer in tournamentWithDetails.players) {
-                val isWithdrawn = withdrawnPlayerIds.contains(existingPlayer.id)
-                val initialResult = if (isWithdrawn) {
-                    val pastWithdrawnGame = tournamentWithDetails.games.firstOrNull {
-                        (it.player1Id == existingPlayer.id || it.player2Id == existingPlayer.id) &&
-                            (it.result == GameResult.ForfeitDraw || it.result == GameResult.ForfeitLoss || it.result == GameResult.ForfeitWin)
-                    }
-                    if (pastWithdrawnGame?.result == GameResult.ForfeitDraw) {
-                        GameResult.ForfeitDraw
-                    } else {
-                        val minId = minOf(playerId, existingPlayer.id)
-                        if (minId == playerId) GameResult.ForfeitWin else GameResult.ForfeitLoss
-                    }
-                } else {
-                    GameResult.Open
-                }
-
-                for (leg in 1..rounds) {
-                    newGames.add(
-                        GameEntity(
-                            tournamentId = tournamentId,
-                            player1Id = minOf(playerId, existingPlayer.id),
-                            player2Id = maxOf(playerId, existingPlayer.id),
-                            leg = leg,
-                            result = initialResult,
-                            dirty = initialResult != GameResult.Open
-                        )
-                    )
-                }
-            }
-
+            val newGames = buildNewGamesForAddedPlayer(tournamentId, playerId, tournamentWithDetails)
             if (newGames.isNotEmpty()) {
                 gameDao.insertAll(newGames)
             }
         }
 
-        val remoteTournamentId = tournamentWithDetails.tournament.remoteId
         val updatedPlayerEntity = resolvedPlayerDao.getPlayerById(playerId) ?: playerEntity
-        val remotePlayerId = updatedPlayerEntity.remoteId
-        if (remoteTournamentId != null && remotePlayerId != null && monatsblitzApi != null) {
-            try {
-                monatsblitzApi.addTournamentPlayer(
-                    AddTournamentPlayerDto(
-                        tournamentId = remoteTournamentId.toInt(),
-                        playerId = remotePlayerId.toInt()
+        notifyRemoteAddPlayer(tournamentWithDetails.tournament.remoteId, updatedPlayerEntity.remoteId)
+    }
+
+    private fun isPastForfeitDraw(playerId: Long, games: List<GameEntity>): Boolean {
+        val past = games.firstOrNull {
+            (it.player1Id == playerId || it.player2Id == playerId) &&
+                (it.result == GameResult.ForfeitDraw || it.result == GameResult.ForfeitLoss || it.result == GameResult.ForfeitWin)
+        }
+        return past?.result == GameResult.ForfeitDraw
+    }
+
+    private fun determineInitialResultForAddedPlayer(
+        newPlayerId: Long,
+        existingPlayerId: Long,
+        isWithdrawn: Boolean,
+        games: List<GameEntity>
+    ): GameResult {
+        if (!isWithdrawn) return GameResult.Open
+        if (isPastForfeitDraw(existingPlayerId, games)) return GameResult.ForfeitDraw
+
+        val minId = minOf(newPlayerId, existingPlayerId)
+        return if (minId == newPlayerId) GameResult.ForfeitWin else GameResult.ForfeitLoss
+    }
+
+    private fun buildNewGamesForAddedPlayer(
+        tournamentId: Long,
+        newPlayerId: Long,
+        tournamentWithDetails: TournamentWithDetails
+    ): List<GameEntity> {
+        val rounds = maxOf(1, tournamentWithDetails.tournament.rounds)
+        val withdrawnPlayerIds = tournamentWithDetails.playerRefs
+            .filter { it.hasLeft }
+            .map { it.playerId }
+            .toSet()
+
+        val newGames = mutableListOf<GameEntity>()
+        for (existingPlayer in tournamentWithDetails.players) {
+            val isWithdrawn = withdrawnPlayerIds.contains(existingPlayer.id)
+            val initialResult = determineInitialResultForAddedPlayer(
+                newPlayerId = newPlayerId,
+                existingPlayerId = existingPlayer.id,
+                isWithdrawn = isWithdrawn,
+                games = tournamentWithDetails.games
+            )
+
+            for (leg in 1..rounds) {
+                newGames.add(
+                    GameEntity(
+                        tournamentId = tournamentId,
+                        player1Id = minOf(newPlayerId, existingPlayer.id),
+                        player2Id = maxOf(newPlayerId, existingPlayer.id),
+                        leg = leg,
+                        result = initialResult,
+                        dirty = initialResult != GameResult.Open
                     )
                 )
-            } catch (e: Exception) {
-                Log.w(TAG, "addPlayerToTournament: Failed to notify remote backend", e)
             }
+        }
+        return newGames
+    }
+
+    private suspend fun notifyRemoteAddPlayer(remoteTournamentId: Long?, remotePlayerId: Long?) {
+        if (remoteTournamentId == null || remotePlayerId == null || monatsblitzApi == null) {
+            return
+        }
+        try {
+            monatsblitzApi.addTournamentPlayer(
+                AddTournamentPlayerDto(
+                    tournamentId = remoteTournamentId.toInt(),
+                    playerId = remotePlayerId.toInt()
+                )
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "addPlayerToTournament: Failed to notify remote backend", e)
         }
     }
 
@@ -321,58 +346,7 @@ class TournamentRepositoryImpl(
 
         database.withTransaction {
             if (rounds == 2) {
-                val withdrawnPlayerIds = tournamentWithDetails.playerRefs
-                    .filter { it.hasLeft }
-                    .map { it.playerId }
-                    .toSet()
-
-                val existingLeg2Games = tournamentWithDetails.games.filter { it.leg == 2 }
-                val newGames = mutableListOf<GameEntity>()
-                val players = tournamentWithDetails.players
-
-                for (i in players.indices) {
-                    for (j in i + 1 until players.size) {
-                        val p1 = players[i]
-                        val p2 = players[j]
-                        val minId = minOf(p1.id, p2.id)
-                        val maxId = maxOf(p1.id, p2.id)
-                        val alreadyExists = existingLeg2Games.any { it.player1Id == minId && it.player2Id == maxId }
-                        if (!alreadyExists) {
-                            val isP1Withdrawn = withdrawnPlayerIds.contains(minId)
-                            val isP2Withdrawn = withdrawnPlayerIds.contains(maxId)
-                            val initialResult = when {
-                                isP1Withdrawn && isP2Withdrawn -> GameResult.ForfeitDraw
-                                isP1Withdrawn -> {
-                                    val past = tournamentWithDetails.games.firstOrNull {
-                                        (it.player1Id == minId || it.player2Id == minId) &&
-                                            (it.result == GameResult.ForfeitDraw || it.result == GameResult.ForfeitLoss || it.result == GameResult.ForfeitWin)
-                                    }
-                                    if (past?.result == GameResult.ForfeitDraw) GameResult.ForfeitDraw else GameResult.ForfeitLoss
-                                }
-                                isP2Withdrawn -> {
-                                    val past = tournamentWithDetails.games.firstOrNull {
-                                        (it.player1Id == maxId || it.player2Id == maxId) &&
-                                            (it.result == GameResult.ForfeitDraw || it.result == GameResult.ForfeitLoss || it.result == GameResult.ForfeitWin)
-                                    }
-                                    if (past?.result == GameResult.ForfeitDraw) GameResult.ForfeitDraw else GameResult.ForfeitWin
-                                }
-                                else -> GameResult.Open
-                            }
-
-                            newGames.add(
-                                GameEntity(
-                                    tournamentId = tournamentId,
-                                    player1Id = minId,
-                                    player2Id = maxId,
-                                    leg = 2,
-                                    result = initialResult,
-                                    dirty = initialResult != GameResult.Open
-                                )
-                            )
-                        }
-                    }
-                }
-
+                val newGames = createMissingLeg2Games(tournamentId, tournamentWithDetails)
                 if (newGames.isNotEmpty()) {
                     gameDao.insertAll(newGames)
                 }
@@ -383,7 +357,73 @@ class TournamentRepositoryImpl(
             tournamentDao.updateTournamentRounds(tournamentId, rounds)
         }
 
-        if (!tournamentWithDetails.tournament.isLocalOnly && monatsblitzApi != null) {
+        syncTournamentRoundsUpdate(tournamentWithDetails.tournament.isLocalOnly)
+    }
+
+    private fun determineInitialResultForLeg2(
+        minId: Long,
+        maxId: Long,
+        withdrawnPlayerIds: Set<Long>,
+        pastGames: List<GameEntity>
+    ): GameResult {
+        val isP1Withdrawn = withdrawnPlayerIds.contains(minId)
+        val isP2Withdrawn = withdrawnPlayerIds.contains(maxId)
+
+        return when {
+            isP1Withdrawn && isP2Withdrawn -> GameResult.ForfeitDraw
+            isP1Withdrawn -> {
+                if (isPastForfeitDraw(minId, pastGames)) GameResult.ForfeitDraw else GameResult.ForfeitLoss
+            }
+            isP2Withdrawn -> {
+                if (isPastForfeitDraw(maxId, pastGames)) GameResult.ForfeitDraw else GameResult.ForfeitWin
+            }
+            else -> GameResult.Open
+        }
+    }
+
+    private fun createMissingLeg2Games(
+        tournamentId: Long,
+        tournamentWithDetails: TournamentWithDetails
+    ): List<GameEntity> {
+        val withdrawnPlayerIds = tournamentWithDetails.playerRefs
+            .filter { it.hasLeft }
+            .map { it.playerId }
+            .toSet()
+
+        val existingLeg2Games = tournamentWithDetails.games.filter { it.leg == 2 }
+        val newGames = mutableListOf<GameEntity>()
+        val players = tournamentWithDetails.players
+
+        for (i in players.indices) {
+            for (j in i + 1 until players.size) {
+                val minId = minOf(players[i].id, players[j].id)
+                val maxId = maxOf(players[i].id, players[j].id)
+                val alreadyExists = existingLeg2Games.any { it.player1Id == minId && it.player2Id == maxId }
+                if (!alreadyExists) {
+                    val initialResult = determineInitialResultForLeg2(
+                        minId = minId,
+                        maxId = maxId,
+                        withdrawnPlayerIds = withdrawnPlayerIds,
+                        pastGames = tournamentWithDetails.games
+                    )
+                    newGames.add(
+                        GameEntity(
+                            tournamentId = tournamentId,
+                            player1Id = minId,
+                            player2Id = maxId,
+                            leg = 2,
+                            result = initialResult,
+                            dirty = initialResult != GameResult.Open
+                        )
+                    )
+                }
+            }
+        }
+        return newGames
+    }
+
+    private suspend fun syncTournamentRoundsUpdate(isLocalOnly: Boolean) {
+        if (!isLocalOnly && monatsblitzApi != null) {
             try {
                 syncDirtyTournaments()
             } catch (e: Exception) {

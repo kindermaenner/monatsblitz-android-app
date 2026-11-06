@@ -131,200 +131,38 @@ fun AddPlayerToTournamentDialog(
 
                 when (selectedTab) {
                     AddPlayerTab.EXISTING -> {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            label = { Text("Spieler suchen") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Search, contentDescription = null)
-                            },
-                            trailingIcon = {
-                                if (searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { searchQuery = "" }) {
-                                        Icon(Icons.Default.Clear, contentDescription = "Suche leeren")
-                                    }
-                                }
-                            },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("search_player_input")
+                        ExistingPlayerTabContent(
+                            searchQuery = searchQuery,
+                            onSearchQueryChange = { searchQuery = it },
+                            filteredPlayers = filteredPlayers,
+                            allAvailablePlayersEmpty = availablePlayers.isEmpty(),
+                            onAddPlayer = onAddExistingPlayer,
+                            onSwitchToNewPlayer = { selectedTab = AddPlayerTab.NEW }
                         )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        if (filteredPlayers.isEmpty()) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = if (availablePlayers.isEmpty()) {
-                                        "Alle vorhandenen Spieler nehmen bereits teil."
-                                    } else {
-                                        "Kein Spieler gefunden."
-                                    },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                TextButton(
-                                    onClick = { selectedTab = AddPlayerTab.NEW },
-                                    modifier = Modifier.testTag("switch_to_new_player_button")
-                                ) {
-                                    Icon(Icons.Default.PersonAdd, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Neuen Spieler anlegen")
-                                }
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 240.dp)
-                                    .testTag("available_players_list")
-                            ) {
-                                items(filteredPlayers, key = { it.id }) { player ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { onAddExistingPlayer(player) }
-                                            .padding(vertical = 10.dp, horizontal = 4.dp)
-                                            .testTag("add_player_item_${player.id}"),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Person,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(end = 12.dp)
-                                            )
-                                            Column {
-                                                val displayName = if (!player.rufname.isNullOrBlank()) {
-                                                    "${player.fullName} (${player.rufname})"
-                                                } else {
-                                                    player.fullName
-                                                }
-                                                Text(
-                                                    text = displayName,
-                                                    style = MaterialTheme.typography.bodyLarge
-                                                )
-                                                if (player.isLocal) {
-                                                    Text(
-                                                        text = "Nur lokal",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.secondary
-                                                    )
-                                                }
-                                            }
-                                        }
-                                        Button(
-                                            onClick = { onAddExistingPlayer(player) },
-                                            modifier = Modifier.testTag("button_add_player_${player.id}")
-                                        ) {
-                                            Text("Hinzufügen")
-                                        }
-                                    }
-                                    HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                                    )
-                                }
-                            }
-                        }
                     }
 
                     AddPlayerTab.NEW -> {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = vorname,
-                                onValueChange = {
-                                    vorname = it
-                                    errorMessage = null
-                                },
-                                label = { Text("Vorname") },
-                                isError = errorMessage != null,
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Text,
-                                    capitalization = KeyboardCapitalization.Words
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("new_player_vorname_input")
-                            )
-
-                            OutlinedTextField(
-                                value = name,
-                                onValueChange = {
-                                    name = it
-                                    errorMessage = null
-                                },
-                                label = { Text("Nachname") },
-                                isError = errorMessage != null,
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Text,
-                                    capitalization = KeyboardCapitalization.Words
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("new_player_name_input")
-                            )
-
-                            OutlinedTextField(
-                                value = rufname,
-                                onValueChange = {
-                                    rufname = it
-                                    errorMessage = null
-                                },
-                                label = { Text("Rufname (optional)") },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Text,
-                                    capitalization = KeyboardCapitalization.Words
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("new_player_rufname_input")
-                            )
-
-                            if (!isTournamentLocalOnly) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { isLocalPlayer = !isLocalPlayer }
-                                ) {
-                                    Checkbox(
-                                        checked = isLocalPlayer,
-                                        onCheckedChange = { isLocalPlayer = it }
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Nur lokal (nicht mit Server synchronisieren)",
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                }
-                            }
-
-                            errorMessage?.let { err ->
-                                Text(
-                                    text = err,
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.testTag("new_player_error_text")
-                                )
-                            }
-                        }
+                        NewPlayerTabContent(
+                            vorname = vorname,
+                            onVornameChange = {
+                                vorname = it
+                                errorMessage = null
+                            },
+                            name = name,
+                            onNameChange = {
+                                name = it
+                                errorMessage = null
+                            },
+                            rufname = rufname,
+                            onRufnameChange = {
+                                rufname = it
+                                errorMessage = null
+                            },
+                            isLocalPlayer = isLocalPlayer,
+                            onIsLocalPlayerChange = { isLocalPlayer = it },
+                            isTournamentLocalOnly = isTournamentLocalOnly,
+                            errorMessage = errorMessage
+                        )
                     }
                 }
             }
@@ -365,4 +203,223 @@ fun AddPlayerToTournamentDialog(
             }
         }
     )
+}
+
+@Composable
+private fun ExistingPlayerTabContent(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    filteredPlayers: List<Player>,
+    allAvailablePlayersEmpty: Boolean,
+    onAddPlayer: (Player) -> Unit,
+    onSwitchToNewPlayer: () -> Unit
+) {
+    OutlinedTextField(
+        value = searchQuery,
+        onValueChange = onSearchQueryChange,
+        label = { Text("Spieler suchen") },
+        leadingIcon = {
+            Icon(Icons.Default.Search, contentDescription = null)
+        },
+        trailingIcon = {
+            if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { onSearchQueryChange("") }) {
+                    Icon(Icons.Default.Clear, contentDescription = "Suche leeren")
+                }
+            }
+        },
+        singleLine = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("search_player_input")
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    if (filteredPlayers.isEmpty()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = if (allAvailablePlayersEmpty) {
+                    "Alle vorhandenen Spieler nehmen bereits teil."
+                } else {
+                    "Kein Spieler gefunden."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(
+                onClick = onSwitchToNewPlayer,
+                modifier = Modifier.testTag("switch_to_new_player_button")
+            ) {
+                Icon(Icons.Default.PersonAdd, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Neuen Spieler anlegen")
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 240.dp)
+                .testTag("available_players_list")
+        ) {
+            items(filteredPlayers, key = { it.id }) { player ->
+                ExistingPlayerListItem(
+                    player = player,
+                    onAddPlayer = onAddPlayer
+                )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExistingPlayerListItem(
+    player: Player,
+    onAddPlayer: (Player) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onAddPlayer(player) }
+            .padding(vertical = 10.dp, horizontal = 4.dp)
+            .testTag("add_player_item_${player.id}"),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+            Column {
+                val displayName = if (!player.rufname.isNullOrBlank()) {
+                    "${player.fullName} (${player.rufname})"
+                } else {
+                    player.fullName
+                }
+                Text(
+                    text = displayName,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                if (player.isLocal) {
+                    Text(
+                        text = "Nur lokal",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+            }
+        }
+        Button(
+            onClick = { onAddPlayer(player) },
+            modifier = Modifier.testTag("button_add_player_${player.id}")
+        ) {
+            Text("Hinzufügen")
+        }
+    }
+}
+
+@Composable
+private fun NewPlayerTabContent(
+    vorname: String,
+    onVornameChange: (String) -> Unit,
+    name: String,
+    onNameChange: (String) -> Unit,
+    rufname: String,
+    onRufnameChange: (String) -> Unit,
+    isLocalPlayer: Boolean,
+    onIsLocalPlayerChange: (Boolean) -> Unit,
+    isTournamentLocalOnly: Boolean,
+    errorMessage: String?
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        OutlinedTextField(
+            value = vorname,
+            onValueChange = onVornameChange,
+            label = { Text("Vorname") },
+            isError = errorMessage != null,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Text,
+                capitalization = KeyboardCapitalization.Words
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("new_player_vorname_input")
+        )
+
+        OutlinedTextField(
+            value = name,
+            onValueChange = onNameChange,
+            label = { Text("Nachname") },
+            isError = errorMessage != null,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Text,
+                capitalization = KeyboardCapitalization.Words
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("new_player_name_input")
+        )
+
+        OutlinedTextField(
+            value = rufname,
+            onValueChange = onRufnameChange,
+            label = { Text("Rufname (optional)") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Text,
+                capitalization = KeyboardCapitalization.Words
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("new_player_rufname_input")
+        )
+
+        if (!isTournamentLocalOnly) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onIsLocalPlayerChange(!isLocalPlayer) }
+            ) {
+                Checkbox(
+                    checked = isLocalPlayer,
+                    onCheckedChange = onIsLocalPlayerChange
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Nur lokal (nicht mit Server synchronisieren)",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
+        errorMessage?.let { err ->
+            Text(
+                text = err,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.testTag("new_player_error_text")
+            )
+        }
+    }
 }

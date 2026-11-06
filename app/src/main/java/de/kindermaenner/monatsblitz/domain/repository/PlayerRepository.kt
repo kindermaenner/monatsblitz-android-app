@@ -11,6 +11,8 @@ interface PlayerRepository {
 
     suspend fun findPlayersByName(vorname: String, name: String): List<Player>
 
+    suspend fun findPlayersByNameAndRufname(vorname: String, name: String, rufname: String): List<Player>
+
     suspend fun createPlayer(newPlayer: NewPlayer) : Player
 
     suspend fun promotePlayer(id: Long)

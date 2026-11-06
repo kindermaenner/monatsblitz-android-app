@@ -72,8 +72,11 @@ class CrosstableViewModel(
 
     private val settingsFlow = combine(
         settingsRepository?.showDetailedSyncIndicators ?: flowOf(true),
-        settingsRepository?.useShortPlayerNames ?: flowOf(true)
-    ) { showDetailed, useShort -> showDetailed to useShort }
+        settingsRepository?.useShortPlayerNames ?: flowOf(true),
+        settingsRepository?.preferRufnameAsShortName ?: flowOf(true)
+    ) { showDetailed, useShort, preferRufname ->
+        Triple(showDetailed, useShort, preferRufname)
+    }
     
     val uiState =
         combine(
@@ -82,13 +85,14 @@ class CrosstableViewModel(
             tournamentSyncService?.syncStatus ?: flowOf(SyncStatus.SYNCED),
             settingsFlow,
             playerRepository?.observePlayers() ?: flowOf(emptyList())
-        ) { rawTournament, leg, syncStatus, (showDetailedSyncIndicators, useShortNames), allPlayers ->
+        ) { rawTournament, leg, syncStatus, (showDetailedSyncIndicators, useShortNames, preferRufname), allPlayers ->
             val tournament = rawTournament?.let { t ->
                 val playerDisplayNames = t.players.associate { player ->
                     player.id to PlayerNameFormatter.formatDisplayName(
                         player = player,
                         allPlayers = t.players,
-                        useShortName = useShortNames
+                        useShortName = useShortNames,
+                        preferRufname = preferRufname
                     )
                 }
                 val collator = Collator.getInstance(Locale.GERMAN).apply {
@@ -123,6 +127,7 @@ class CrosstableViewModel(
                     pointsMap = pointsMap,
                     showDetailedSyncIndicators = showDetailedSyncIndicators,
                     useShortNames = useShortNames,
+                    preferRufname = preferRufname,
                     enabled = syncStatus != SyncStatus.FINALIZED
                 )
             } else {
@@ -163,13 +168,15 @@ class CrosstableViewModel(
         pointsMap: Map<Long, Double>,
         showDetailedSyncIndicators: Boolean,
         useShortNames: Boolean,
+        preferRufname: Boolean,
         enabled: Boolean
     ): List<CrosstableRowData> {
         val playerDisplayNames = tournament.players.associate { player ->
             player.id to PlayerNameFormatter.formatDisplayName(
                 player = player,
                 allPlayers = tournament.players,
-                useShortName = useShortNames
+                useShortName = useShortNames,
+                preferRufname = preferRufname
             )
         }
         return tournament.playerIds.indices.map { rowIndex ->
@@ -245,6 +252,7 @@ class CrosstableViewModel(
     fun addNewPlayer(
         vorname: String,
         name: String,
+        rufname: String? = null,
         isLocal: Boolean = false,
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit = {}
@@ -257,8 +265,8 @@ class CrosstableViewModel(
         }
         viewModelScope.launch {
             try {
-                Log.i("CrosstableViewModel", "addNewPlayer: tournament=${tournament.id}, vorname=$vorname, name=$name, isLocal=$isLocal")
-                val createdPlayer = addPlayer(vorname, name, isLocal = isLocal)
+                Log.i("CrosstableViewModel", "addNewPlayer: tournament=${tournament.id}, vorname=$vorname, name=$name, rufname=$rufname, isLocal=$isLocal")
+                val createdPlayer = addPlayer(vorname, name, rufname = rufname, isLocal = isLocal)
                 if (!isLocal) {
                     runCatching { syncPlayersUseCase?.invoke() }
                 }

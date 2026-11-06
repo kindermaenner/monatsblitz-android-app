@@ -380,24 +380,25 @@ class TournamentSetupViewModel(
         _uiState.update { it.copy(showAddPlayerDialog = show, addPlayerError = null) }
     }
 
-    fun onNewPlayerNameChanged(vorname: String, name: String) {
-        _uiState.update { it.copy(newPlayerVorname = vorname, newPlayerName = name, addPlayerError = null) }
+    fun onNewPlayerNameChanged(vorname: String, name: String, rufname: String = "") {
+        _uiState.update { it.copy(newPlayerVorname = vorname, newPlayerName = name, newPlayerRufname = rufname, addPlayerError = null) }
     }
 
     fun addNewPlayer() {
         val state = uiState.value
         val vorname = state.newPlayerVorname.trim()
         val name = state.newPlayerName.trim()
+        val rufname = state.newPlayerRufname.trim().takeIf { it.isNotBlank() }
         if (vorname.isBlank() || name.isBlank()) return
 
         val isLocalPlayer = state.newPlayerIsLocal || state.isLocalOnly || !state.isServerConfigured
 
         viewModelScope.launch {
             try {
-                val newPlayer = addPlayerUseCase(vorname, name, isLocal = isLocalPlayer)
+                val newPlayer = addPlayerUseCase(vorname, name, rufname = rufname, isLocal = isLocalPlayer)
                 onPlayerChecked(newPlayer.id, true)
                 onShowAddPlayerDialog(false)
-                onNewPlayerNameChanged("", "")
+                onNewPlayerNameChanged("", "", "")
                 _uiState.update { it.copy(newPlayerIsLocal = false) }
                 if (!isLocalPlayer) {
                     runCatching { syncPlayersUseCase?.invoke() }

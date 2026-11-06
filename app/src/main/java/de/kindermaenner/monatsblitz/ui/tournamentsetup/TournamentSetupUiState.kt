@@ -29,6 +29,7 @@ data class TournamentSetupUiState(
     val showAddPlayerDialog: Boolean = false,
     val newPlayerVorname: String = "",
     val newPlayerName: String = "",
+    val newPlayerRufname: String = "",
     val newPlayerIsLocal: Boolean = false,
     val addPlayerError: String? = null,
 

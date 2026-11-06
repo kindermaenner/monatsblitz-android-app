@@ -8,12 +8,17 @@ data class PlayerDto(
     val id: Long,
     val surname: String,
     val forename: String,
+    val rufname: String? = null,
     @SerialName("last_participated")
     val lastParticipated: String? = null
 )
 
 @Serializable
-data class NewPlayerDto(val forename: String, val surname: String)
+data class NewPlayerDto(
+    val forename: String,
+    val surname: String,
+    val rufname: String? = null
+)
 
 @Serializable
 data class CreatePlayerResponseDto(

@@ -99,6 +99,7 @@ fun SettingsScreen(
     val playerSortField by viewModel.playerSortField.collectAsStateWithLifecycle()
     val playerSortOrder by viewModel.playerSortOrder.collectAsStateWithLifecycle()
     val useShortPlayerNames by viewModel.useShortPlayerNames.collectAsStateWithLifecycle()
+    val preferRufnameAsShortName by viewModel.preferRufnameAsShortName.collectAsStateWithLifecycle()
     val autoAdoptOpenTournament by viewModel.autoAdoptOpenTournament.collectAsStateWithLifecycle()
     val modePreselectionType by viewModel.modePreselectionType.collectAsStateWithLifecycle()
     val fixedMode by viewModel.fixedMode.collectAsStateWithLifecycle()
@@ -447,6 +448,15 @@ fun SettingsScreen(
                         checked = useShortPlayerNames,
                         onToggle = { viewModel.setUseShortPlayerNames(it) }
                     )
+
+                    if (useShortPlayerNames) {
+                        SettingToggleItem(
+                            title = "Hinterlegte Rufnamen bevorzugen",
+                            description = "Verwendet den Rufnamen als Kurznamen (z. B. 'Thien' statt 'Pham D.'), falls vorhanden.",
+                            checked = preferRufnameAsShortName,
+                            onToggle = { viewModel.setPreferRufnameAsShortName(it) }
+                        )
+                    }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 

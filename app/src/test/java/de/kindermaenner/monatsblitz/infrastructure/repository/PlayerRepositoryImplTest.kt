@@ -84,7 +84,7 @@ class PlayerRepositoryImplTest {
         val remotePlayerDto = PlayerDto(id = 200L, surname = "N2", forename = "V2")
         coEvery { remoteDataSource.getPlayers() } returns listOf(remotePlayerDto)
         coEvery { playerDao.getPlayerByRemoteId(200L) } returns null
-        coEvery { playerDao.findPlayersByName("V2", "N2") } returns emptyList()
+        coEvery { playerDao.findPlayersByNameAndRufname("V2", "N2", "") } returns emptyList()
 
         repository.syncPlayers()
 
@@ -114,7 +114,7 @@ class PlayerRepositoryImplTest {
         coEvery { remoteDataSource.getPlayers() } returns listOf(remoteDto)
         coEvery { playerDao.getPlayerByRemoteId(400L) } returns null
         val existingByName = PlayerEntity(id = 12, remoteId = null, name = "Schmidt", vorname = "Erika", dirty = false, isLocal = true)
-        coEvery { playerDao.findPlayersByName("Erika", "Schmidt") } returns listOf(existingByName)
+        coEvery { playerDao.findPlayersByNameAndRufname("Erika", "Schmidt", "") } returns listOf(existingByName)
 
         repository.syncPlayers()
 

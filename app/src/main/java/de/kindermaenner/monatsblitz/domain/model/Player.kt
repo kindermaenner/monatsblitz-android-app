@@ -6,6 +6,7 @@ data class Player(
     val id: Long,
     val name: String,
     val vorname: String,
+    val rufname: String? = null,
     val dirty: Boolean = false,
     val isLocal: Boolean = false,
     val lastParticipated: String? = null

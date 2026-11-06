@@ -26,7 +26,7 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.Tourn
         TournamentPlayerCrossRef::class,
         ModeEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -103,6 +103,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `players` ADD COLUMN `rufname` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("DROP INDEX IF EXISTS `index_players_vorname_name`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_players_vorname_name_rufname` ON `players` (`vorname`, `name`, `rufname`)")
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -113,7 +121,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "monatsblitz.db"
                 )
-                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                    .fallbackToDestructiveMigration(dropAllTables = true)
                     .build().also { INSTANCE = it }
             }
     }

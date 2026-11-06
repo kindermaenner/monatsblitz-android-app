@@ -37,6 +37,9 @@ class PlayerRepositoryImpl(
     override suspend fun findPlayersByName(vorname: String, name: String): List<Player> =
         playerDao.findPlayersByName(vorname, name).map { it.toDomain() }
 
+    override suspend fun findPlayersByNameAndRufname(vorname: String, name: String, rufname: String): List<Player> =
+        playerDao.findPlayersByNameAndRufname(vorname, name, rufname).map { it.toDomain() }
+
     override suspend fun createPlayer(newPlayer: NewPlayer): Player {
         val e = newPlayer.toEntity()
         val id = playerDao.insert(e)
@@ -75,15 +78,17 @@ class PlayerRepositoryImpl(
                     existingByRemoteId.copy(
                         name = remotePlayer.name.trim(),
                         vorname = remotePlayer.vorname.trim(),
+                        rufname = remotePlayer.rufname.trim(),
                         lastParticipated = remotePlayer.lastParticipated,
                         dirty = false,
                         isLocal = false
                     )
                 )
             } else {
-                val existingByName = playerDao.findPlayersByName(
+                val existingByName = playerDao.findPlayersByNameAndRufname(
                     remotePlayer.vorname.trim(),
-                    remotePlayer.name.trim()
+                    remotePlayer.name.trim(),
+                    remotePlayer.rufname.trim()
                 ).firstOrNull()
                 if (existingByName != null) {
                     playerDao.setRemoteId(playerId = existingByName.id, remoteId = remoteId)
@@ -92,6 +97,7 @@ class PlayerRepositoryImpl(
                         remotePlayer.copy(
                             name = remotePlayer.name.trim(),
                             vorname = remotePlayer.vorname.trim(),
+                            rufname = remotePlayer.rufname.trim(),
                             dirty = false,
                             isLocal = false
                         )

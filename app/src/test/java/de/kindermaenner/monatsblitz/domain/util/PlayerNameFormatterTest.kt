@@ -61,4 +61,43 @@ class PlayerNameFormatterTest {
         assertEquals("Peter M.", PlayerNameFormatter.formatDisplayName(p1, players, useShortName = true))
         assertEquals("Peter Mueller", PlayerNameFormatter.formatDisplayName(p1, players, useShortName = false))
     }
+
+    @Test
+    fun `formatShortName uses rufname when preferRufname is true`() {
+        val p1 = Player(1, "Nguyen", "Pham Dai Thien", rufname = "Thien")
+        val p2 = Player(2, "Mueller", "Bob")
+        val players = listOf(p1, p2)
+
+        assertEquals("Thien", PlayerNameFormatter.formatShortName(p1, players, preferRufname = true))
+        assertEquals("Bob", PlayerNameFormatter.formatShortName(p2, players, preferRufname = true))
+    }
+
+    @Test
+    fun `formatShortName ignores rufname when preferRufname is false`() {
+        val p1 = Player(1, "Nguyen", "Pham Dai Thien", rufname = "Thien")
+        val p2 = Player(2, "Mueller", "Bob")
+        val players = listOf(p1, p2)
+
+        assertEquals("Pham Dai Thien", PlayerNameFormatter.formatShortName(p1, players, preferRufname = false))
+    }
+
+    @Test
+    fun `formatShortName disambiguates identical rufnamen with initial`() {
+        val p1 = Player(1, "Mueller", "Michael", rufname = "Michi")
+        val p2 = Player(2, "Schmidt", "Michael", rufname = "Michi")
+        val players = listOf(p1, p2)
+
+        assertEquals("Michi M.", PlayerNameFormatter.formatShortName(p1, players, preferRufname = true))
+        assertEquals("Michi S.", PlayerNameFormatter.formatShortName(p2, players, preferRufname = true))
+    }
+
+    @Test
+    fun `formatShortName falls back to base name and full surname when rufname and initial collision`() {
+        val p1 = Player(1, "Mueller", "Michael", rufname = "Michi")
+        val p2 = Player(2, "Meier", "Michael", rufname = "Michi")
+        val players = listOf(p1, p2)
+
+        assertEquals("Michi Mueller", PlayerNameFormatter.formatShortName(p1, players, preferRufname = true))
+        assertEquals("Michi Meier", PlayerNameFormatter.formatShortName(p2, players, preferRufname = true))
+    }
 }

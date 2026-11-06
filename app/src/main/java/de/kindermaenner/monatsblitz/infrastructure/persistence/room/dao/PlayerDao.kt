@@ -30,6 +30,9 @@ interface PlayerDao {
     @Query("SELECT * FROM players WHERE LOWER(vorname) = LOWER(:vorname) AND LOWER(name) = LOWER(:name)")
     suspend fun findPlayersByName(vorname: String, name: String): List<PlayerEntity>
 
+    @Query("SELECT * FROM players WHERE LOWER(vorname) = LOWER(:vorname) AND LOWER(name) = LOWER(:name) AND LOWER(rufname) = LOWER(:rufname)")
+    suspend fun findPlayersByNameAndRufname(vorname: String, name: String, rufname: String): List<PlayerEntity>
+
     @Query("SELECT * FROM players WHERE remoteId == :remoteId")
     suspend fun getPlayerByRemoteId(remoteId : Long) : PlayerEntity?
 

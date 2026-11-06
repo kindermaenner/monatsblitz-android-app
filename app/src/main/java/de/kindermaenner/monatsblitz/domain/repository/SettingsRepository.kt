@@ -12,6 +12,7 @@ interface SettingsRepository {
     val playerSortField: Flow<PlayerSortField>
     val playerSortOrder: Flow<PlayerSortOrder>
     val useShortPlayerNames: Flow<Boolean>
+    val preferRufnameAsShortName: Flow<Boolean>
     val autoAdoptOpenTournament: Flow<Boolean>
     val activePlayersCutoffMonths: Flow<Int>
 
@@ -29,6 +30,7 @@ interface SettingsRepository {
     suspend fun setPlayerSortField(field: PlayerSortField)
     suspend fun setPlayerSortOrder(order: PlayerSortOrder)
     suspend fun setUseShortPlayerNames(enabled: Boolean)
+    suspend fun setPreferRufnameAsShortName(enabled: Boolean)
     suspend fun setAutoAdoptOpenTournament(enabled: Boolean)
     suspend fun setActivePlayersCutoffMonths(months: Int)
 

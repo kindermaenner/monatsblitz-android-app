@@ -49,14 +49,16 @@ class RankingViewModel(
             combine(
                 tournamentRepository.observeTournamentRanking(tournamentId),
                 tournamentFlow,
-                settingsRepository?.useShortPlayerNames ?: flowOf(true)
-            ) { items, tournament, useShortNames ->
+                settingsRepository?.useShortPlayerNames ?: flowOf(true),
+                settingsRepository?.preferRufnameAsShortName ?: flowOf(true)
+            ) { items, tournament, useShortNames, preferRufname ->
                 val shortNameMap = if (useShortNames && tournament != null) {
                     tournament.players.associate { player ->
                         player.id to PlayerNameFormatter.formatDisplayName(
                             player = player,
                             allPlayers = tournament.players,
-                            useShortName = true
+                            useShortName = true,
+                            preferRufname = preferRufname
                         )
                     }
                 } else emptyMap()

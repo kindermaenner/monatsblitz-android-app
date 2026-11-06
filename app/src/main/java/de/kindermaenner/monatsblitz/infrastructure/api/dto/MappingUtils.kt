@@ -31,7 +31,8 @@ fun GameResult.toResultString(): String = when (this) {
 
 fun NewPlayer.toDto(): NewPlayerDto = NewPlayerDto(
     forename = vorname,
-    surname = name
+    surname = name,
+    rufname = rufname
 )
 
 fun NewTournament.toDto() : NewTournamentDto = NewTournamentDto(
@@ -43,7 +44,8 @@ fun NewTournament.toDto() : NewTournamentDto = NewTournamentDto(
 fun PlayerEntity.toNewPlayerDto() : NewPlayerDto =
     NewPlayerDto(
         forename = vorname,
-        surname = name
+        surname = name,
+        rufname = rufname.takeIf { it.isNotBlank() }
     )
 
 fun PlayerDto.toEntity() : PlayerEntity =
@@ -51,6 +53,7 @@ fun PlayerDto.toEntity() : PlayerEntity =
         remoteId = id,
         name = surname,
         vorname = forename,
+        rufname = rufname ?: "",
         dirty = false,
         lastParticipated = lastParticipated
     )

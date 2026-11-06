@@ -144,15 +144,17 @@ fun CrosstableScreen(
                 snackbarHostState.showSnackbar("${player.fullName} hinzugefügt")
             }
         },
-        onAddNewPlayer = { vorname, name, isLocal, onSuccess, onError ->
+        onAddNewPlayer = { vorname, name, rufname, isLocal, onSuccess, onError ->
             viewModel.addNewPlayer(
                 vorname = vorname,
                 name = name,
+                rufname = rufname,
                 isLocal = isLocal,
                 onSuccess = {
                     onSuccess()
                     coroutineScope.launch {
-                        snackbarHostState.showSnackbar("$vorname $name hinzugefügt")
+                        val displayName = if (!rufname.isNullOrBlank()) "$vorname $name ($rufname)" else "$vorname $name"
+                        snackbarHostState.showSnackbar("$displayName hinzugefügt")
                     }
                 },
                 onError = onError

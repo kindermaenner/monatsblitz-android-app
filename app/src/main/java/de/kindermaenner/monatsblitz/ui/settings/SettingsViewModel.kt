@@ -264,6 +264,14 @@ class SettingsViewModel(
                 initialValue = true
             )
 
+    val preferRufnameAsShortName: StateFlow<Boolean> =
+        settingsRepository.preferRufnameAsShortName
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = true
+            )
+
     fun setPlayerSortField(field: PlayerSortField) {
         viewModelScope.launch {
             settingsRepository.setPlayerSortField(field)
@@ -279,6 +287,12 @@ class SettingsViewModel(
     fun setUseShortPlayerNames(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setUseShortPlayerNames(enabled)
+        }
+    }
+
+    fun setPreferRufnameAsShortName(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setPreferRufnameAsShortName(enabled)
         }
     }
 

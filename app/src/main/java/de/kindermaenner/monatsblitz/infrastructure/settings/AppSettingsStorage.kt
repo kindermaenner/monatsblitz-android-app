@@ -24,6 +24,7 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     private val playerSortFieldKey = stringPreferencesKey("player_sort_field")
     private val playerSortOrderKey = stringPreferencesKey("player_sort_order")
     private val useShortPlayerNamesKey = booleanPreferencesKey("use_short_player_names")
+    private val preferRufnameAsShortNameKey = booleanPreferencesKey("prefer_rufname_as_short_name")
     private val autoAdoptOpenTournamentKey = booleanPreferencesKey("auto_adopt_open_tournament")
     private val activePlayersCutoffMonthsKey = intPreferencesKey("active_players_cutoff_months")
 
@@ -66,6 +67,10 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
 
     override val useShortPlayerNames: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[useShortPlayerNamesKey] ?: true
+    }
+
+    override val preferRufnameAsShortName: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[preferRufnameAsShortNameKey] ?: true
     }
 
     override val autoAdoptOpenTournament: Flow<Boolean> = dataStore.data.map { preferences ->
@@ -133,6 +138,12 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     override suspend fun setUseShortPlayerNames(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[useShortPlayerNamesKey] = enabled
+        }
+    }
+
+    override suspend fun setPreferRufnameAsShortName(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[preferRufnameAsShortNameKey] = enabled
         }
     }
 

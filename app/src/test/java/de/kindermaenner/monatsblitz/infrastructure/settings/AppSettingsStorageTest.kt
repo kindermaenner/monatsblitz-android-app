@@ -314,4 +314,24 @@ class AppSettingsStorageTest {
         assertEquals("https://sync.example.com", storage.getServerUrlSync())
         assertEquals("sync-key", storage.getApiKeySync())
     }
+
+    @Test
+    fun `preferRufnameAsShortName returns default true and updates preference`() = runTest {
+        val preferRufnameKey = booleanPreferencesKey("prefer_rufname_as_short_name")
+        val initialPrefs = mutablePreferencesOf()
+        var updatedPrefs: Preferences? = null
+        every { dataStore.data } returns flowOf(initialPrefs)
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
+        val storage = AppSettingsStorage(dataStore)
+
+        assertTrue("Default should be true", storage.preferRufnameAsShortName.first())
+
+        storage.setPreferRufnameAsShortName(false)
+        assertEquals(false, updatedPrefs?.get(preferRufnameKey))
+    }
 }

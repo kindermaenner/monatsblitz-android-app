@@ -56,7 +56,7 @@ fun AddPlayerToTournamentDialog(
     availablePlayers: List<Player>,
     isTournamentLocalOnly: Boolean,
     onAddExistingPlayer: (Player) -> Unit,
-    onAddNewPlayer: (vorname: String, name: String, isLocal: Boolean, onSuccess: () -> Unit, onError: (String) -> Unit) -> Unit,
+    onAddNewPlayer: (vorname: String, name: String, rufname: String?, isLocal: Boolean, onSuccess: () -> Unit, onError: (String) -> Unit) -> Unit,
     onDismiss: () -> Unit
 ) {
     if (!show) return
@@ -67,6 +67,7 @@ fun AddPlayerToTournamentDialog(
     var searchQuery by remember { mutableStateOf("") }
     var vorname by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
+    var rufname by remember { mutableStateOf("") }
     var isLocalPlayer by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
@@ -79,7 +80,8 @@ fun AddPlayerToTournamentDialog(
             availablePlayers.filter {
                 it.fullName.lowercase().contains(q) ||
                     it.name.lowercase().contains(q) ||
-                    it.vorname.lowercase().contains(q)
+                    it.vorname.lowercase().contains(q) ||
+                    it.rufname?.lowercase()?.contains(q) == true
             }
         }
     }
@@ -205,8 +207,13 @@ fun AddPlayerToTournamentDialog(
                                                 modifier = Modifier.padding(end = 12.dp)
                                             )
                                             Column {
+                                                val displayName = if (!player.rufname.isNullOrBlank()) {
+                                                    "${player.fullName} (${player.rufname})"
+                                                } else {
+                                                    player.fullName
+                                                }
                                                 Text(
-                                                    text = player.fullName,
+                                                    text = displayName,
                                                     style = MaterialTheme.typography.bodyLarge
                                                 )
                                                 if (player.isLocal) {
@@ -273,6 +280,23 @@ fun AddPlayerToTournamentDialog(
                                     .testTag("new_player_name_input")
                             )
 
+                            OutlinedTextField(
+                                value = rufname,
+                                onValueChange = {
+                                    rufname = it
+                                    errorMessage = null
+                                },
+                                label = { Text("Rufname (optional)") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Text,
+                                    capitalization = KeyboardCapitalization.Words
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("new_player_rufname_input")
+                            )
+
                             if (!isTournamentLocalOnly) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -313,6 +337,7 @@ fun AddPlayerToTournamentDialog(
                         onAddNewPlayer(
                             vorname.trim(),
                             name.trim(),
+                            rufname.trim().takeIf { it.isNotBlank() },
                             isLocalPlayer,
                             {
                                 isSubmitting = false

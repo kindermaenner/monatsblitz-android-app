@@ -100,7 +100,7 @@ internal fun matchesPlayerSearch(player: Player, query: String): Boolean {
     val cleanQuery = query.trim().lowercase()
     if (cleanQuery.isEmpty()) return true
 
-    val targets = listOf(player.fullName, player.vorname, player.name)
+    val targets = listOfNotNull(player.fullName, player.vorname, player.name, player.rufname)
 
     return targets.any { target ->
         val cleanTarget = target.lowercase()
@@ -159,6 +159,7 @@ fun TournamentSetupScreen(
         show = state.showAddPlayerDialog,
         vorname = state.newPlayerVorname,
         name = state.newPlayerName,
+        rufname = state.newPlayerRufname,
         error = state.addPlayerError,
         onNameChanged = viewModel::onNewPlayerNameChanged,
         onConfirm = viewModel::addNewPlayer,
@@ -403,8 +404,9 @@ private fun AddPlayerDialog(
     show: Boolean,
     vorname: String,
     name: String,
+    rufname: String,
     error: String?,
-    onNameChanged: (String, String) -> Unit,
+    onNameChanged: (String, String, String) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -416,7 +418,7 @@ private fun AddPlayerDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = vorname,
-                    onValueChange = { onNameChanged(it, name) },
+                    onValueChange = { onNameChanged(it, name, rufname) },
                     label = { Text("Vorname") },
                     isError = error != null,
                     singleLine = true,
@@ -428,9 +430,21 @@ private fun AddPlayerDialog(
                 )
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { onNameChanged(vorname, it) },
+                    onValueChange = { onNameChanged(vorname, it, rufname) },
                     label = { Text("Nachname") },
                     isError = error != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        capitalization = KeyboardCapitalization.Words
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = rufname,
+                    onValueChange = { onNameChanged(vorname, name, it) },
+                    label = { Text("Rufname (optional)") },
+                    supportingText = { Text("z. B. Kurzform für lange Namen oder Tabellen") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
@@ -1292,11 +1306,13 @@ private fun PlayerRow(
     sortField: PlayerSortField = PlayerSortField.FIRST_NAME,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    val displayName = if (sortField == PlayerSortField.LAST_NAME && player.name.isNotBlank() && player.vorname.isNotBlank()) {
+    val baseDisplayName = if (sortField == PlayerSortField.LAST_NAME && player.name.isNotBlank() && player.vorname.isNotBlank()) {
         "${player.name}, ${player.vorname}"
     } else {
         player.fullName
     }
+    val rufnameSuffix = player.rufname?.trim()?.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: ""
+    val displayName = "$baseDisplayName$rufnameSuffix"
 
     Row(
         verticalAlignment = Alignment.CenterVertically,

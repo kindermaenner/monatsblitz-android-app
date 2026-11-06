@@ -129,4 +129,37 @@ class PlayerRepositoryImplTest {
 
         coVerify { playerDao.promoteLocalPlayer(42L) }
     }
+
+    @Test
+    fun `findPlayersByNameAndRufname returns mapped domain players`() = runTest {
+        val entities = listOf(
+            PlayerEntity(id = 20, name = "Klein", vorname = "Tim", rufname = "Timmy", dirty = false)
+        )
+        coEvery { playerDao.findPlayersByNameAndRufname("Tim", "Klein", "Timmy") } returns entities
+
+        val result = repository.findPlayersByNameAndRufname("Tim", "Klein", "Timmy")
+
+        assertEquals(1, result.size)
+        assertEquals("Tim", result[0].vorname)
+        assertEquals("Klein", result[0].name)
+        assertEquals("Timmy", result[0].rufname)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun `syncPlayers throws IllegalStateException when remoteDataSource is null`() = runTest {
+        val localRepo = PlayerRepositoryImpl(playerDao, null)
+        localRepo.syncPlayers()
+    }
+
+    @Test
+    fun `syncPlayers does not set remoteId when createPlayer returns failure`() = runTest {
+        val dirtyPlayer = PlayerEntity(id = 1, remoteId = null, name = "N1", vorname = "V1", dirty = true, isLocal = false)
+        coEvery { playerDao.getDirtyPlayers() } returns listOf(dirtyPlayer)
+        coEvery { remoteDataSource.createPlayer(any()) } returns PlayerBatchItemDto(success = false, playerId = null)
+        coEvery { remoteDataSource.getPlayers() } returns emptyList()
+
+        repository.syncPlayers()
+
+        coVerify(exactly = 0) { playerDao.setRemoteId(any(), any()) }
+    }
 }

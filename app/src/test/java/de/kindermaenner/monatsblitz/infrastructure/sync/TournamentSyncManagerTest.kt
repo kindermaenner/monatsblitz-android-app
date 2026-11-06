@@ -318,10 +318,96 @@ class TournamentSyncManagerTest {
         syncManager.triggerSync(1L)
         org.junit.Assert.assertTrue(syncManager.lastSyncError.value!!.contains("Inkompatible API-Version"))
 
+        // 426 with plugin message
+        val json426 = """{"message":"Version 2.0 erforderlich"}"""
+        coEvery { syncPlayersUseCase() } throws HttpException(Response.error<Any>(426, json426.toResponseBody(null)))
+        syncManager.triggerSync(1L)
+        assertEquals("Version 2.0 erforderlich", syncManager.lastSyncError.value)
+
+        // 403
+        coEvery { syncPlayersUseCase() } throws HttpException(Response.error<Any>(403, "".toResponseBody(null)))
+        syncManager.triggerSync(1L)
+        assertEquals("Turnier ist auf dem Server bereits abgeschlossen (HTTP 403).", syncManager.lastSyncError.value)
+
+        // 409 without message
+        coEvery { syncPlayersUseCase() } throws HttpException(Response.error<Any>(409, "".toResponseBody(null)))
+        syncManager.triggerSync(1L)
+        assertEquals("Turnier existiert bereits oder Konflikt auf dem Server (HTTP 409).", syncManager.lastSyncError.value)
+
+        // 500 with custom body
+        coEvery { syncPlayersUseCase() } throws HttpException(Response.error<Any>(500, "Database failure".toResponseBody(null)))
+        syncManager.triggerSync(1L)
+        assertEquals("Server meldete HTTP 500: Database failure", syncManager.lastSyncError.value)
+
         // Generic Exception
         coEvery { syncPlayersUseCase() } throws IllegalStateException("Custom failure")
         syncManager.triggerSync(1L)
         org.junit.Assert.assertTrue(syncManager.lastSyncError.value!!.contains("Custom failure"))
+    }
+
+    @Test
+    fun `checkInitialStatus with isLocalOnly tournament sets SYNCED immediately without triggering sync`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
+        val localOnlyTournament = TournamentEntity(
+            id = 1L,
+            remoteId = null,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            isLocalOnly = true
+        )
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(localOnlyTournament, emptyList(), emptyList())
+
+        syncManager.checkInitialStatus(1L)
+
+        assertEquals(SyncStatus.SYNCED, syncManager.syncStatus.value)
+        coVerify(exactly = 0) { syncPlayersUseCase() }
+        coVerify(exactly = 0) { syncTournamentUseCase() }
+        coVerify(exactly = 0) { syncGameResultsUseCase() }
+    }
+
+    @Test
+    fun `triggerSync with isLocalOnly tournament sets SYNCED immediately without executing sync steps`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 2L, finalized = false))
+        val localOnlyTournament = TournamentEntity(
+            id = 2L,
+            remoteId = null,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            isLocalOnly = true
+        )
+        coEvery { tournamentDao.getTournament(2L) } returns TournamentWithDetails(localOnlyTournament, emptyList(), emptyList())
+
+        syncManager.triggerSync(2L)
+
+        assertEquals(SyncStatus.SYNCED, syncManager.syncStatus.value)
+        coVerify(exactly = 0) { syncPlayersUseCase() }
+    }
+
+    @Test
+    fun `triggerSync when storage finalized returns FINALIZED`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = true))
+        val regularTournament = TournamentEntity(id = 1L, remoteId = null, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, isLocalOnly = false)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(regularTournament, emptyList(), emptyList())
+
+        syncManager.triggerSync(1L)
+
+        assertEquals(SyncStatus.FINALIZED, syncManager.syncStatus.value)
+        coVerify(exactly = 0) { syncPlayersUseCase() }
+    }
+
+    @Test
+    fun `triggerSync handles UnknownHostException and sets FAILED status with network error message`() = runTest {
+        coEvery { tournamentStorage.getTournamentState() } returns flowOf(TournamentState(tournamentId = 1L, finalized = false))
+        val regularTournament = TournamentEntity(id = 1L, remoteId = null, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, isLocalOnly = false)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(regularTournament, emptyList(), emptyList())
+        coEvery { syncPlayersUseCase() } throws java.net.UnknownHostException("Unable to resolve host")
+
+        syncManager.triggerSync(1L)
+
+        assertEquals(SyncStatus.FAILED, syncManager.syncStatus.value)
+        assertEquals("Server nicht erreichbar. Bitte Internetverbindung und Server-Adresse prüfen.", syncManager.lastSyncError.value)
     }
 
     @Test

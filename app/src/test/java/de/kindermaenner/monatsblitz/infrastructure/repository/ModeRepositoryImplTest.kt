@@ -128,4 +128,75 @@ class ModeRepositoryImplTest {
         coVerify { modeDao.setRemoteId(2L, 20L) }
         coVerify { modeDao.insert(ModeEntity(remoteId = 30L, name = "Blitz", dirty = false)) }
     }
+
+    @Test
+    fun `getAllModes returns all modes mapped from dao`() = runTest {
+        val entities = listOf(
+            ModeEntity(id = 1L, remoteId = 10L, name = "3+2", dirty = false),
+            ModeEntity(id = 2L, remoteId = 20L, name = "5+3", dirty = false)
+        )
+        coEvery { modeDao.getAllModes() } returns entities
+
+        val result = repository.getAllModes()
+
+        assertEquals(2, result.size)
+        assertEquals("3+2", result[0].name)
+        assertEquals("5+3", result[1].name)
+    }
+
+    @Test
+    fun `createMode falls back to dirty local mode when remoteDataSource throws`() = runTest {
+        coEvery { modeDao.findModeByName("Rapid") } returns null
+        coEvery { modeDao.insert(any()) } returns 7L
+        coEvery { remoteDataSource.createMode(any()) } throws RuntimeException("Network down")
+
+        val result = repository.createMode("Rapid", permanent = true)
+
+        assertEquals("Rapid", result.name)
+        assertEquals(7L, result.id)
+        assertNull(result.remoteId)
+        assertTrue(result.dirty)
+        coVerify(exactly = 0) { modeDao.setRemoteId(any(), any()) }
+    }
+
+    @Test
+    fun `createMode returns dirty local mode when remoteDataSource is null`() = runTest {
+        val localOnlyRepo = ModeRepositoryImpl(modeDao = modeDao, remoteDataSource = null)
+        coEvery { modeDao.findModeByName("Classic") } returns null
+        coEvery { modeDao.insert(any()) } returns 8L
+
+        val result = localOnlyRepo.createMode("Classic", permanent = true)
+
+        assertEquals("Classic", result.name)
+        assertEquals(8L, result.id)
+        assertNull(result.remoteId)
+        assertTrue(result.dirty)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun `syncModes throws IllegalStateException when remoteDataSource is null`() = runTest {
+        val localOnlyRepo = ModeRepositoryImpl(modeDao = modeDao, remoteDataSource = null)
+        localOnlyRepo.syncModes()
+    }
+
+    @Test
+    fun `syncModes continues and syncs other modes when one dirty mode throws`() = runTest {
+        val dirtyList = listOf(
+            ModeEntity(id = 1L, remoteId = null, name = "Faulty", dirty = true),
+            ModeEntity(id = 2L, remoteId = null, name = "Good", dirty = true)
+        )
+        coEvery { modeDao.getDirtyModes() } returns dirtyList
+        coEvery { remoteDataSource.createMode(NewModeDto("Faulty")) } throws RuntimeException("Server error")
+        coEvery { remoteDataSource.createMode(NewModeDto("Good")) } returns CreateModeResponseDto(
+            success = true,
+            id = 55L,
+            name = "Good"
+        )
+        coEvery { remoteDataSource.getModes() } returns emptyList()
+
+        repository.syncModes()
+
+        coVerify(exactly = 0) { modeDao.setRemoteId(1L, any()) }
+        coVerify { modeDao.setRemoteId(2L, 55L) }
+    }
 }

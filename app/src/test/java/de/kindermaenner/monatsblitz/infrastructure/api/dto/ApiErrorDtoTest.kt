@@ -25,4 +25,51 @@ class ApiErrorDtoTest {
         assertNull(ApiErrorDto.extractMessage(""))
         assertNull(ApiErrorDto.extractMessage("<html>Server Error</html>"))
     }
+
+    @Test
+    fun `toDetailedErrorMessage formats HttpException with plugin message`() {
+        val json = """{"message":"Turnier ist bereits beendet"}"""
+        val response = retrofit2.Response.error<Any>(400, okhttp3.ResponseBody.create(null, json))
+        val exception = retrofit2.HttpException(response)
+
+        val result = exception.toDetailedErrorMessage()
+
+        assertEquals("HTTP 400 Response.error(): Turnier ist bereits beendet", result)
+    }
+
+    @Test
+    fun `toDetailedErrorMessage formats HttpException with raw body when not structured json`() {
+        val raw = "Bad Gateway"
+        val response = retrofit2.Response.error<Any>(502, okhttp3.ResponseBody.create(null, raw))
+        val exception = retrofit2.HttpException(response)
+
+        val result = exception.toDetailedErrorMessage()
+
+        assertEquals("HTTP 502 Response.error(): Bad Gateway", result)
+    }
+
+    @Test
+    fun `toDetailedErrorMessage formats HttpException without body`() {
+        val response = retrofit2.Response.error<Any>(404, okhttp3.ResponseBody.create(null, ""))
+        val exception = retrofit2.HttpException(response)
+
+        val result = exception.toDetailedErrorMessage()
+
+        assertEquals("HTTP 404 Response.error()", result)
+    }
+
+    @Test
+    fun `toDetailedErrorMessage formats generic exception with message`() {
+        val exception = IllegalArgumentException("Ungültige Rundenanzahl")
+        assertEquals("Ungültige Rundenanzahl", exception.toDetailedErrorMessage())
+    }
+
+    @Test
+    fun `toDetailedErrorMessage falls back to simpleName when message is blank or null`() {
+        val exceptionWithBlank = RuntimeException("   ")
+        assertEquals("RuntimeException", exceptionWithBlank.toDetailedErrorMessage())
+
+        val exceptionWithNull = NullPointerException()
+        assertEquals("NullPointerException", exceptionWithNull.toDetailedErrorMessage())
+    }
 }

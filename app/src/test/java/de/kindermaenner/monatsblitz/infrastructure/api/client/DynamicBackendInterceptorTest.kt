@@ -87,4 +87,26 @@ class DynamicBackendInterceptorTest {
 
         interceptor.intercept(chain)
     }
+
+    @Test
+    fun `rewrites URL correctly when path does not have standard wp-json prefix`() {
+        val interceptor = DynamicBackendInterceptor(
+            serverUrlProvider = { "https://sg-koenigslutter.de" },
+            apiKeyProvider = { "secret-key-123" }
+        )
+
+        val request = Request.Builder()
+            .url("https://dynamic.monatsblitz.local/custom-endpoint/ping")
+            .build()
+
+        val chain = mockk<Interceptor.Chain>()
+        every { chain.request() } returns request
+        every { chain.proceed(any()) } answers {
+            val intercepted = arg<Request>(0)
+            assertEquals("https://sg-koenigslutter.de/custom-endpoint/ping", intercepted.url.toString())
+            mockk<Response>()
+        }
+
+        interceptor.intercept(chain)
+    }
 }

@@ -287,4 +287,50 @@ class SerializationTest {
         org.junit.Assert.assertEquals(12, decodedRes.playerId)
         org.junit.Assert.assertEquals(1, decodedRes.hasLeft)
     }
+
+    @Test
+    fun `AddTournamentPlayerDto and AddTournamentPlayerResponseDto serialize and deserialize correctly`() {
+        val request = AddTournamentPlayerDto(tournamentId = 7, playerId = 42)
+        val reqJson = json.encodeToString(request)
+        val decodedReq = json.decodeFromString<AddTournamentPlayerDto>(reqJson)
+        org.junit.Assert.assertEquals(7, decodedReq.tournamentId)
+        org.junit.Assert.assertEquals(42, decodedReq.playerId)
+
+        val responseJson = """{"success": true, "tournament_id": 7, "player_id": 42}"""
+        val decodedRes = json.decodeFromString<AddTournamentPlayerResponseDto>(responseJson)
+        org.junit.Assert.assertTrue(decodedRes.success)
+        org.junit.Assert.assertEquals(7, decodedRes.tournamentId)
+        org.junit.Assert.assertEquals(42, decodedRes.playerId)
+    }
+
+    @Test
+    fun `GameDto models serialize and deserialize correctly`() {
+        val createGame = CreateGameDto(tournamentId = 1, leg = 1, player1Id = 2, player2Id = 3, result = "1:0")
+        val createJson = json.encodeToString(createGame)
+        val decodedCreate = json.decodeFromString<CreateGameDto>(createJson)
+        org.junit.Assert.assertEquals(1, decodedCreate.tournamentId)
+
+        val updateGame = UpdateGameDto(id = 10, tournamentId = 1, leg = 1, player1Id = 2, player2Id = 3, result = "0:1")
+        val updateJson = json.encodeToString(updateGame)
+        val decodedUpdate = json.decodeFromString<UpdateGameDto>(updateJson)
+        org.junit.Assert.assertEquals(10, decodedUpdate.id)
+
+        val batchResponseJson = """
+            {
+                "success": true,
+                "count": 2,
+                "items": [
+                    {"success": true, "game_id": 101},
+                    {"success": false, "game_id": 102}
+                ]
+            }
+        """.trimIndent()
+        val batchRes = json.decodeFromString<CreateGamesResponseDto>(batchResponseJson)
+        org.junit.Assert.assertTrue(batchRes.success)
+        org.junit.Assert.assertEquals(2, batchRes.count)
+        org.junit.Assert.assertEquals(2, batchRes.items.size)
+        org.junit.Assert.assertEquals(101, batchRes.items[0].gameId)
+        org.junit.Assert.assertTrue(batchRes.items[0].success)
+        org.junit.Assert.assertFalse(batchRes.items[1].success)
+    }
 }

@@ -738,4 +738,122 @@ class TournamentSetupViewModelTest {
         assertFalse(viewModel.uiState.value.showConfirmParallelTournamentDialog)
         coVerify(exactly = 1) { createTournamentUseCase(any(), any(), any(), any(), any(), any(), any()) }
     }
+
+    @Test
+    fun `setSortOrder and toggleSortOrder update state and persist to settingsRepository`() = runTest {
+        val p1 = Player(1, "Mueller", "Alice")
+        val p2 = Player(2, "Bauer", "Bob")
+        coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1, p2))
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            settingsRepository = settingsRepository
+        )
+        advanceUntilIdle()
+
+        viewModel.setSortOrder(PlayerSortOrder.DESCENDING)
+        advanceUntilIdle()
+        assertEquals(PlayerSortOrder.DESCENDING, viewModel.uiState.value.sortOrder)
+        coVerify { settingsRepository.setPlayerSortOrder(PlayerSortOrder.DESCENDING) }
+
+        // calling same order does nothing
+        viewModel.setSortOrder(PlayerSortOrder.DESCENDING)
+        advanceUntilIdle()
+
+        viewModel.toggleSortOrder()
+        advanceUntilIdle()
+        assertEquals(PlayerSortOrder.ASCENDING, viewModel.uiState.value.sortOrder)
+        coVerify { settingsRepository.setPlayerSortOrder(PlayerSortOrder.ASCENDING) }
+    }
+
+    @Test
+    fun `adoptRemoteTournament failure sets adoptError and stops loading`() = runTest {
+        val tournamentRepo = mockk<TournamentRepository>(relaxed = true)
+        val openInfo = RemoteOpenTournamentInfo(
+            id = 42,
+            date = "2026-11-07",
+            mode = "Blitz 5+0",
+            roundCount = 1,
+            playerCount = 4,
+            dailyNumber = 1
+        )
+        coEvery { tournamentRepo.adoptRemoteTournament(42) } throws RuntimeException("Network timeout")
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            tournamentRepository = tournamentRepo,
+            settingsRepository = settingsRepository
+        )
+        advanceUntilIdle()
+
+        // Manually trigger adopt with simulated remote tournament info
+        viewModel.onModeChanged(GameMode.BLITZ_5_0)
+        // Set remote tournament in state via dismiss then adopt flow
+        viewModel.dismissRemoteTournamentDialog()
+        assertFalse(viewModel.uiState.value.isCheckingForOpenTournament)
+
+        // Directly invoke adopt when remote tournament is set
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(remoteOpenTournament = openInfo)
+
+        viewModel.adoptRemoteTournament()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isLoading)
+        assertTrue(viewModel.uiState.value.adoptError?.contains("Network timeout") == true)
+
+        viewModel.dismissRemoteTournamentDialog()
+        assertEquals(null, viewModel.uiState.value.adoptError)
+    }
+
+    @Test
+    fun `adoptRemoteTournament downloads tournament and emits navigation`() = runTest {
+        val tournamentRepo = mockk<TournamentRepository>(relaxed = true)
+        val openInfo = RemoteOpenTournamentInfo(
+            id = 99,
+            date = "2026-11-07",
+            mode = "Blitz 3+2",
+            roundCount = 1,
+            playerCount = 6,
+            dailyNumber = 1
+        )
+        coEvery { tournamentRepo.adoptRemoteTournament(99) } returns 888L
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+
+        var navigatedTournamentId: Long? = null
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            tournamentRepository = tournamentRepo,
+            settingsRepository = settingsRepository
+        )
+
+        val navJob = launch {
+            viewModel.navigationEffect.collect {
+                navigatedTournamentId = it
+            }
+        }
+        advanceUntilIdle()
+
+        // Set remote tournament in state
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(remoteOpenTournament = openInfo)
+
+        viewModel.adoptRemoteTournament()
+        advanceUntilIdle()
+
+        assertEquals(888L, navigatedTournamentId)
+        coVerify { tournamentRepo.adoptRemoteTournament(99) }
+        navJob.cancel()
+    }
 }

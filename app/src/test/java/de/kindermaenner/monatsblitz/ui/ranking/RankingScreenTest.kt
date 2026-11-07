@@ -199,4 +199,45 @@ class RankingScreenTest {
         composeTestRule.onNodeWithText("Turnier abschließen").assertDoesNotExist()
         composeTestRule.onNodeWithTag("finalize_button").assertDoesNotExist()
     }
+
+    @Test
+    fun rankingScreen_finalizeError_showsErrorDialogAndClearsError() {
+        val tournamentId = 1L
+        val rankingItems = listOf(
+            TournamentRankingItem(playerId = 1L, rank = 1, name = "Max Mustermann", points = 3.0)
+        )
+        val tournament = Tournament(
+            id = tournamentId,
+            date = LocalDate.now(),
+            mode = GameMode.BLITZ_5_0,
+            rounds = 1,
+            players = emptyList(),
+            isLocalOnly = false
+        )
+
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        every { tournamentRepository.observeTournament(tournamentId) } returns flowOf(tournament)
+
+        val finalizeUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase>()
+        io.mockk.coEvery { finalizeUseCase(tournamentId) } throws RuntimeException("Verbindungsfehler zum Server")
+
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository, finalizeUseCase)
+
+        composeTestRule.setContent {
+            RankingScreen(
+                viewModel = viewModel,
+                onBack = {}
+            )
+        }
+
+        viewModel.finalizeTournament()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Fehler beim Abschluss").assertExists()
+        composeTestRule.onNodeWithText("Verbindungsfehler zum Server").assertExists()
+        composeTestRule.onNodeWithText("OK").assertExists().performClick()
+
+        // Error dialog dismissed
+        composeTestRule.onNodeWithText("Fehler beim Abschluss").assertDoesNotExist()
+    }
 }

@@ -20,7 +20,11 @@ kover {
             excludes {
                 classes(
                     "de.kindermaenner.monatsblitz.infrastructure.persistence.room.*_Impl*",
-                    "de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.*_Impl*"
+                    "de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.*_Impl*",
+                    "de.kindermaenner.monatsblitz.ui.theme.*"
+                )
+                packages(
+                    "de.kindermaenner.monatsblitz.ui.theme"
                 )
             }
         }

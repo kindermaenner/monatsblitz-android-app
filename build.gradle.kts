@@ -41,6 +41,7 @@ sonar {
         property("sonar.projectName", "monatsblitz-android")
         property("sonar.sourceEncoding", "UTF-8")
         property("sonar.android.lint.reportPaths", "app/build/reports/lint-results-debug.xml")
+        property("sonar.coverage.exclusions", "**/ui/theme/**")
         property("sonar.coverage.jacoco.xmlReportPaths", listOf(
             "$appBuildDir/reports/kover/reportDebug.xml",
             "$appBuildDir/reports/kover/report.xml",

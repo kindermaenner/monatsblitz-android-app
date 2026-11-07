@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -528,5 +529,132 @@ class CrosstableViewModelTest {
 
         coVerify(exactly = 1) { repository.updateTournamentRounds(1L, 2) }
         coVerify(exactly = 1) { syncService.triggerSync(1L) }
+    }
+
+    @Test
+    fun `triggerManualSync handles SYNCED and FAILED status events`() = runTest {
+        val testTournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
+        val syncStatusFlow = MutableStateFlow<SyncStatus>(SyncStatus.SYNCED)
+        val errorFlow = MutableStateFlow<String?>("Verbindungsfehler")
+        val syncService = mockk<TournamentSyncService>(relaxed = true)
+        every { syncService.syncStatus } returns syncStatusFlow
+        every { syncService.lastSyncError } returns errorFlow
+        coEvery { repository.observeTournament(1) } returns flowOf(testTournament)
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = calculatePlayerPointsUseCase,
+            tournamentId = 1L,
+            tournamentSyncService = syncService
+        )
+
+        val collectJob = launch { viewModel.uiState.collect() }
+        val messages = mutableListOf<String>()
+        val job = launch {
+            viewModel.syncMessageEvent.collect { messages.add(it) }
+        }
+        advanceUntilIdle()
+
+        // 1. Sync fails
+        coEvery { syncService.triggerSync(1L) } coAnswers {
+            syncStatusFlow.value = SyncStatus.FAILED
+        }
+        viewModel.triggerManualSync()
+        advanceUntilIdle()
+
+        assertTrue(messages.contains("Verbindungsfehler"))
+
+        // 2. Sync succeeds
+        coEvery { syncService.triggerSync(1L) } coAnswers {
+            syncStatusFlow.value = SyncStatus.SYNCED
+        }
+        viewModel.triggerManualSync()
+        advanceUntilIdle()
+
+        assertTrue(messages.contains("Erfolgreich synchronisiert!"))
+
+        // 3. Status SYNCING ignores trigger
+        syncStatusFlow.value = SyncStatus.SYNCING
+        viewModel.triggerManualSync()
+        advanceUntilIdle()
+        // Should not have triggered again
+        coVerify(exactly = 2) { syncService.triggerSync(1L) }
+
+        job.cancel()
+        collectJob.cancel()
+    }
+
+    @Test
+    fun `updateTournamentRounds resets selectedLeg when decreasing rounds and ignores finalized`() = runTest {
+        val testTournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 2, listOf(Player(1, "A", "A")))
+        val syncStatusFlow = MutableStateFlow<SyncStatus>(SyncStatus.SYNCED)
+        val syncService = mockk<TournamentSyncService>(relaxed = true)
+        every { syncService.syncStatus } returns syncStatusFlow
+        coEvery { repository.observeTournament(1) } returns flowOf(testTournament)
+        coEvery { repository.updateTournamentRounds(1L, any()) } returns Unit
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = calculatePlayerPointsUseCase,
+            tournamentId = 1L,
+            tournamentSyncService = syncService
+        )
+        viewModel.uiState.first { it.tournament != null }
+
+        viewModel.selectLeg(2)
+        assertEquals(2, viewModel.selectedLeg.value)
+
+        // Reduce to 1 round -> selectedLeg resets to 1
+        viewModel.updateTournamentRounds(1)
+        advanceUntilIdle()
+        assertEquals(1, viewModel.selectedLeg.value)
+
+        // When finalized, update is ignored
+        syncStatusFlow.value = SyncStatus.FINALIZED
+        viewModel.updateTournamentRounds(2)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { repository.updateTournamentRounds(1L, any()) }
+    }
+
+    @Test
+    fun `addNewPlayer calls onError on failure or when useCase is missing`() = runTest {
+        val testTournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
+        coEvery { repository.observeTournament(1) } returns flowOf(testTournament)
+
+        // 1. Missing addPlayerUseCase
+        val viewModelNoUseCase = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = calculatePlayerPointsUseCase,
+            tournamentId = 1L,
+            addPlayerUseCase = null
+        )
+        viewModelNoUseCase.uiState.first { it.tournament != null }
+        var errorMessage: String? = null
+        viewModelNoUseCase.addNewPlayer("Max", "Mustermann", onError = { errorMessage = it })
+        assertEquals("Spieler anlegen nicht verfügbar", errorMessage)
+
+        // 2. addPlayerUseCase throws exception
+        val addPlayerUseCase = mockk<AddPlayerUseCase>()
+        coEvery { addPlayerUseCase.invoke(any(), any(), any(), any()) } throws RuntimeException("Datenbankfehler")
+
+        val viewModelWithUseCase = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = calculatePlayerPointsUseCase,
+            tournamentId = 1L,
+            addPlayerUseCase = addPlayerUseCase
+        )
+        viewModelWithUseCase.uiState.first { it.tournament != null }
+        var caughtError: String? = null
+        viewModelWithUseCase.addNewPlayer("Max", "Mustermann", onError = { caughtError = it })
+        advanceUntilIdle()
+        assertEquals("Datenbankfehler", caughtError)
     }
 }

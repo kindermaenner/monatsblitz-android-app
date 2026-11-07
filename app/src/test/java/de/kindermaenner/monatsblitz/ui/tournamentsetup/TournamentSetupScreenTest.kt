@@ -18,6 +18,8 @@ import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -213,5 +215,80 @@ class TournamentSetupScreenTest {
         // Settings should now be collapsed
         composeTestRule.onNodeWithText("Doppelrundig").assertDoesNotExist()
         composeTestRule.onNodeWithText("Turnier einrichten").assertExists()
+    }
+
+    @Test
+    fun matchesPlayerSearch_matchesNamesAndHandlesUmlauts() {
+        val player = Player(1, "Müller", "Jürgen", rufname = "Jürgi")
+
+        // Exact match
+        assertTrue(matchesPlayerSearch(player, "Müller"))
+        assertTrue(matchesPlayerSearch(player, "Jürgen"))
+        assertTrue(matchesPlayerSearch(player, "Jürgi"))
+
+        // Lowercase
+        assertTrue(matchesPlayerSearch(player, "müller"))
+        assertTrue(matchesPlayerSearch(player, "jürgen"))
+
+        // Expanded umlaut (ue)
+        assertTrue(matchesPlayerSearch(player, "mueller"))
+        assertTrue(matchesPlayerSearch(player, "juergen"))
+
+        // Simplified umlaut (u)
+        assertTrue(matchesPlayerSearch(player, "muller"))
+
+        // Blank query matches all
+        assertTrue(matchesPlayerSearch(player, "   "))
+
+        // Non match
+        assertFalse(matchesPlayerSearch(player, "Schmidt"))
+    }
+
+    @Test
+    fun setupScreen_remoteOpenTournamentDialogShownAndCanBeDismissed() {
+        val openInfo = de.kindermaenner.monatsblitz.domain.repository.RemoteOpenTournamentInfo(
+            id = 42,
+            date = "2026-11-07",
+            mode = "Blitz 5+0",
+            roundCount = 1,
+            playerCount = 8,
+            dailyNumber = 1
+        )
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(remoteOpenTournament = openInfo)
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Offenes Turnier gefunden").assertExists()
+        composeTestRule.onNodeWithText("Fortsetzen").assertExists()
+        composeTestRule.onNodeWithText("Neues Turnier").assertExists().performClick()
+
+        // After clicking "Neues Turnier", dialog is dismissed and setup screen appears
+        composeTestRule.onNodeWithText("Offenes Turnier gefunden").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Neues Turnier").assertExists()
+    }
+
+    @Test
+    fun setupScreen_adoptErrorDialogShownAndDismissed() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(adoptError = "Verbindungsabbruch zum Server")
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Fehler").assertExists()
+        composeTestRule.onNodeWithText("Verbindungsabbruch zum Server").assertExists()
+        composeTestRule.onNodeWithText("OK").assertExists().performClick()
+
+        composeTestRule.onNodeWithText("Fehler").assertDoesNotExist()
     }
 }

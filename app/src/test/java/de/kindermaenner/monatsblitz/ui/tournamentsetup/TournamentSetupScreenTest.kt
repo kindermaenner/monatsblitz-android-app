@@ -609,11 +609,11 @@ class TournamentSetupScreenTest {
 
     @Test
     fun setupScreen_remoteOpenTournamentDialog_clickFortsetzen() {
-        val openInfo = RemoteOpenTournamentInfo(
+        val openInfo = de.kindermaenner.monatsblitz.domain.repository.RemoteOpenTournamentInfo(
             id = 42,
             date = "2026-11-07",
             mode = "Blitz 5+0",
-            rounds = 1,
+            roundCount = 1,
             playerCount = 8,
             dailyNumber = 1
         )
@@ -660,7 +660,7 @@ class TournamentSetupScreenTest {
     @Test
     fun setupScreen_emptyActivePlayersMessage() {
         val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
-        viewModel.onPlayerFilterModeChanged(PlayerFilterMode.ACTIVE)
+        viewModel.setPlayerFilterMode(PlayerFilterMode.ACTIVE)
 
         composeTestRule.setContent {
             TournamentSetupScreen(viewModel = viewModel) {}
@@ -672,7 +672,7 @@ class TournamentSetupScreenTest {
     @Test
     fun setupScreen_noPlayersAtAllMessage() {
         val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
-        viewModel.onPlayerFilterModeChanged(PlayerFilterMode.ALL)
+        viewModel.setPlayerFilterMode(PlayerFilterMode.ALL)
 
         composeTestRule.setContent {
             TournamentSetupScreen(viewModel = viewModel) {}

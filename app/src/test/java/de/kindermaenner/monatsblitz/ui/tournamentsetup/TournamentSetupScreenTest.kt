@@ -291,4 +291,71 @@ class TournamentSetupScreenTest {
 
         composeTestRule.onNodeWithText("Fehler").assertDoesNotExist()
     }
+
+    @Test
+    fun settingsCard_datePickerCanBeOpenedAndDismissed() {
+        val selectedDate = androidx.compose.runtime.mutableStateOf(LocalDate.now())
+
+        composeTestRule.setContent {
+            TournamentSettingsCard(
+                state = TournamentSettingsState(
+                    isExpanded = true,
+                    selectedDate = selectedDate.value,
+                    selectedMode = GameMode.BLITZ_3_2,
+                    doubleRound = false
+                ),
+                actions = TournamentSettingsActions(
+                    onToggleExpanded = {},
+                    onDateChanged = { selectedDate.value = it },
+                    onModeChanged = {},
+                    onDoubleRoundChanged = {}
+                )
+            )
+        }
+
+        composeTestRule.onNodeWithText("Turnierdatum").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("OK").assertExists()
+        composeTestRule.onNodeWithText("Abbrechen").assertExists().performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("OK").assertDoesNotExist()
+    }
+
+    @Test
+    fun setupScreen_searchAndFilterPlayers() {
+        val p1 = Player(1, "Meier", "Alice")
+        val p2 = Player(2, "Mueller", "Bob")
+        coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1, p2))
+
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        viewModel.onPlayerChecked(1L, true) // Select Alice
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        // Search for "Alice"
+        composeTestRule.onNodeWithText("Spieler suchen...").performTextInput("Alice")
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Alice Meier").assertExists()
+        composeTestRule.onNodeWithText("Bob Mueller").assertDoesNotExist()
+
+        // Clear search
+        composeTestRule.onNodeWithContentDescription("Suche leeren").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Bob Mueller").assertExists()
+
+        // Filter chip "Ausgewählt (1)"
+        composeTestRule.onNodeWithText("Ausgewählt (1)").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Alice Meier").assertExists()
+        composeTestRule.onNodeWithText("Bob Mueller").assertDoesNotExist()
+
+        // Filter chip "Aktive (2)"
+        composeTestRule.onNodeWithText("Aktive (2)").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Bob Mueller").assertExists()
+    }
 }

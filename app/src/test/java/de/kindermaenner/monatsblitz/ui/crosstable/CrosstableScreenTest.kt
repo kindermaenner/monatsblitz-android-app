@@ -11,12 +11,15 @@ import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.PlayerWithdrawRule
+import de.kindermaenner.monatsblitz.domain.model.SyncStatus
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
+import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SetGameResultUseCase
 import io.mockk.coVerify
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Rule
@@ -304,5 +307,74 @@ class CrosstableScreenTest {
         coVerify(exactly = 1) {
             repository.updateTournamentRounds(42L, 2)
         }
+    }
+
+    @Test
+    fun `crosstableScreen syncProblemIcon displayed and clicking triggers sync`() {
+        val tournament = Tournament(
+            id = 42,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = listOf(Player(1, "Meier", "Alice"))
+        )
+        val syncService = mockk<TournamentSyncService>(relaxed = true)
+        every { syncService.syncStatus } returns kotlinx.coroutines.flow.MutableStateFlow(SyncStatus.FAILED)
+        coEvery { repository.observeTournament(42) } returns flowOf(tournament)
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase(),
+            tournamentId = 42L,
+            tournamentSyncService = syncService
+        )
+
+        composeTestRule.setContent {
+            CrosstableScreen(
+                viewModel = viewModel,
+                onNavigateToRanking = {}
+            ) {}
+        }
+
+        val syncProblemBtn = composeTestRule.onNodeWithContentDescription("Sync fehlgeschlagen. Tippen zum Synchronisieren.")
+        syncProblemBtn.assertExists()
+        syncProblemBtn.performClick()
+
+        coVerify(atLeast = 1) { syncService.triggerSync(42L) }
+    }
+
+    @Test
+    fun `crosstableScreen doubleRound renders leg buttons and allows switching`() {
+        val tournament = Tournament(
+            id = 42,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 2,
+            players = listOf(Player(1, "Meier", "Alice"), Player(2, "Mueller", "Bob"))
+        )
+        coEvery { repository.observeTournament(42) } returns flowOf(tournament)
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase(),
+            tournamentId = 42L
+        )
+
+        composeTestRule.setContent {
+            CrosstableScreen(
+                viewModel = viewModel,
+                onNavigateToRanking = {}
+            ) {}
+        }
+
+        composeTestRule.onNodeWithText("Runde 1").assertExists()
+        composeTestRule.onNodeWithText("Runde 2").assertExists().performClick()
+        composeTestRule.waitForIdle()
+
+        org.junit.Assert.assertEquals(2, viewModel.selectedLeg.value)
     }
 }

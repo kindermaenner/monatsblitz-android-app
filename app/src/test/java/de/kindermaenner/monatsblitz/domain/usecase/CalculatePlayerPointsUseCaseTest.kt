@@ -128,4 +128,19 @@ class CalculatePlayerPointsUseCaseTest {
         assertEquals(0.0, useCase(tournament, 1L), 0.0)
         assertEquals(1.0, useCase(tournament, 2L), 0.0)
     }
+
+    @Test
+    fun `invoke ignores mirrored duplicate game in same leg`() {
+        val players = listOf(Player(1, "A", "A"), Player(2, "B", "B"))
+        // Stored both 1 vs 2 (Win) and 2 vs 1 (Loss) for leg 1
+        val games = mapOf(
+            1L to Game(id = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Win),
+            2L to Game(id = 2, player1Id = 2, player2Id = 1, leg = 1, result = GameResult.Loss)
+        )
+        val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 1, players, games)
+
+        // For player 2: asPlayer1 is Loss (0.0), and asPlayer2 is ignored because leg 1 already has game where P2 is player 1
+        assertEquals(1.0, useCase(tournament, 1L), 0.0)
+        assertEquals(0.0, useCase(tournament, 2L), 0.0)
+    }
 }

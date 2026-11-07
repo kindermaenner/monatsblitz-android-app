@@ -134,4 +134,20 @@ class TestBackendConnectionUseCaseTest {
         assertTrue(result is ConnectionTestResult.Error)
         assertTrue((result as ConnectionTestResult.Error).message.contains("Server meldete HTTP 500"))
     }
+
+    @Test
+    fun `returns error when api throws 403 HttpException`() = runTest {
+        val response = Response.error<List<PlayerDto>>(403, "".toResponseBody(null))
+        coEvery { api.getPlayers() } throws HttpException(response)
+
+        val result = useCase("https://example.com", "forbidden-key")
+        assertTrue(result is ConnectionTestResult.Error)
+        assertTrue((result as ConnectionTestResult.Error).message.contains("403"))
+    }
+
+    @Test
+    fun `default constructor initializes successfully`() {
+        val defaultUseCase = TestBackendConnectionUseCase()
+        org.junit.Assert.assertNotNull(defaultUseCase)
+    }
 }

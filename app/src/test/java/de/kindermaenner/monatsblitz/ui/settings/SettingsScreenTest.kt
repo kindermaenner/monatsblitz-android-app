@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.usecase.ConnectionTestResult
 import de.kindermaenner.monatsblitz.domain.usecase.TestBackendConnectionUseCase
@@ -17,6 +18,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -313,5 +315,72 @@ class SettingsScreenTest {
         composeTestRule.waitForIdle()
 
         assertTrue("After choosing offline mode, onBack should be triggered", backClicked)
+    }
+
+    @Test
+    fun settingsScreen_fixedModePreselection_rendersChipsAndHandlesSelection() {
+        val modeTypeFlow = MutableStateFlow(de.kindermaenner.monatsblitz.domain.model.ModePreselectionType.FIXED)
+        val fixedModeFlow = MutableStateFlow("3+2")
+        val modeRepo = mockk<de.kindermaenner.monatsblitz.domain.repository.ModeRepository>(relaxed = true)
+
+        every { settingsRepository.modePreselectionType } returns modeTypeFlow
+        every { settingsRepository.fixedMode } returns fixedModeFlow
+        coEvery { modeRepo.observeModes() } returns flowOf(listOf(GameMode.BLITZ_3_2, GameMode.BLITZ_5_0))
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            modeRepository = modeRepo
+        )
+
+        composeTestRule.setContent {
+            SettingsScreen(viewModel = viewModel, onBack = {})
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Fester Standard-Modus:")
+            .performScrollTo()
+            .assertExists()
+        composeTestRule.onNodeWithText("5+0")
+            .performScrollTo()
+            .performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify { settingsRepository.setFixedMode("5+0") }
+    }
+
+    @Test
+    fun settingsScreen_rotationModePreselection_rendersCheckboxesAndToggles() {
+        val modeTypeFlow = MutableStateFlow(de.kindermaenner.monatsblitz.domain.model.ModePreselectionType.ROTATION)
+        val rotationModesFlow = MutableStateFlow(listOf("3+2"))
+        val modeRepo = mockk<de.kindermaenner.monatsblitz.domain.repository.ModeRepository>(relaxed = true)
+
+        every { settingsRepository.modePreselectionType } returns modeTypeFlow
+        every { settingsRepository.rotationModes } returns rotationModesFlow
+        coEvery { modeRepo.observeModes() } returns flowOf(listOf(GameMode.BLITZ_3_2, GameMode.BLITZ_5_0))
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            modeRepository = modeRepo
+        )
+
+        composeTestRule.setContent {
+            SettingsScreen(viewModel = viewModel, onBack = {})
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Beteiligte Modi für die Rotation:")
+            .performScrollTo()
+            .assertExists()
+        composeTestRule.onNodeWithText("3+2 (Nr. 1 in der Rotation)")
+            .performScrollTo()
+            .assertExists()
+        composeTestRule.onNodeWithText("5+0")
+            .performScrollTo()
+            .performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify { settingsRepository.setRotationModes(any()) }
     }
 }

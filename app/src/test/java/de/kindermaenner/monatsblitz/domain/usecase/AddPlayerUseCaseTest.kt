@@ -145,4 +145,14 @@ class AddPlayerUseCaseTest {
 
         coVerify(exactly = 0) { repository.createPlayer(any()) }
     }
+
+    @Test
+    fun `invoke with blank whitespace rufname treats rufname as null`() = runTest {
+        val expected = Player(1, "Meier", "Alice", rufname = null)
+        coEvery { repository.findPlayersByNameAndRufname("Alice", "Meier", "") } returns emptyList()
+        coEvery { repository.createPlayer(NewPlayer(vorname = "Alice", name = "Meier", rufname = null, isLocal = false)) } returns expected
+
+        val result = useCase("Alice", "Meier", rufname = "   ")
+        assertEquals(expected, result)
+    }
 }

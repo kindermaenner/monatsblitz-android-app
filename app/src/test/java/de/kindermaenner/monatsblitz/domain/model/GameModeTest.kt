@@ -42,4 +42,14 @@ class GameModeTest {
         assertEquals(modeLower, modeUpper)
         assertEquals(modeLower.hashCode(), modeUpper.hashCode())
     }
+
+    @Test
+    fun `equality handles same instance, null and different types`() {
+        val mode = GameMode(name = "3+2")
+        org.junit.Assert.assertTrue(mode.equals(mode))
+        org.junit.Assert.assertFalse(mode.equals(null))
+        org.junit.Assert.assertFalse(mode.equals("3+2"))
+        assertEquals("3+2", mode.toString())
+        org.junit.Assert.assertTrue(GameMode.DEFAULT_MODES.isEmpty())
+    }
 }

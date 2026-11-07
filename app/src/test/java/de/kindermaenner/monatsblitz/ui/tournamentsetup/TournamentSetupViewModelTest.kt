@@ -856,4 +856,64 @@ class TournamentSetupViewModelTest {
         coVerify { tournamentRepo.adoptRemoteTournament(99) }
         navJob.cancel()
     }
+
+    @Test
+    fun `executeAddMode creates mode and handles error`() = runTest {
+        val modeRepo = mockk<ModeRepository>(relaxed = true)
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+        coEvery { modeRepo.observeModes() } returns flowOf(emptyList())
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            modeRepository = modeRepo,
+            settingsRepository = settingsRepository
+        )
+        advanceUntilIdle()
+
+        // 1. Temporary mode
+        viewModel.onShowAddModeDialog(true)
+        viewModel.onNewModeNameChanged("Custom Rapid")
+        viewModel.onNewModePermanentChanged(false)
+        viewModel.executeAddMode(permanent = false)
+        advanceUntilIdle()
+
+        assertEquals("Custom Rapid", viewModel.uiState.value.selectedMode?.name)
+        assertFalse(viewModel.uiState.value.showAddModeDialog)
+
+        // 2. Permanent mode failure
+        coEvery { modeRepo.createMode("10+0", permanent = true) } throws RuntimeException("Server-Fehler")
+        viewModel.onNewModeNameChanged("10+0")
+        viewModel.onNewModePermanentChanged(true)
+        viewModel.executeAddMode(permanent = true)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.addModeError?.contains("Server-Fehler") == true)
+
+        viewModel.onNewModeNameChanged("15+0")
+        assertEquals(null, viewModel.uiState.value.addModeError)
+    }
+
+    @Test
+    fun `syncPlayers triggers sync use cases`() = runTest {
+        val syncModesUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.SyncModesUseCase>(relaxed = true)
+        coEvery { playerRepository.observePlayers() } returns flowOf(emptyList())
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            syncPlayersUseCase = syncPlayersUseCase,
+            syncModesUseCase = syncModesUseCase,
+            settingsRepository = settingsRepository
+        )
+        advanceUntilIdle()
+
+        viewModel.syncPlayers()
+        advanceUntilIdle()
+
+        coVerify { syncPlayersUseCase.invoke() }
+        coVerify { syncModesUseCase.invoke() }
+    }
 }

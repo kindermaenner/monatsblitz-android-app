@@ -1430,4 +1430,142 @@ class TournamentRepositoryImplTest {
             org.junit.Assert.assertTrue(e.message!!.contains("Nur 1 oder 2 Runden"))
         }
     }
+
+    @Test(expected = retrofit2.HttpException::class)
+    fun `syncDirtyTournaments throws exception when HTTP error is not 409`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repoWithApi = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        val date = LocalDate.of(2026, 10, 19)
+        val t = TournamentEntity(id = 1, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = null)
+        coEvery { tournamentDao.getDirtyTournaments() } returns listOf(TournamentWithDetails(t, emptyList(), emptyList()))
+
+        val errorResponse = mockk<retrofit2.Response<*>>(relaxed = true) {
+            every { code() } returns 500
+        }
+        coEvery { api.createTournament(any()) } throws retrofit2.HttpException(errorResponse)
+
+        repoWithApi.syncDirtyTournaments()
+    }
+
+    @Test(expected = retrofit2.HttpException::class)
+    fun `syncDirtyTournaments HTTP 409 rethrows when no open tournament matches date`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repoWithApi = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        val date = LocalDate.of(2026, 10, 19)
+        val t = TournamentEntity(id = 1, mode = GameMode.BLITZ_3_2, date = date, rounds = 1, remoteId = null)
+        coEvery { tournamentDao.getDirtyTournaments() } returns listOf(TournamentWithDetails(t, emptyList(), emptyList()))
+
+        val errorResponse = mockk<retrofit2.Response<*>>(relaxed = true) {
+            every { code() } returns 409
+        }
+        coEvery { api.createTournament(any()) } throws retrofit2.HttpException(errorResponse)
+        coEvery { api.getTournaments() } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(
+                id = 999,
+                date = "2026-10-19",
+                mode = "3+2",
+                roundCount = 1,
+                status = "closed"
+            )
+        )
+
+        repoWithApi.syncDirtyTournaments()
+    }
+
+    @Test
+    fun `adoptRemoteTournament with malformed date falls back to current date`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>(relaxed = true)
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api,
+            playerDao = playerDaoMock
+        )
+        val remoteDto = de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(
+            id = 95,
+            date = "invalid-date",
+            mode = "3+2",
+            roundCount = 1,
+            playerIds = emptyList()
+        )
+        coEvery { api.getTournament(95) } returns remoteDto
+        coEvery { api.getGames(95) } returns emptyList()
+        coEvery { api.getPlayers() } returns emptyList()
+        coEvery { tournamentDao.getTournamentByRemoteId(95) } returns null
+        coEvery { tournamentDao.insert(any()) } returns 123L
+        coEvery { tournamentPlayerDao.deleteForTournament(123L) } returns Unit
+        coEvery { tournamentPlayerDao.insertAll(any()) } returns Unit
+        coEvery { gameDao.deleteForTournament(123L) } returns Unit
+        coEvery { tournamentPlayerDao.upsertAll(any()) } returns Unit
+        coEvery { tournamentStorage.saveTournamentState(123L, false) } returns Unit
+
+        val localId = repo.adoptRemoteTournament(95)
+        org.junit.Assert.assertEquals(123L, localId)
+
+        coVerify {
+            tournamentDao.insert(match {
+                it.date == LocalDate.now()
+            })
+        }
+    }
+
+    @Test
+    fun `addPlayerToTournament logs warning and does not throw when remote api fails`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>(relaxed = true)
+        val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>(relaxed = true)
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api,
+            playerDao = playerDaoMock
+        )
+        val tournament = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = 50L)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(tournament, emptyList(), emptyList())
+        coEvery { playerDaoMock.getPlayerById(10L) } returns de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 10L, name = "P", vorname = "P", isLocal = false, remoteId = 100L)
+        coEvery { api.addTournamentPlayer(any()) } throws RuntimeException("Remote API down")
+
+        repo.addPlayerToTournament(1L, 10L)
+
+        coVerify { tournamentPlayerDao.insertAll(any()) }
+    }
+
+    @Test
+    fun `getRecentTournamentModes falls back to local tournaments when remote api fails`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+        coEvery { api.getTournaments() } throws RuntimeException("Network down")
+        val localT = TournamentEntity(id = 1, mode = GameMode.BLITZ_5_0, date = LocalDate.now(), rounds = 1, remoteId = null)
+        coEvery { tournamentDao.observeTournaments() } returns flowOf(listOf(TournamentWithDetails(localT, emptyList(), emptyList())))
+
+        val modes = repo.getRecentTournamentModes()
+        org.junit.Assert.assertEquals(listOf("5+0"), modes)
+    }
 }

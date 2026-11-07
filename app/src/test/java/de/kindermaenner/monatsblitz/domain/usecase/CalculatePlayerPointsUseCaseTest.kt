@@ -143,4 +143,42 @@ class CalculatePlayerPointsUseCaseTest {
         assertEquals(1.0, useCase(tournament, 1L), 0.0)
         assertEquals(0.0, useCase(tournament, 2L), 0.0)
     }
+
+    @Test
+    fun `invoke calculates points correctly with mixed regular and forfeit results across multiple opponents`() {
+        val players = (1L..6L).map { Player(it, "P$it", "V$it") }
+        val games = mapOf(
+            1L to Game(id = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Win),         // +1.0
+            2L to Game(id = 2, player1Id = 1, player2Id = 3, leg = 1, result = GameResult.ForfeitLoss), // +0.0
+            3L to Game(id = 3, player1Id = 1, player2Id = 4, leg = 1, result = GameResult.ForfeitDraw), // +0.5
+            4L to Game(id = 4, player1Id = 1, player2Id = 5, leg = 1, result = GameResult.Remis),       // +0.5
+            5L to Game(id = 5, player1Id = 1, player2Id = 6, leg = 1, result = GameResult.ForfeitWin)   // +1.0
+        )
+        val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 1, players, games)
+
+        assertEquals(3.0, useCase(tournament, 1L), 0.0)
+    }
+
+    @Test
+    fun `invoke returns 0 for non-participating unknown player ID`() {
+        val players = listOf(Player(1, "A", "A"), Player(2, "B", "B"))
+        val games = mapOf(1L to Game(id = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Win))
+        val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 1, players, games)
+
+        assertEquals(0.0, useCase(tournament, 999L), 0.0)
+    }
+
+    @Test
+    fun `invoke handles player with games in only one leg of double round tournament`() {
+        val players = listOf(Player(1, "A", "A"), Player(2, "B", "B"))
+        // Only round 1 played, round 2 still open
+        val games = mapOf(
+            1L to Game(id = 1, player1Id = 1, player2Id = 2, leg = 1, result = GameResult.Win),
+            2L to Game(id = 2, player1Id = 1, player2Id = 2, leg = 2, result = GameResult.Open)
+        )
+        val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 2, players, games)
+
+        assertEquals(1.0, useCase(tournament, 1L), 0.0)
+        assertEquals(0.0, useCase(tournament, 2L), 0.0)
+    }
 }

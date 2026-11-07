@@ -248,4 +248,100 @@ class SettingsViewModelTest {
 
         coVerify { settingsRepository.setStandaloneOfflineMode(true) }
     }
+
+    @Test
+    fun `saveSettings with blank url or blank key returns early and invokes nothing`() = runTest {
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        advanceUntilIdle()
+
+        var successCalled = false
+        // Blank URL
+        viewModel.onServerUrlChanged("   ")
+        viewModel.onApiKeyChanged("secret-key")
+        viewModel.saveSettings(onSuccess = { successCalled = true })
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { testBackendConnectionUseCase(any(), any()) }
+        coVerify(exactly = 0) { settingsRepository.setServerUrl(any()) }
+        assertEquals(false, successCalled)
+        assertEquals(false, viewModel.isSavedMessageVisible.value)
+
+        // Blank API Key
+        viewModel.onServerUrlChanged("https://test.de")
+        viewModel.onApiKeyChanged("   ")
+        viewModel.saveSettings(onSuccess = { successCalled = true })
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { testBackendConnectionUseCase(any(), any()) }
+        coVerify(exactly = 0) { settingsRepository.setApiKey(any()) }
+        assertEquals(false, successCalled)
+    }
+
+    @Test
+    fun `saveSettings when connection test fails does not save and reports error`() = runTest {
+        coEvery { testBackendConnectionUseCase("https://test.de", "wrong-key") } returns
+            ConnectionTestResult.Error("API-Schlüssel ungültig (401)")
+
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        advanceUntilIdle()
+
+        var successCalled = false
+        viewModel.onServerUrlChanged("https://test.de")
+        viewModel.onApiKeyChanged("wrong-key")
+        viewModel.saveSettings(onSuccess = { successCalled = true })
+        advanceUntilIdle()
+
+        assertEquals(false, successCalled)
+        assertEquals(false, viewModel.isSavedMessageVisible.value)
+        val result = viewModel.testResult.value
+        assertTrue(result is ConnectionTestResult.Error)
+        assertEquals("API-Schlüssel ungültig (401)", (result as ConnectionTestResult.Error).message)
+        coVerify(exactly = 0) { settingsRepository.setServerUrl(any()) }
+        coVerify(exactly = 0) { settingsRepository.setApiKey(any()) }
+    }
+
+    @Test
+    fun `saveSettings and testConnection gracefully catch sync exceptions`() = runTest {
+        val faultySyncPlayers = mockk<de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase>()
+        val faultySyncModes = mockk<SyncModesUseCase>()
+        coEvery { faultySyncPlayers.invoke() } throws RuntimeException("Offline / DNS failure")
+        coEvery { faultySyncModes.invoke() } throws RuntimeException("Offline / DNS failure")
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            syncPlayersUseCase = faultySyncPlayers,
+            syncModesUseCase = faultySyncModes
+        )
+        advanceUntilIdle()
+
+        // 1. saveSettings despite sync error
+        var successCalled = false
+        viewModel.onServerUrlChanged("https://my-club.de")
+        viewModel.onApiKeyChanged("secret")
+        viewModel.saveSettings(onSuccess = { successCalled = true })
+        advanceUntilIdle()
+
+        assertTrue(successCalled)
+        assertTrue(viewModel.isSavedMessageVisible.value)
+        coVerify { settingsRepository.setServerUrl("https://my-club.de") }
+
+        // 2. testConnection despite sync error
+        viewModel.testConnection()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.testResult.value is ConnectionTestResult.Success)
+    }
+
+    @Test
+    fun `onQrScanError updates testResult with error message`() = runTest {
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        advanceUntilIdle()
+
+        viewModel.onQrScanError("QR-Code enthält keine gültigen Zugangsdaten")
+
+        val result = viewModel.testResult.value
+        assertTrue(result is ConnectionTestResult.Error)
+        assertEquals("QR-Code enthält keine gültigen Zugangsdaten", (result as ConnectionTestResult.Error).message)
+    }
 }

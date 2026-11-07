@@ -69,7 +69,7 @@ class PlayerDaoTest : DaoTest() {
 
     @Test
     fun setRemoteIdUpdatesFields() = runTest {
-        val id = playerDao.insert(PlayerEntity(name = "P1", vorname = "V1", dirty = true))
+        val id = playerDao.insert(PlayerEntity(name = "P1", vorname = "V1", dirty = true, isLocal = true))
         
         playerDao.setRemoteId(id, 500L)
         
@@ -77,6 +77,35 @@ class PlayerDaoTest : DaoTest() {
         assertNotNull(player)
         assertEquals(500L, player?.remoteId)
         assertEquals(false, player?.dirty)
+        assertEquals(false, player?.isLocal)
+    }
+
+    @Test
+    fun findPlayersByName_isCaseInsensitive() = runTest {
+        playerDao.insert(PlayerEntity(name = "Meier", vorname = "Alice"))
+
+        val foundLower = playerDao.findPlayersByName("alice", "meier")
+        assertEquals(1, foundLower.size)
+        assertEquals("Meier", foundLower[0].name)
+
+        val foundUpper = playerDao.findPlayersByName("ALICE", "MEIER")
+        assertEquals(1, foundUpper.size)
+        assertEquals("Alice", foundUpper[0].vorname)
+
+        val notFound = playerDao.findPlayersByName("Bob", "Meier")
+        assertEquals(0, notFound.size)
+    }
+
+    @Test
+    fun findPlayersByNameAndRufname_isCaseInsensitive() = runTest {
+        playerDao.insert(PlayerEntity(name = "Schmidt", vorname = "Michael", rufname = "Michi"))
+
+        val found = playerDao.findPlayersByNameAndRufname("michael", "schmidt", "michi")
+        assertEquals(1, found.size)
+        assertEquals("Michi", found[0].rufname)
+
+        val notFound = playerDao.findPlayersByNameAndRufname("Michael", "Schmidt", "Mike")
+        assertEquals(0, notFound.size)
     }
 
     @Test

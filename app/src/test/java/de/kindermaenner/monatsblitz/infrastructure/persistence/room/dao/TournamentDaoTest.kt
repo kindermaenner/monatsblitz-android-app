@@ -68,4 +68,47 @@ class TournamentDaoTest : DaoTest() {
         assertEquals(1, dirty.size)
         assertEquals(GameMode.BLITZ_3_2, dirty[0].tournament.mode)
     }
+
+    @Test
+    fun updateTournamentRounds_updatesRoundsAndSetsDirtyTrue() = runTest {
+        val id = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, dirty = false, remoteId = 10L))
+
+        tournamentDao.updateTournamentRounds(id, 2)
+
+        val updated = tournamentDao.getTournament(id)?.tournament
+        assertEquals(2, updated?.rounds)
+        assertEquals(true, updated?.dirty)
+    }
+
+    @Test
+    fun markTournamentAsClean_clearsDirtyFlag() = runTest {
+        val id = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, dirty = true, remoteId = null))
+
+        tournamentDao.markTournamentAsClean(id)
+
+        val clean = tournamentDao.getTournament(id)?.tournament
+        assertEquals(false, clean?.dirty)
+    }
+
+    @Test
+    fun deleteById_removesTournamentFromDatabase() = runTest {
+        val id = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, dirty = false, remoteId = null))
+        assertNotNull(tournamentDao.getTournament(id))
+
+        tournamentDao.deleteById(id)
+
+        org.junit.Assert.assertNull(tournamentDao.getTournament(id))
+    }
+
+    @Test
+    fun getTournamentByRemoteId_findsMatchingTournament() = runTest {
+        tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, dirty = false, remoteId = 999L))
+
+        val found = tournamentDao.getTournamentByRemoteId(999)
+        assertNotNull(found)
+        assertEquals(999L, found?.tournament?.remoteId)
+
+        val notFound = tournamentDao.getTournamentByRemoteId(12345)
+        org.junit.Assert.assertNull(notFound)
+    }
 }

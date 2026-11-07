@@ -254,4 +254,46 @@ class TournamentPdfGeneratorTest {
         assertNotNull(startedIntent)
         assertEquals(android.content.Intent.ACTION_CHOOSER, startedIntent.action)
     }
+
+    @Test
+    fun generatePdf_withLongPlayerNames_truncatesProperlyAndGeneratesFile() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val p1 = Player(1L, "Graf von Hohenzollern", "Maximilian Alexander")
+        val players = listOf(p1)
+        val tournament = Tournament(
+            id = 55L,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = players,
+            games = emptyMap()
+        )
+        val rankingRows = listOf(
+            RankingRowData(rank = 1, name = "Maximilian Alexander Graf von Hohenzollern", points = 0.0)
+        )
+
+        val file = TournamentPdfGenerator.generatePdf(context, tournament, rankingRows)
+        assertNotNull(file)
+        assertTrue(file.exists())
+        assertTrue(file.length() > 0)
+    }
+
+    @Test
+    fun generatePdf_withEmptyRankingsAndNoPlayers_generatesSafelyWithoutCrash() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val tournament = Tournament(
+            id = 77L,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = emptyList(),
+            games = emptyMap()
+        )
+        val rankingRows = emptyList<RankingRowData>()
+
+        val file = TournamentPdfGenerator.generatePdf(context, tournament, rankingRows)
+        assertNotNull(file)
+        assertTrue(file.exists())
+        assertTrue(file.length() > 0)
+    }
 }

@@ -205,5 +205,25 @@ class CreateTournamentRankingsUseCaseTest {
         coVerify { tournamentRepository.saveRankings(capture(capturedEntries)) }
         assertEquals(0, capturedEntries.captured.size)
     }
+
+    @Test
+    fun `invoke with all open games gives everyone 0 points and rank 1`() = runTest {
+        val p1 = Player(1, "A", "A")
+        val p2 = Player(2, "B", "B")
+        val games = mapOf(
+            1L to Game(1, 1, 2, 1, GameResult.Open)
+        )
+        val tournament = Tournament(100, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(p1, p2), games)
+
+        useCase(tournament)
+
+        val capturedEntries = slot<List<PlayerRankingEntry>>()
+        coVerify { tournamentRepository.saveRankings(capture(capturedEntries)) }
+        assertEquals(2, capturedEntries.captured.size)
+        assertEquals(0.0, capturedEntries.captured[0].points, 0.0)
+        assertEquals(1, capturedEntries.captured[0].rank)
+        assertEquals(0.0, capturedEntries.captured[1].points, 0.0)
+        assertEquals(1, capturedEntries.captured[1].rank)
+    }
 }
 

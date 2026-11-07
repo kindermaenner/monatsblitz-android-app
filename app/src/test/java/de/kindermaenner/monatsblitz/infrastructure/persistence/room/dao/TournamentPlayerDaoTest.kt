@@ -64,4 +64,22 @@ class TournamentPlayerDaoTest : DaoTest() {
         val t2Ranking = tournamentPlayerDao.observeRankingForTournament(t2).first()
         assertEquals(1, t2Ranking.size)
     }
+
+    @Test
+    fun setPlayerWithdrawn_marksPlayerAsLeftAndIsReflectedInRankingWithPlayers() = runTest {
+        val p1 = playerDao.insert(PlayerEntity(name = "Meier", vorname = "Alice"))
+        val t1 = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null))
+
+        tournamentPlayerDao.insertAll(listOf(
+            TournamentPlayerCrossRef(t1, p1, points = 2.0, rank = 1, hasLeft = false)
+        ))
+
+        var ranking = tournamentPlayerDao.observeRankingWithPlayers(t1).first()
+        assertEquals(false, ranking[0].hasLeft)
+
+        tournamentPlayerDao.setPlayerWithdrawn(t1, p1, hasLeft = true)
+
+        ranking = tournamentPlayerDao.observeRankingWithPlayers(t1).first()
+        assertEquals(true, ranking[0].hasLeft)
+    }
 }

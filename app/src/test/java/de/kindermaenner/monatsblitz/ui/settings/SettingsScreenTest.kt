@@ -318,6 +318,37 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun settingsScreen_whenNotConfigured_dismissButtonClosesWarningDialogWithoutNavigating() {
+        offlineFlow.value = false
+        serverUrlFlow.value = ""
+        apiKeyFlow.value = ""
+
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+        var backClicked = false
+
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onBack = { backClicked = true }
+            )
+        }
+
+        // Click Back icon
+        composeTestRule.onNodeWithContentDescription("Zurück").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Betriebsmodus erforderlich").assertExists()
+
+        // Click dismiss button "Hier bleiben & einrichten"
+        composeTestRule.onNodeWithText("Hier bleiben & einrichten").performClick()
+        composeTestRule.waitForIdle()
+
+        // Dialog should be gone and back should not have been called
+        composeTestRule.onNodeWithText("Betriebsmodus erforderlich").assertDoesNotExist()
+        org.junit.Assert.assertFalse("Back should not have been triggered", backClicked)
+    }
+
+    @Test
     fun settingsScreen_fixedModePreselection_rendersChipsAndHandlesSelection() {
         val modeTypeFlow = MutableStateFlow(de.kindermaenner.monatsblitz.domain.model.ModePreselectionType.FIXED)
         val fixedModeFlow = MutableStateFlow("3+2")

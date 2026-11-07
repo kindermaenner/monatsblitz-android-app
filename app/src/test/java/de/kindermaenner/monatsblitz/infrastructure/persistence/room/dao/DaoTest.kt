@@ -16,6 +16,7 @@ abstract class DaoTest {
     protected lateinit var tournamentDao: TournamentDao
     protected lateinit var gameDao: GameDao
     protected lateinit var tournamentPlayerDao: TournamentPlayerDao
+    protected lateinit var modeDao: ModeDao
 
     @Before
     fun createDb() {
@@ -27,6 +28,7 @@ abstract class DaoTest {
         tournamentDao = db.tournamentDao()
         gameDao = db.gameDao()
         tournamentPlayerDao = db.tournamentPlayerDao()
+        modeDao = db.modeDao()
     }
 
     @After

@@ -41,4 +41,26 @@ class CreateNewGamesUseCaseTest {
     fun `invoke with invalid rounds throws exception`() {
         useCase(players, 3)
     }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `invoke with zero rounds throws exception`() {
+        useCase(players, 0)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `invoke with negative rounds throws exception`() {
+        useCase(players, -1)
+    }
+
+    @Test
+    fun `invoke with zero or one player returns empty game list`() {
+        val emptyGames = useCase(emptyList(), 1)
+        assertEquals(0, emptyGames.size)
+
+        val singlePlayerGames = useCase(listOf(Player(1, "A", "A")), 1)
+        assertEquals(0, singlePlayerGames.size)
+
+        val singlePlayerDoubleRound = useCase(listOf(Player(1, "A", "A")), 2)
+        assertEquals(0, singlePlayerDoubleRound.size)
+    }
 }

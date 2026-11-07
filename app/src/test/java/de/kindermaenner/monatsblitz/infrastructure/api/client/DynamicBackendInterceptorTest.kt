@@ -109,4 +109,27 @@ class DynamicBackendInterceptorTest {
 
         interceptor.intercept(chain)
     }
+
+    @Test
+    fun `leaves URL unchanged if serverUrlProvider returns malformed url`() {
+        val interceptor = DynamicBackendInterceptor(
+            serverUrlProvider = { "not a valid url at all" },
+            apiKeyProvider = { "key-123" }
+        )
+
+        val request = Request.Builder()
+            .url("https://dynamic.monatsblitz.local/wp-json/monatsblitz/v1/players")
+            .build()
+
+        val chain = mockk<Interceptor.Chain>()
+        every { chain.request() } returns request
+        every { chain.proceed(any()) } answers {
+            val intercepted = arg<Request>(0)
+            assertEquals("https://dynamic.monatsblitz.local/wp-json/monatsblitz/v1/players", intercepted.url.toString())
+            assertEquals("key-123", intercepted.header("X-MB-Key"))
+            mockk<Response>()
+        }
+
+        interceptor.intercept(chain)
+    }
 }

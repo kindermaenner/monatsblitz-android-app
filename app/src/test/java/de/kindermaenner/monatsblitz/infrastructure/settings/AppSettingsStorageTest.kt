@@ -334,4 +334,24 @@ class AppSettingsStorageTest {
         storage.setPreferRufnameAsShortName(false)
         assertEquals(false, updatedPrefs?.get(preferRufnameKey))
     }
+
+    @Test
+    fun `corrupted or unknown enum values fall back gracefully to defaults`() = runTest {
+        val playerSortFieldKey = stringPreferencesKey("player_sort_field")
+        val playerSortOrderKey = stringPreferencesKey("player_sort_order")
+        val modeTypeKey = stringPreferencesKey("mode_preselection_type")
+
+        val corruptedPrefs = mutablePreferencesOf(
+            playerSortFieldKey to "UNKNOWN_SORT_FIELD",
+            playerSortOrderKey to "CORRUPT_ORDER",
+            modeTypeKey to "OBSOLETE_MODE_TYPE"
+        )
+        every { dataStore.data } returns flowOf(corruptedPrefs)
+
+        val storage = AppSettingsStorage(dataStore)
+
+        assertEquals(de.kindermaenner.monatsblitz.domain.model.PlayerSortField.FIRST_NAME, storage.playerSortField.first())
+        assertEquals(de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder.ASCENDING, storage.playerSortOrder.first())
+        assertEquals(de.kindermaenner.monatsblitz.domain.model.ModePreselectionType.NONE, storage.modePreselectionType.first())
+    }
 }

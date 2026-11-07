@@ -19,6 +19,9 @@ class AppContainerTest {
 
         assertNotNull(container.database)
         assertNotNull(container.playerRepository)
+        assertNotNull(container.modeRepository)
+        assertNotNull(container.modeRemoteDataSource)
+        assertNotNull(container.syncModesUseCase)
         assertNotNull(container.tournamentStorage)
         assertNotNull(container.tournamentRepository)
         assertNotNull(container.playerRemoteDataSource)

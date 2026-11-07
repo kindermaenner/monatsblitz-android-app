@@ -916,4 +916,38 @@ class TournamentSetupViewModelTest {
         coVerify { syncPlayersUseCase.invoke() }
         coVerify { syncModesUseCase.invoke() }
     }
+
+    @Test
+    fun `createTournament handles unexpected exception from createTournamentUseCase and resets loading state`() = runTest {
+        val p1 = Player(1, "Meier", "Alice")
+        coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1))
+        coEvery { createTournamentUseCase(any(), any(), any(), any(), any(), any(), any()) } throws RuntimeException("SQLite disk error")
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository = playerRepository,
+            createTournamentUseCase = createTournamentUseCase,
+            addPlayerUseCase = addPlayerUseCase,
+            settingsRepository = settingsRepository
+        )
+        advanceUntilIdle()
+
+        viewModel.togglePlayer(1L)
+        viewModel.onModeChanged(GameMode.BLITZ_3_2)
+
+        var navigationEmitted = false
+        val navJob = launch {
+            viewModel.navigationEffect.collect {
+                navigationEmitted = true
+            }
+        }
+
+        viewModel.createTournament()
+        advanceUntilIdle()
+
+        assertFalse("Should not navigate when createTournament fails", navigationEmitted)
+        assertFalse("isLoading must be reset to false", viewModel.uiState.value.isLoading)
+        assertEquals("loadingMessage must be null", null, viewModel.uiState.value.loadingMessage)
+
+        navJob.cancel()
+    }
 }

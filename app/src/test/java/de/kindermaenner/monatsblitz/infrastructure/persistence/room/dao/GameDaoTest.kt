@@ -70,4 +70,60 @@ class GameDaoTest : DaoTest() {
         assertEquals(555L, game?.remoteId)
         assertEquals(false, game?.dirty)
     }
+
+    @Test
+    fun deleteGamesForLegGreaterThan_deletesOnlyTargetLegsOfSpecifiedTournament() = runTest {
+        val p1 = playerDao.insert(de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(name = "P1", vorname = "V1"))
+        val p2 = playerDao.insert(de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(name = "P2", vorname = "V2"))
+        val t1 = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 2, remoteId = null))
+        val t2 = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_5_0, date = LocalDate.now(), rounds = 2, remoteId = null))
+
+        // t1: leg 1 and leg 2
+        gameDao.insert(GameEntity(tournamentId = t1, player1Id = p1, player2Id = p2, leg = 1, result = GameResult.Win))
+        gameDao.insert(GameEntity(tournamentId = t1, player1Id = p2, player2Id = p1, leg = 2, result = GameResult.Loss))
+
+        // t2: leg 1 and leg 2
+        gameDao.insert(GameEntity(tournamentId = t2, player1Id = p1, player2Id = p2, leg = 1, result = GameResult.Remis))
+        gameDao.insert(GameEntity(tournamentId = t2, player1Id = p2, player2Id = p1, leg = 2, result = GameResult.Win))
+
+        // Delete leg > 1 for t1
+        gameDao.deleteGamesForLegGreaterThan(t1, 1)
+
+        val t1Games = gameDao.getGamesForTournament(t1)
+        assertEquals(1, t1Games.size)
+        assertEquals(1, t1Games[0].leg)
+
+        val t2Games = gameDao.getGamesForTournament(t2)
+        assertEquals(2, t2Games.size)
+    }
+
+    @Test
+    fun deleteForTournament_removesAllGamesForSpecificTournament() = runTest {
+        val p1 = playerDao.insert(de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(name = "P1", vorname = "V1"))
+        val p2 = playerDao.insert(de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(name = "P2", vorname = "V2"))
+        val t1 = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null))
+        val t2 = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_5_0, date = LocalDate.now(), rounds = 1, remoteId = null))
+
+        gameDao.insert(GameEntity(tournamentId = t1, player1Id = p1, player2Id = p2, leg = 1, result = GameResult.Win))
+        gameDao.insert(GameEntity(tournamentId = t2, player1Id = p1, player2Id = p2, leg = 1, result = GameResult.Loss))
+
+        gameDao.deleteForTournament(t1)
+
+        assertEquals(0, gameDao.getGamesForTournament(t1).size)
+        assertEquals(1, gameDao.getGamesForTournament(t2).size)
+    }
+
+    @Test
+    fun getDirtyGames_returnsAllDirtyGamesAcrossTournaments() = runTest {
+        val p1 = playerDao.insert(de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(name = "P1", vorname = "V1"))
+        val p2 = playerDao.insert(de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(name = "P2", vorname = "V2"))
+        val t1 = tournamentDao.insert(TournamentEntity(mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null))
+
+        gameDao.insert(GameEntity(tournamentId = t1, player1Id = p1, player2Id = p2, leg = 1, result = GameResult.Win, dirty = true))
+        gameDao.insert(GameEntity(tournamentId = t1, player1Id = p2, player2Id = p1, leg = 1, result = GameResult.Remis, dirty = false))
+
+        val dirtyList = gameDao.getDirtyGames()
+        assertEquals(1, dirtyList.size)
+        assertEquals(GameResult.Win, dirtyList[0].result)
+    }
 }

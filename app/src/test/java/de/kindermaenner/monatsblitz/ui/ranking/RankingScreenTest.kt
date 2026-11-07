@@ -314,4 +314,82 @@ class RankingScreenTest {
         // Dialog should be dismissed after clicking OK
         composeTestRule.onNodeWithText("Fehler beim Abschluss").assertDoesNotExist()
     }
+
+    @Test
+    fun rankingScreen_finalizeSuccessDialog_localOnly_showsOfflineTextAndHandlesExportAndFinish() {
+        val tournamentId = 1L
+        val rankingItems = listOf(TournamentRankingItem(playerId = 1L, rank = 1, name = "Max", points = 1.0))
+        val tournament = Tournament(id = tournamentId, date = LocalDate.now(), mode = GameMode.BLITZ_5_0, rounds = 1, players = emptyList(), isLocalOnly = true)
+
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        every { tournamentRepository.observeTournament(tournamentId) } returns flowOf(tournament)
+
+        val finalizeUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase>()
+        io.mockk.coEvery { finalizeUseCase(tournamentId) } returns Unit
+
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository, finalizeUseCase)
+        var finalizedCalled = false
+
+        composeTestRule.setContent {
+            RankingScreen(
+                viewModel = viewModel,
+                onBack = {},
+                onFinalized = { finalizedCalled = true }
+            )
+        }
+
+        viewModel.finalizeTournament()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Offline-Turnier abgeschlossen").assertExists()
+        composeTestRule.onNodeWithText("Das Offline-Turnier wurde erfolgreich abgeschlossen. Es wurden keine Daten an die Website übertragen. Du kannst die Ergebnisse jetzt als PDF speichern oder teilen.").assertExists()
+
+        composeTestRule.onNodeWithTag("finalize_export_pdf_button").assertExists()
+
+        composeTestRule.onNodeWithTag("finalize_done_button").assertExists().performClick()
+        assertTrue(finalizedCalled)
+    }
+
+    @Test
+    fun rankingScreen_finalizeConfirmDialog_localOnly_showsOfflineTitle() {
+        val tournamentId = 1L
+        val rankingItems = listOf(TournamentRankingItem(playerId = 1L, rank = 1, name = "Max", points = 1.0))
+        val tournament = Tournament(id = tournamentId, date = LocalDate.now(), mode = GameMode.BLITZ_5_0, rounds = 1, players = emptyList(), isLocalOnly = true)
+
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        every { tournamentRepository.observeTournament(tournamentId) } returns flowOf(tournament)
+
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository, mockk(relaxed = true))
+
+        composeTestRule.setContent {
+            RankingScreen(viewModel = viewModel, onBack = {})
+        }
+
+        composeTestRule.onNodeWithTag("finalize_button").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Offline-Turnier abschließen?").assertExists()
+        composeTestRule.onNodeWithText("Abbrechen").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Offline-Turnier abschließen?").assertDoesNotExist()
+    }
+
+    @Test
+    fun rankingScreen_topBarPdfExport_triggersPdfSharing() {
+        val tournamentId = 1L
+        val rankingItems = listOf(TournamentRankingItem(playerId = 1L, rank = 1, name = "Max", points = 1.0))
+        val tournament = Tournament(id = tournamentId, date = LocalDate.now(), mode = GameMode.BLITZ_5_0, rounds = 1, players = emptyList(), isLocalOnly = false)
+
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        every { tournamentRepository.observeTournament(tournamentId) } returns flowOf(tournament)
+
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository, mockk(relaxed = true))
+
+        composeTestRule.setContent {
+            RankingScreen(viewModel = viewModel, onBack = {})
+        }
+
+        composeTestRule.onNodeWithTag("export_pdf_button").assertExists()
+    }
 }

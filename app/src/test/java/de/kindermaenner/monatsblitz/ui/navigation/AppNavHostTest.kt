@@ -134,4 +134,64 @@ class AppNavHostTest {
 
         composeTestRule.onNodeWithText("Neues Turnier").assertExists()
     }
+
+    @Test
+    fun appNavHost_fromSetup_navigatesToSettings() {
+        composeTestRule.setContent {
+            navController = TestNavHostController(LocalContext.current)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            AppNavHost(
+                navController = navController,
+                appContainer = appContainer,
+                startDestination = AppRoute.TournamentSetup,
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Einstellungen").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Einstellungen").assertExists()
+    }
+
+    @Test
+    fun appNavHost_fromCrosstable_navigatesToSettings() {
+        composeTestRule.setContent {
+            navController = TestNavHostController(LocalContext.current)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            AppNavHost(
+                navController = navController,
+                appContainer = appContainer,
+                startDestination = AppRoute.Crosstable(1L),
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Weitere Optionen").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Einstellungen").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Einstellungen").assertExists()
+    }
+
+    @Test
+    fun appNavHost_fromCrosstable_onBackToSetup_resetsAndNavigatesToSetup() {
+        composeTestRule.setContent {
+            navController = TestNavHostController(LocalContext.current)
+            navController.navigatorProvider.addNavigator(ComposeNavigator())
+            AppNavHost(
+                navController = navController,
+                appContainer = appContainer,
+                startDestination = AppRoute.Crosstable(1L),
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Turnier abbrechen").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Ja, abbrechen").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Neues Turnier").assertExists()
+    }
 }

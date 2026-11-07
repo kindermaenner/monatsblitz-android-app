@@ -377,4 +377,127 @@ class CrosstableScreenTest {
 
         org.junit.Assert.assertEquals(2, viewModel.selectedLeg.value)
     }
+
+    @Test
+    fun crosstableScreen_cancelDialog_confirmAndDismiss() {
+        val tournament = Tournament(1, GameMode.BLITZ_3_2, LocalDate.now(), 1, listOf(Player(1, "A", "A")))
+        coEvery { repository.observeTournament(1) } returns flowOf(tournament)
+        val viewModel = CrosstableViewModel(repository, setGameResultUseCase, createTournamentRankingsUseCase, 1)
+        var backCalled = false
+
+        composeTestRule.setContent {
+            CrosstableScreen(
+                viewModel = viewModel,
+                onNavigateToRanking = {},
+                onBackToSetup = { backCalled = true }
+            )
+        }
+
+        // Open cancel dialog
+        composeTestRule.onNodeWithContentDescription("Turnier abbrechen").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Turnier abbrechen?").assertExists()
+
+        // Dismiss
+        composeTestRule.onNodeWithText("Nein, weitermachen").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Turnier abbrechen?").assertDoesNotExist()
+
+        // Open again and confirm
+        composeTestRule.onNodeWithContentDescription("Turnier abbrechen").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Ja, abbrechen").performClick()
+        composeTestRule.waitForIdle()
+
+        org.junit.Assert.assertTrue(backCalled)
+    }
+
+    @Test
+    fun crosstableScreen_playerAlreadyWithdrawn_showsInfoDialog() {
+        val p1 = Player(1, "Meier", "Alice")
+        val tournament = Tournament(
+            id = 42,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = listOf(p1),
+            withdrawnPlayerIds = setOf(1L)
+        )
+        coEvery { repository.observeTournament(42) } returns flowOf(tournament)
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase(),
+            tournamentId = 42L
+        )
+
+        composeTestRule.setContent {
+            CrosstableScreen(
+                viewModel = viewModel,
+                onNavigateToRanking = {}
+            ) {}
+        }
+
+        // Click withdrawn player row
+        composeTestRule.onNodeWithText("Alice (z)").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Alice hat das Turnier bereits vorzeitig beendet (z).").assertExists()
+        composeTestRule.onNodeWithText("Schließen").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Alice hat das Turnier bereits vorzeitig beendet (z).").assertDoesNotExist()
+    }
+
+    @Test
+    fun crosstableScreen_changeRounds_reductionWithPlayedGames_showsWarning() {
+        val p1 = Player(1, "Meier", "Alice")
+        val p2 = Player(2, "Mueller", "Bob")
+        val gameInRound2 = de.kindermaenner.monatsblitz.domain.model.Game(
+            id = 10,
+            player1Id = 1,
+            player2Id = 2,
+            leg = 2,
+            result = de.kindermaenner.monatsblitz.domain.model.GameResult.Win
+        )
+        val tournament = Tournament(
+            id = 42,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 2,
+            players = listOf(p1, p2),
+            games = mapOf(10L to gameInRound2)
+        )
+        coEvery { repository.observeTournament(42) } returns flowOf(tournament)
+
+        val viewModel = CrosstableViewModel(
+            repository = repository,
+            setGameResultUseCase = setGameResultUseCase,
+            createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+            calculatePlayerPointsUseCase = de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase(),
+            tournamentId = 42L
+        )
+
+        composeTestRule.setContent {
+            CrosstableScreen(
+                viewModel = viewModel,
+                onNavigateToRanking = {}
+            ) {}
+        }
+
+        // Open overflow menu
+        composeTestRule.onNodeWithContentDescription("Weitere Optionen").performClick()
+        composeTestRule.onNodeWithTag("crosstable_change_rounds_menu_item").assertExists()
+        composeTestRule.onNodeWithText("Auf Einfachrunde reduzieren").performClick()
+        composeTestRule.waitForIdle()
+
+        // Warning dialog is displayed
+        composeTestRule.onNodeWithText("Auf Einfachrunde reduzieren").assertExists()
+        composeTestRule.onNodeWithTag("cancel_change_rounds_dialog_button").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("confirm_change_rounds_dialog_button").assertDoesNotExist()
+    }
 }

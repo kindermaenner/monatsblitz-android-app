@@ -1568,4 +1568,68 @@ class TournamentRepositoryImplTest {
         val modes = repo.getRecentTournamentModes()
         org.junit.Assert.assertEquals(listOf("5+0"), modes)
     }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `addPlayerToTournament throws when tournament does not exist`() = runTest {
+        coEvery { tournamentDao.getTournament(999L) } returns null
+
+        repository.addPlayerToTournament(999L, 1L)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `addPlayerToTournament throws when player does not exist`() = runTest {
+        val tournament = TournamentEntity(id = 1L, mode = GameMode.BLITZ_3_2, date = LocalDate.now(), rounds = 1, remoteId = null)
+        coEvery { tournamentDao.getTournament(1L) } returns TournamentWithDetails(tournament, emptyList(), emptyList())
+        val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>()
+        coEvery { playerDaoMock.getPlayerById(555L) } returns null
+
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDaoMock
+        )
+
+        repo.addPlayerToTournament(1L, 555L)
+    }
+
+    @Test
+    fun `finalizeLocalTournament calls tournamentStorage finalizeTournament`() = runTest {
+        repository.finalizeLocalTournament(1L)
+
+        coVerify { tournamentStorage.finalizeTournament() }
+    }
+
+    @Test
+    fun `updateTournamentRounds catches and logs exception when syncing dirty tournaments fails`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        coEvery { api.createTournament(any()) } throws RuntimeException("Network error")
+        val dirtyEntity = TournamentEntity(
+            id = 1L,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            remoteId = 100L,
+            isLocalOnly = false,
+            dirty = true
+        )
+        val tournamentWithDetails = TournamentWithDetails(dirtyEntity, emptyList(), emptyList())
+        coEvery { tournamentDao.getTournament(1L) } returns tournamentWithDetails
+        coEvery { tournamentDao.getDirtyTournaments() } returns listOf(tournamentWithDetails)
+
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            monatsblitzApi = api
+        )
+
+        repo.updateTournamentRounds(1L, 2)
+
+        coVerify { tournamentDao.updateTournamentRounds(1L, 2) }
+    }
 }

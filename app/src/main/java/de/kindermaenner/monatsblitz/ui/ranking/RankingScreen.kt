@@ -216,7 +216,7 @@ private fun RankingTopBar(
 }
 
 @Composable
-private fun FinalizeConfirmDialog(
+internal fun FinalizeConfirmDialog(
     show: Boolean,
     openGamesCount: Int,
     isLocalOnly: Boolean = false,

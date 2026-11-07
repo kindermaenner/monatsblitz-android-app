@@ -12,6 +12,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.Player
+import de.kindermaenner.monatsblitz.domain.model.PlayerFilterMode
 import de.kindermaenner.monatsblitz.domain.repository.PlayerRepository
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
@@ -549,5 +550,134 @@ class TournamentSetupScreenTest {
 
         composeTestRule.onNodeWithText("Zusatzbezeichnung / Gruppe (optional)").performTextInput("Gruppe A")
         assertEquals("Gruppe A", label.value)
+    }
+
+    @Test
+    fun setupScreen_confirmAddModeDialog_confirmsAndDismisses() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(
+            showConfirmAddModeDialog = true,
+            newModeName = "7+3"
+        )
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Modus anlegen").assertExists()
+        composeTestRule.onNodeWithText("Soll der Modus '7+3' neu angelegt und mit dem Server synchronisiert werden?").assertExists()
+        composeTestRule.onNodeWithText("Abbrechen").assertExists().performClick()
+        assertFalse(viewModel.uiState.value.showConfirmAddModeDialog)
+    }
+
+    @Test
+    fun setupScreen_confirmAddModeDialog_confirmsExecutesAddMode() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(
+            showConfirmAddModeDialog = true,
+            newModeName = "7+3"
+        )
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Ja, anlegen").assertExists().performClick()
+        assertFalse(viewModel.uiState.value.showConfirmAddModeDialog)
+    }
+
+    @Test
+    fun setupScreen_isCheckingForOpenTournament_showsProgressMessage() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(isCheckingForOpenTournament = true)
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Prüfe auf laufendes Turnier…").assertExists()
+    }
+
+    @Test
+    fun setupScreen_remoteOpenTournamentDialog_clickFortsetzen() {
+        val openInfo = RemoteOpenTournamentInfo(
+            id = 42,
+            date = "2026-11-07",
+            mode = "Blitz 5+0",
+            rounds = 1,
+            playerCount = 8,
+            dailyNumber = 1
+        )
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(remoteOpenTournament = openInfo)
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Fortsetzen").assertExists().performClick()
+    }
+
+    @Test
+    fun setupScreen_adoptErrorDialog_clickFehlerMelden() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(adoptError = "Verbindungsabbruch zum Server")
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Fehler melden").assertExists().performClick()
+    }
+
+    @Test
+    fun setupScreen_emptyPlayerListMessages() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        viewModel.onSearchQueryChanged("Unbekannt")
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Kein Spieler gefunden für 'Unbekannt'.").assertExists()
+    }
+
+    @Test
+    fun setupScreen_emptyActivePlayersMessage() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        viewModel.onPlayerFilterModeChanged(PlayerFilterMode.ACTIVE)
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Keine aktiven Spieler gefunden.").assertExists()
+    }
+
+    @Test
+    fun setupScreen_noPlayersAtAllMessage() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        viewModel.onPlayerFilterModeChanged(PlayerFilterMode.ALL)
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Noch keine Spieler vorhanden.").assertExists()
     }
 }

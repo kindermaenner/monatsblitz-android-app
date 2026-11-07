@@ -5,7 +5,10 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import de.kindermaenner.monatsblitz.domain.model.Game
 import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.GameResult
+import de.kindermaenner.monatsblitz.domain.model.Player
 import de.kindermaenner.monatsblitz.domain.model.Tournament
 import de.kindermaenner.monatsblitz.domain.model.TournamentRankingItem
 import de.kindermaenner.monatsblitz.domain.repository.TournamentRepository
@@ -391,5 +394,92 @@ class RankingScreenTest {
         }
 
         composeTestRule.onNodeWithTag("export_pdf_button").assertExists()
+    }
+
+    @Test
+    fun rankingScreen_loadingState_displaysTopBarTitle() {
+        val tournamentId = 1L
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns kotlinx.coroutines.flow.emptyFlow()
+        every { tournamentRepository.observeTournament(tournamentId) } returns kotlinx.coroutines.flow.emptyFlow()
+
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository)
+
+        composeTestRule.setContent {
+            RankingScreen(viewModel = viewModel, onBack = {})
+        }
+
+        composeTestRule.onNodeWithText("Rangliste").assertExists()
+        composeTestRule.onNodeWithTag("finalize_button").assertDoesNotExist()
+    }
+
+    @Test
+    fun rankingScreen_openGamesWarning_showsSingularForOneGame() {
+        composeTestRule.setContent {
+            FinalizeConfirmDialog(
+                show = true,
+                openGamesCount = 1,
+                isLocalOnly = false,
+                onConfirm = {},
+                onDismiss = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Achtung: Es ist noch 1 Partie offen!").assertExists()
+    }
+
+    @Test
+    fun rankingScreen_openGamesWarning_showsPluralForMultipleGames() {
+        composeTestRule.setContent {
+            FinalizeConfirmDialog(
+                show = true,
+                openGamesCount = 3,
+                isLocalOnly = false,
+                onConfirm = {},
+                onDismiss = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Achtung: Es sind noch 3 Partien offen!").assertExists()
+    }
+
+    @Test
+    fun rankingScreen_isFinalizing_showsProgressInButton() {
+        val tournamentId = 1L
+        val rankingItems = listOf(TournamentRankingItem(playerId = 1L, rank = 1, name = "Max", points = 1.0))
+        val tournament = Tournament(
+            id = tournamentId,
+            date = LocalDate.now(),
+            mode = GameMode.BLITZ_5_0,
+            rounds = 1,
+            players = listOf(Player(1L, "Mustermann", "Max")),
+            games = emptyMap(),
+            isLocalOnly = false
+        )
+
+        val deferred = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val finalizeUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase>()
+        io.mockk.coEvery { finalizeUseCase(tournamentId) } coAnswers { deferred.await() }
+
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        every { tournamentRepository.observeTournament(tournamentId) } returns flowOf(tournament)
+
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository, finalizeUseCase)
+
+        composeTestRule.setContent {
+            RankingScreen(viewModel = viewModel, onBack = {})
+        }
+
+        composeTestRule.onNodeWithTag("finalize_button").performClick()
+        composeTestRule.waitForIdle()
+
+        // In confirm dialog, click "Jetzt abschließen"
+        composeTestRule.onNodeWithText("Jetzt abschließen").performClick()
+        composeTestRule.waitForIdle()
+
+        // Now finalize is in progress
+        composeTestRule.onNodeWithText("Wird abgeschlossen...").assertExists()
+
+        // Clean up coroutine
+        deferred.complete(Unit)
     }
 }

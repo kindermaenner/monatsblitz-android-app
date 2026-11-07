@@ -30,5 +30,6 @@ jobs:
       release-title-prefix: "Monatsblitz App"
       java-version: "21"
       run-unit-tests: true
+      run-sonar: true
       run-ftp-upload: true
       release-tag: ${{ inputs.release-tag || '' }}

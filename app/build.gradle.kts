@@ -21,10 +21,12 @@ kover {
                 classes(
                     "de.kindermaenner.monatsblitz.infrastructure.persistence.room.*_Impl*",
                     "de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.*_Impl*",
-                    "de.kindermaenner.monatsblitz.ui.theme.*"
+                    "de.kindermaenner.monatsblitz.ui.theme.*",
+                    "de.kindermaenner.monatsblitz.infrastructure.api.dto.*"
                 )
                 packages(
-                    "de.kindermaenner.monatsblitz.ui.theme"
+                    "de.kindermaenner.monatsblitz.ui.theme",
+                    "de.kindermaenner.monatsblitz.infrastructure.api.dto"
                 )
             }
         }

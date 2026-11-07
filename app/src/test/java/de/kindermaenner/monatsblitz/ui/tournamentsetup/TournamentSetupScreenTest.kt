@@ -18,6 +18,7 @@ import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -357,5 +358,196 @@ class TournamentSetupScreenTest {
         composeTestRule.onNodeWithText("Aktive (2)").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Bob Mueller").assertExists()
+    }
+
+    @Test
+    fun setupScreen_loadingOverlay_displaysIndicatorAndText() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(
+            isLoading = true,
+            loadingMessage = "Turnierdaten werden geladen..."
+        )
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Turnierdaten werden geladen...").assertExists()
+    }
+
+    @Test
+    fun setupScreen_confirmParallelTournamentDialog_confirmAndDismiss() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(
+            showConfirmParallelTournamentDialog = true,
+            parallelTournamentWarningText = "Achtung: Es existiert bereits ein aktives Turnier!"
+        )
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Paralleles Turnier starten?").assertExists()
+        composeTestRule.onNodeWithText("Achtung: Es existiert bereits ein aktives Turnier!").assertExists()
+        composeTestRule.onNodeWithText("Ja, neues Turnier starten").assertExists()
+        composeTestRule.onNodeWithText("Abbrechen").performClick()
+
+        assertFalse(viewModel.uiState.value.showConfirmParallelTournamentDialog)
+    }
+
+    @Test
+    fun setupScreen_addModeDialog_inputAndTogglePermanent() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        viewModel.onShowAddModeDialog(true)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Neuen Modus anlegen").assertExists()
+        composeTestRule.onNodeWithText("Dauerhaft in Auswahlliste speichern").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("z. B. 10+0 oder Jubiläumsblitz").performTextInput("10+0")
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Abbrechen").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Neuen Modus anlegen").assertDoesNotExist()
+    }
+
+    @Test
+    fun setupScreen_addPlayerDialog_optionalRufnameAndDismiss() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        composeTestRule.onNodeWithText("Neuer Spieler").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Neuen Spieler anlegen").assertExists()
+
+        composeTestRule.onNodeWithText("Vorname").performTextInput("Jan")
+        composeTestRule.onNodeWithText("Nachname").performTextInput("Kowalski")
+        composeTestRule.onNodeWithText("Rufname (optional)").performTextInput("Jani")
+
+        composeTestRule.onNodeWithText("Abbrechen").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Neuen Spieler anlegen").assertDoesNotExist()
+    }
+
+    @Test
+    fun setupScreen_filterRow_menuOptionsAndClearSelection() {
+        val p1 = Player(1, "Meier", "Alice")
+        val p2 = Player(2, "Mueller", "Bob")
+        coEvery { playerRepository.observePlayers() } returns flowOf(listOf(p1, p2))
+
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        viewModel.onPlayerChecked(1L, true)
+        viewModel.onPlayerChecked(2L, true)
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        // Open overflow menu
+        composeTestRule.onNodeWithContentDescription("Weitere Optionen").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Alle Spieler anzeigen (2)").assertExists().performClick()
+        composeTestRule.waitForIdle()
+
+        // Open menu again for sort Z-A
+        composeTestRule.onNodeWithContentDescription("Weitere Optionen").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Sortierung Z➔A").assertExists().performClick()
+        composeTestRule.waitForIdle()
+
+        // Open menu again for sort A-Z
+        composeTestRule.onNodeWithContentDescription("Weitere Optionen").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Sortierung A➔Z").assertExists().performClick()
+        composeTestRule.waitForIdle()
+
+        // Open menu again to clear selection
+        composeTestRule.onNodeWithContentDescription("Weitere Optionen").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Alle abwählen").assertExists().performClick()
+        composeTestRule.waitForIdle()
+
+        assertTrue(viewModel.uiState.value.selectedPlayerIds.isEmpty())
+    }
+
+    @Test
+    fun setupScreen_topBar_syncAndSettingsButtons() {
+        var settingsNavigated = false
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(
+            isServerConfigured = true,
+            isStandaloneOffline = false,
+            isSyncingPlayers = false
+        )
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(
+                viewModel = viewModel,
+                onNavigateToSettings = { settingsNavigated = true }
+            ) {}
+        }
+
+        composeTestRule.onNodeWithContentDescription("Einstellungen").assertExists().performClick()
+        assertTrue(settingsNavigated)
+
+        composeTestRule.onNodeWithContentDescription("Spieler synchronisieren").assertExists().performClick()
+    }
+
+    @Test
+    fun setupScreen_serverOptions_rankingSwitchAndLabel() {
+        val countsForRanking = androidx.compose.runtime.mutableStateOf(true)
+        val label = androidx.compose.runtime.mutableStateOf("")
+
+        composeTestRule.setContent {
+            TournamentSettingsCard(
+                state = TournamentSettingsState(
+                    isExpanded = true,
+                    selectedDate = LocalDate.now(),
+                    selectedMode = GameMode.BLITZ_5_0,
+                    isServerConfigured = true,
+                    isStandaloneOffline = false,
+                    isLocalOnly = false,
+                    countsForRanking = countsForRanking.value,
+                    tournamentLabel = label.value
+                ),
+                actions = TournamentSettingsActions(
+                    onToggleExpanded = {},
+                    onDateChanged = {},
+                    onModeChanged = {},
+                    onDoubleRoundChanged = {},
+                    onCountsForRankingChanged = { countsForRanking.value = it },
+                    onTournamentLabelChanged = { label.value = it }
+                )
+            )
+        }
+
+        composeTestRule.onNodeWithText("Für Jahreswertung werten").assertExists()
+        composeTestRule.onNodeWithTag("tournament_counts_for_ranking_switch").performClick()
+        assertFalse(countsForRanking.value)
+
+        composeTestRule.onNodeWithText("Zusatzbezeichnung / Gruppe (optional)").performTextInput("Gruppe A")
+        assertEquals("Gruppe A", label.value)
     }
 }

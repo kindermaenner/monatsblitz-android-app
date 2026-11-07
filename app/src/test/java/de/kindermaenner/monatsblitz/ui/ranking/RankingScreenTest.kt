@@ -240,4 +240,78 @@ class RankingScreenTest {
         // Error dialog dismissed
         composeTestRule.onNodeWithText("Fehler beim Abschluss").assertDoesNotExist()
     }
+
+    @Test
+    fun rankingScreen_openGamesWarningInConfirmDialog() {
+        val tournamentId = 1L
+        val rankingItems = listOf(
+            TournamentRankingItem(playerId = 1L, rank = 1, name = "Max Mustermann", points = 3.0)
+        )
+        val p1 = de.kindermaenner.monatsblitz.domain.model.Player(1, "Mustermann", "Max")
+        val p2 = de.kindermaenner.monatsblitz.domain.model.Player(2, "Musterfrau", "Erika")
+        val tournament = Tournament(
+            id = tournamentId,
+            date = LocalDate.now(),
+            mode = GameMode.BLITZ_5_0,
+            rounds = 1,
+            players = listOf(p1, p2),
+            games = mapOf(
+                1L to de.kindermaenner.monatsblitz.domain.model.Game(1L, 1L, 2L, 1, de.kindermaenner.monatsblitz.domain.model.GameResult.Win)
+            ),
+            isLocalOnly = false
+        )
+
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        every { tournamentRepository.observeTournament(tournamentId) } returns flowOf(tournament)
+
+        val finalizeUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase>(relaxed = true)
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository, finalizeUseCase)
+
+        composeTestRule.setContent {
+            RankingScreen(
+                viewModel = viewModel,
+                onBack = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Turnier abschließen").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Turnier abschließen?").assertExists()
+        composeTestRule.onNodeWithText("Jetzt abschließen").assertExists().performClick()
+        composeTestRule.waitForIdle()
+
+        io.mockk.coVerify { finalizeUseCase(tournamentId) }
+    }
+
+    @Test
+    fun rankingScreen_finalizeError_canSendErrorReport() {
+        val tournamentId = 1L
+        val rankingItems = listOf(TournamentRankingItem(playerId = 1L, rank = 1, name = "Max", points = 1.0))
+        val tournament = Tournament(id = tournamentId, date = LocalDate.now(), mode = GameMode.BLITZ_5_0, rounds = 1, players = emptyList(), isLocalOnly = false)
+
+        every { tournamentRepository.observeTournamentRanking(tournamentId) } returns flowOf(rankingItems)
+        every { tournamentRepository.observeTournament(tournamentId) } returns flowOf(tournament)
+
+        val finalizeUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase>()
+        io.mockk.coEvery { finalizeUseCase(tournamentId) } throws RuntimeException("HTTP 500")
+
+        val viewModel = RankingViewModel(tournamentId, tournamentRepository, finalizeUseCase)
+
+        composeTestRule.setContent {
+            RankingScreen(viewModel = viewModel, onBack = {})
+        }
+
+        viewModel.finalizeTournament()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Fehler melden").assertExists().performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("OK").assertExists().performClick()
+        composeTestRule.waitForIdle()
+
+        // Dialog should be dismissed after clicking OK
+        composeTestRule.onNodeWithText("Fehler beim Abschluss").assertDoesNotExist()
+    }
 }

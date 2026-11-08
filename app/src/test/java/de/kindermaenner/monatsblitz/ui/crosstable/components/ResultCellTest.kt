@@ -38,7 +38,7 @@ class ResultCellTest {
         composeTestRule.onNode(hasClickAction()).performClick()
         composeTestRule.onNodeWithText("Ergebnis eintragen (R2)").assertExists()
         composeTestRule.onNodeWithText("Alice  vs.  Bob").assertExists()
-        composeTestRule.onNodeWithText("Remis", substring = true).performClick()
+        composeTestRule.onNodeWithText("Remis").performClick()
 
         assertEquals(GameResult.Remis, selectedResult)
         composeTestRule.onNodeWithText("Ergebnis eintragen (R2)").assertDoesNotExist()
@@ -62,6 +62,10 @@ class ResultCellTest {
         composeTestRule.onNode(hasClickAction()).performClick()
         composeTestRule.onNodeWithText("kl. Sieg", substring = true).performClick()
         assertEquals(GameResult.ForfeitWin, selectedResults.last())
+
+        composeTestRule.onNode(hasClickAction()).performClick()
+        composeTestRule.onNodeWithText("kl. Remis", substring = true).performClick()
+        assertEquals(GameResult.ForfeitDraw, selectedResults.last())
         composeTestRule.onNodeWithText("Ergebnis zurücksetzen / löschen").assertDoesNotExist()
 
         composeTestRule.onNode(hasClickAction()).performClick()

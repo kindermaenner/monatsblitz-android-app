@@ -158,7 +158,7 @@ private fun getResultTextStyle(value: String): Pair<androidx.compose.ui.graphics
     return when (value) {
         GameResult.Win.displayName, GameResult.ForfeitWin.displayName ->
             MaterialTheme.colorScheme.primary to FontWeight.Bold
-        GameResult.Remis.displayName ->
+        GameResult.Remis.displayName, GameResult.ForfeitDraw.displayName ->
             MaterialTheme.colorScheme.onSurface to FontWeight.SemiBold
         GameResult.Loss.displayName, GameResult.ForfeitLoss.displayName ->
             MaterialTheme.colorScheme.onSurfaceVariant to FontWeight.Normal
@@ -286,7 +286,7 @@ private fun ResultPickerDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                // --- FORFEIT RESULTS: +, - ---
+                // --- FORFEIT RESULTS: +, =, - ---
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -309,6 +309,30 @@ private fun ResultPickerDialog(
                             )
                             Text(
                                 text = "kl. Sieg",
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = { onResultSelected(GameResult.ForfeitDraw) },
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "=",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "kl. Remis",
                                 style = MaterialTheme.typography.labelSmall,
                                 maxLines = 1
                             )

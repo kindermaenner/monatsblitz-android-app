@@ -911,6 +911,56 @@ class TournamentRepositoryImplTest {
     }
 
     @Test
+    fun `adoptRemoteTournament handles missing local players and continues with resolvable players`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>(relaxed = true)
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDaoMock,
+            monatsblitzApi = api
+        )
+
+        // Tournament references remote players 101 and 999 (where 999 does not exist locally)
+        coEvery { api.getPlayers() } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerDto(id = 101, surname = "Mustermann", forename = "Max")
+        )
+        coEvery { api.getTournament(75) } returns de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(
+            id = 75,
+            date = "2026-11-06",
+            mode = "3+2",
+            roundCount = 1,
+            status = "open",
+            playerIds = listOf(101L, 999L)
+        )
+        coEvery { api.getGames(75) } returns emptyList()
+
+        val p1 = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 1L, name = "Mustermann", vorname = "Max", remoteId = 101L)
+        coEvery { playerDaoMock.getPlayerByRemoteId(101L) } returns p1
+        coEvery { playerDaoMock.getPlayerByRemoteId(999L) } returns null
+
+        coEvery { tournamentDao.getTournamentByRemoteId(75) } returns null
+        coEvery { tournamentDao.insert(any()) } returns 25L
+        coEvery { tournamentPlayerDao.deleteForTournament(25L) } returns Unit
+        coEvery { tournamentPlayerDao.insertAll(any()) } returns Unit
+        coEvery { gameDao.deleteForTournament(25L) } returns Unit
+        coEvery { tournamentPlayerDao.upsertAll(any()) } returns Unit
+        coEvery { tournamentStorage.saveTournamentState(25L, false) } returns Unit
+
+        val localId = repo.adoptRemoteTournament(75)
+        assertEquals(25L, localId)
+
+        coVerify {
+            tournamentPlayerDao.insertAll(match { refs ->
+                refs.size == 1 && refs[0].playerId == 1L
+            })
+        }
+    }
+
+    @Test
     fun `adoptRemoteTournament calculates rankings with Remis, ForfeitLoss, ForfeitDraw and assigns identical ranks on tie`() = runTest {
         val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
         val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>(relaxed = true)

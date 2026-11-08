@@ -37,6 +37,14 @@ class TournamentDumpRepositoryImplTest {
     private val gameDao = mockk<GameDao>()
     private val tournamentPlayerDao = mockk<TournamentPlayerDao>()
 
+    @org.junit.Before
+    fun setUp() {
+        coEvery { database.playerDao() } returns playerDao
+        coEvery { database.tournamentDao() } returns tournamentDao
+        coEvery { database.tournamentPlayerDao() } returns tournamentPlayerDao
+        coEvery { database.gameDao() } returns gameDao
+    }
+
     @Test
     fun `createDump creates JSON file with full tournament data`() = runTest {
         val dumpDir = tempFolder.newFolder("dumps")
@@ -244,5 +252,143 @@ class TournamentDumpRepositoryImplTest {
                 games.size == 1 && games[0].dirty && games[0].player1Id == 10L && games[0].player2Id == 20L && games[0].result == GameResult.Win
             })
         }
+    }
+
+    @Test
+    fun `createDump returns failure when tournament is not found`() = runTest {
+        val repo = TournamentDumpRepositoryImpl(
+            baseDirProvider = { tempFolder.root },
+            database = database
+        )
+        coEvery { database.tournamentDao() } returns tournamentDao
+        coEvery { tournamentDao.getTournament(999L) } returns null
+
+        val result = repo.createDump(999L)
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+    }
+
+    @Test
+    fun `cleanupOldDumps returns 0 when directory does not exist`() = runTest {
+        val nonExistentDir = File(tempFolder.root, "does_not_exist")
+        val repo = TournamentDumpRepositoryImpl(
+            baseDirProvider = { nonExistentDir },
+            database = database
+        )
+
+        val result = repo.cleanupOldDumps(3)
+        assertTrue(result.isSuccess)
+        assertEquals(0, result.getOrThrow())
+    }
+
+    @Test
+    fun `restoreDump updates tournament entity when already present in database`() = runTest {
+        val repo = TournamentDumpRepositoryImpl(
+            baseDirProvider = { tempFolder.root },
+            database = database
+        )
+
+        val jsonDump = """
+            {
+              "dumpedAt": "2026-11-08T15:00:00Z",
+              "tournamentId": 42,
+              "mode": "BLITZ_3_2",
+              "date": "2026-11-08",
+              "rounds": 1,
+              "remoteId": 100,
+              "isLocalOnly": false,
+              "countsForRanking": true,
+              "label": "Turnier",
+              "players": [],
+              "games": []
+            }
+        """.trimIndent()
+
+        val existingTournament = TournamentEntity(
+            id = 42L,
+            remoteId = 100L,
+            mode = GameMode.BLITZ_5_0,
+            date = java.time.LocalDate.now(),
+            rounds = 1
+        )
+        val details = TournamentWithDetails(existingTournament, emptyList(), emptyList())
+
+        coEvery { database.tournamentDao() } returns tournamentDao
+        coEvery { tournamentDao.getTournament(42L) } returns details
+        coEvery { tournamentDao.update(any()) } returns Unit
+
+        val result = repo.restoreDump(jsonDump)
+        assertTrue(result.isSuccess)
+        coVerify { tournamentDao.update(match { it.id == 42L && it.dirty }) }
+    }
+
+    @Test
+    fun `restoreDump falls back to GameResult Open for invalid game result string`() = runTest {
+        val repo = TournamentDumpRepositoryImpl(
+            baseDirProvider = { tempFolder.root },
+            database = database
+        )
+
+        val jsonDump = """
+            {
+              "dumpedAt": "2026-11-08T15:00:00Z",
+              "tournamentId": 42,
+              "mode": "BLITZ_3_2",
+              "date": "2026-11-08",
+              "rounds": 1,
+              "remoteId": 100,
+              "isLocalOnly": false,
+              "countsForRanking": true,
+              "label": "Turnier",
+              "players": [
+                { "localId": 1, "remoteId": null, "vorname": "A", "name": "B", "rufname": null, "hasLeft": false, "points": null, "rank": null },
+                { "localId": 2, "remoteId": null, "vorname": "C", "name": "D", "rufname": null, "hasLeft": false, "points": null, "rank": null }
+              ],
+              "games": [
+                {
+                  "localGameId": 10,
+                  "player1Id": 1,
+                  "player2Id": 2,
+                  "leg": 1,
+                  "result": "INVALID_RESULT_STRING",
+                  "remoteGameId": null,
+                  "dirty": false
+                }
+              ]
+            }
+        """.trimIndent()
+
+        coEvery { database.playerDao() } returns playerDao
+        coEvery { database.tournamentDao() } returns tournamentDao
+        coEvery { database.tournamentPlayerDao() } returns tournamentPlayerDao
+        coEvery { database.gameDao() } returns gameDao
+
+        coEvery { playerDao.findPlayersByName("A", "B") } returns emptyList()
+        coEvery { playerDao.findPlayersByName("C", "D") } returns emptyList()
+        coEvery { playerDao.insert(any()) } returnsMany listOf(1L, 2L)
+        coEvery { tournamentDao.getTournament(42L) } returns null
+        coEvery { tournamentDao.insert(any()) } returns 42L
+        coEvery { tournamentPlayerDao.upsertAll(any()) } returns Unit
+        coEvery { gameDao.upsertAll(any()) } returns listOf(10L)
+
+        val result = repo.restoreDump(jsonDump)
+        assertTrue(result.isSuccess)
+
+        coVerify {
+            gameDao.upsertAll(match { games ->
+                games.size == 1 && games[0].result == GameResult.Open
+            })
+        }
+    }
+
+    @Test
+    fun `restoreDump returns failure for invalid json`() = runTest {
+        val repo = TournamentDumpRepositoryImpl(
+            baseDirProvider = { tempFolder.root },
+            database = database
+        )
+
+        val result = repo.restoreDump("not a valid json")
+        assertTrue(result.isFailure)
     }
 }

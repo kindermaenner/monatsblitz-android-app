@@ -416,4 +416,142 @@ class SettingsScreenTest {
 
         coVerify { settingsRepository.setRotationModes(any()) }
     }
+
+    @Test
+    fun settingsScreen_adminSection_whenLocked_allowsEnteringKeyAndVerifying() {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>(relaxed = true)
+        coEvery { api.verifyMaintenanceAuth("test-admin-key") } returns
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.VerifyAuthResponseDto(valid = true, role = "admin")
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = api
+        )
+
+        composeTestRule.setContent {
+            SettingsScreen(viewModel = viewModel, onBack = {})
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Admin-Funktionen (Wartung)")
+            .performScrollTo()
+            .assertExists()
+
+        composeTestRule.onNodeWithTag("maintenance_key_input")
+            .performScrollTo()
+            .performTextInput("test-admin-key")
+
+        composeTestRule.onNodeWithTag("verify_admin_key_button")
+            .performScrollTo()
+            .performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify { api.verifyMaintenanceAuth("test-admin-key") }
+    }
+
+    @Test
+    fun settingsScreen_adminSection_whenActive_allowsReopeningTournamentAndRecreatingPostsAndLocking() {
+        maintenanceKeyFlow.value = "active_admin_key"
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>(relaxed = true)
+        val storage = mockk<de.kindermaenner.monatsblitz.infrastructure.TournamentStorage>(relaxed = true)
+
+        coEvery { api.reopenTournament("active_admin_key", any()) } returns
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.ReopenTournamentResponseDto(success = true, message = "Turnier geöffnet")
+        coEvery { api.recreatePostsWithKey("active_admin_key") } returns
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.RecreatePostsDto(success = true, processed = 2, succeeded = 2, failed = 0)
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = api,
+            tournamentStorage = storage
+        )
+
+        composeTestRule.setContent {
+            SettingsScreen(viewModel = viewModel, onBack = {})
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Admin-Modus aktiv")
+            .performScrollTo()
+            .assertExists()
+
+        // Reopen tournament
+        composeTestRule.onNodeWithTag("reopen_tournament_id_input")
+            .performScrollTo()
+            .performTextInput("42")
+
+        composeTestRule.onNodeWithTag("reopen_tournament_button")
+            .performScrollTo()
+            .performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify { api.reopenTournament("active_admin_key", match { it.tournamentId == 42L }) }
+
+        // Recreate posts
+        composeTestRule.onNodeWithTag("recreate_posts_button")
+            .performScrollTo()
+            .performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify { api.recreatePostsWithKey("active_admin_key") }
+
+        // Lock button
+        composeTestRule.onNodeWithTag("admin_lock_button")
+            .performScrollTo()
+            .performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify { settingsRepository.setMaintenanceApiKey("") }
+    }
+
+    @Test
+    fun settingsScreen_adminSection_feedbackBanner_displaysMessageAndDismisses() {
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase
+        )
+
+        composeTestRule.setContent {
+            SettingsScreen(viewModel = viewModel, onBack = {})
+        }
+        composeTestRule.waitForIdle()
+
+        // Trigger an admin error by verifying with blank input
+        composeTestRule.onNodeWithTag("maintenance_key_input")
+            .performScrollTo()
+            .performTextInput("   ")
+
+        // Call method directly on viewModel to show banner
+        viewModel.onMaintenanceKeyChanged("   ")
+        viewModel.verifyAndActivateAdminKey()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Bitte gib einen Wartungs-API-Key ein")
+            .performScrollTo()
+            .assertExists()
+
+        composeTestRule.onNodeWithTag("dismiss_admin_feedback_button")
+            .performScrollTo()
+            .performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Bitte gib einen Wartungs-API-Key ein")
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun settingsScreen_helpAndFeedback_rendersButton() {
+        val viewModel = SettingsViewModel(settingsRepository, testBackendConnectionUseCase)
+
+        composeTestRule.setContent {
+            SettingsScreen(viewModel = viewModel, onBack = {})
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Fehlerbericht / Feedback senden")
+            .performScrollTo()
+            .assertExists()
+    }
 }

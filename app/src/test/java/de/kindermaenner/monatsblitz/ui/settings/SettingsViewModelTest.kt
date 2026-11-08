@@ -2,6 +2,8 @@ package de.kindermaenner.monatsblitz.ui.settings
 
 import androidx.lifecycle.ViewModel
 import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortField
+import de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder
 import de.kindermaenner.monatsblitz.domain.model.TournamentDumpFileInfo
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.repository.TournamentDumpRepository
@@ -481,5 +483,264 @@ class SettingsViewModelTest {
         coVerify { tournamentStorage.saveTournamentState(42L, false) }
         assertTrue(viewModel.adminMessage.value?.contains("Turnier #42 erfolgreich aus Backup wiederhergestellt") == true)
         assertEquals(1, viewModel.dumps.value.size)
+    }
+
+    @Test
+    fun `verifyAndActivateAdminKey with blank key sets error`() = runTest {
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase
+        )
+        advanceUntilIdle()
+
+        viewModel.onMaintenanceKeyChanged("   ")
+        viewModel.verifyAndActivateAdminKey()
+        advanceUntilIdle()
+
+        assertEquals("Bitte gib einen Wartungs-API-Key ein", viewModel.adminError.value)
+    }
+
+    @Test
+    fun `verifyAndActivateAdminKey when api is null sets error`() = runTest {
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = null
+        )
+        advanceUntilIdle()
+
+        viewModel.onMaintenanceKeyChanged("any_key")
+        viewModel.verifyAndActivateAdminKey()
+        advanceUntilIdle()
+
+        assertEquals("API-Client nicht verfügbar", viewModel.adminError.value)
+    }
+
+    @Test
+    fun `verifyAndActivateAdminKey when api throws sets error`() = runTest {
+        coEvery { monatsblitzApi.verifyMaintenanceAuth("error_key") } throws RuntimeException("Timeout")
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = monatsblitzApi
+        )
+        advanceUntilIdle()
+
+        viewModel.onMaintenanceKeyChanged("error_key")
+        viewModel.verifyAndActivateAdminKey()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.adminError.value?.contains("Verbindung fehlgeschlagen") == true)
+    }
+
+    @Test
+    fun `reopenTournament when key is blank sets unauthorized error`() = runTest {
+        maintenanceKeyFlow.value = ""
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = monatsblitzApi
+        )
+        advanceUntilIdle()
+
+        viewModel.reopenTournament(42L)
+        advanceUntilIdle()
+
+        assertEquals("Nicht autorisiert", viewModel.adminError.value)
+    }
+
+    @Test
+    fun `reopenTournament when api returns failure sets error message`() = runTest {
+        maintenanceKeyFlow.value = "admin_key"
+        coEvery { monatsblitzApi.reopenTournament("admin_key", any()) } returns
+            ReopenTournamentResponseDto(success = false, message = "Tournament already finalized")
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = monatsblitzApi
+        )
+        advanceUntilIdle()
+
+        viewModel.reopenTournament(42L)
+        advanceUntilIdle()
+
+        assertEquals("Fehler: Tournament already finalized", viewModel.adminError.value)
+    }
+
+    @Test
+    fun `reopenTournament when api throws sets error message`() = runTest {
+        maintenanceKeyFlow.value = "admin_key"
+        coEvery { monatsblitzApi.reopenTournament("admin_key", any()) } throws RuntimeException("Server error 500")
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = monatsblitzApi
+        )
+        advanceUntilIdle()
+
+        viewModel.reopenTournament(42L)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.adminError.value?.contains("Fehler beim Wiedereröffnen") == true)
+    }
+
+    @Test
+    fun `recreatePosts when key is blank sets unauthorized error`() = runTest {
+        maintenanceKeyFlow.value = ""
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = monatsblitzApi
+        )
+        advanceUntilIdle()
+
+        viewModel.recreatePosts()
+        advanceUntilIdle()
+
+        assertEquals("Nicht autorisiert", viewModel.adminError.value)
+    }
+
+    @Test
+    fun `recreatePosts when api throws sets error message`() = runTest {
+        maintenanceKeyFlow.value = "admin_key"
+        coEvery { monatsblitzApi.recreatePostsWithKey("admin_key") } throws RuntimeException("Fatal crash")
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = monatsblitzApi
+        )
+        advanceUntilIdle()
+
+        viewModel.recreatePosts()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.adminError.value?.contains("Fehler beim Aktualisieren") == true)
+    }
+
+    @Test
+    fun `restoreDump when repository is null sets error`() = runTest {
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            tournamentDumpRepository = null
+        )
+        advanceUntilIdle()
+
+        viewModel.restoreDump("{}")
+        advanceUntilIdle()
+
+        assertEquals("Dump-Repository nicht verfügbar", viewModel.adminError.value)
+    }
+
+    @Test
+    fun `restoreDump when repository returns failure sets error message`() = runTest {
+        coEvery { tournamentDumpRepository.restoreDump(any()) } returns Result.failure(RuntimeException("Invalid JSON"))
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            tournamentDumpRepository = tournamentDumpRepository
+        )
+        advanceUntilIdle()
+
+        viewModel.restoreDump("bad_json")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.adminError.value?.contains("Import fehlgeschlagen: Invalid JSON") == true)
+    }
+
+    @Test
+    fun `clearAdminFeedback clears both message and error`() = runTest {
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase
+        )
+        advanceUntilIdle()
+
+        viewModel.onMaintenanceKeyChanged("   ")
+        viewModel.verifyAndActivateAdminKey()
+        advanceUntilIdle()
+        assertEquals("Bitte gib einen Wartungs-API-Key ein", viewModel.adminError.value)
+
+        viewModel.clearAdminFeedback()
+        assertNull(viewModel.adminError.value)
+        assertNull(viewModel.adminMessage.value)
+    }
+
+    @Test
+    fun `loadDumps and getDumpFile call repository`() = runTest {
+        val dummyFile = java.io.File.createTempFile("test_dump", ".json")
+        dummyFile.deleteOnExit()
+        coEvery { tournamentDumpRepository.getDumpFiles() } returns listOf(
+            TournamentDumpFileInfo("dump.json", dummyFile.absolutePath, 1L, "20261108", 100L)
+        )
+        coEvery { tournamentDumpRepository.getDumpFile("dump.json") } returns dummyFile
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            tournamentDumpRepository = tournamentDumpRepository
+        )
+        advanceUntilIdle()
+
+        viewModel.loadDumps()
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.dumps.value.size)
+        val file = viewModel.getDumpFile("dump.json")
+        assertEquals(dummyFile.absolutePath, file?.absolutePath)
+    }
+
+    @Test
+    fun `settings setters update repository correctly`() = runTest {
+        val rotationFlow = MutableStateFlow(listOf("3+2"))
+        every { settingsRepository.rotationModes } returns rotationFlow
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase
+        )
+        advanceUntilIdle()
+
+        viewModel.setPlayerSortField(PlayerSortField.FIRST_NAME)
+        viewModel.setPlayerSortOrder(PlayerSortOrder.DESCENDING)
+        viewModel.setUseShortPlayerNames(true)
+        viewModel.setPreferRufnameAsShortName(true)
+        viewModel.setAutoAdoptOpenTournament(true)
+        viewModel.setAutoCleanupDumps(false)
+        viewModel.setDumpRetentionMonths(6)
+        viewModel.setActivePlayersCutoffMonths(24)
+        viewModel.setModePreselectionType(ModePreselectionType.ROTATION)
+        viewModel.setFixedMode("5+0")
+        viewModel.setRotationModes(listOf("3+2", "5+0"))
+        advanceUntilIdle()
+
+        coVerify { settingsRepository.setPlayerSortField(PlayerSortField.FIRST_NAME) }
+        coVerify { settingsRepository.setPlayerSortOrder(PlayerSortOrder.DESCENDING) }
+        coVerify { settingsRepository.setUseShortPlayerNames(true) }
+        coVerify { settingsRepository.setPreferRufnameAsShortName(true) }
+        coVerify { settingsRepository.setAutoAdoptOpenTournament(true) }
+        coVerify { settingsRepository.setAutoCleanupDumps(false) }
+        coVerify { settingsRepository.setDumpRetentionMonths(6) }
+        coVerify { settingsRepository.setActivePlayersCutoffMonths(24) }
+        coVerify { settingsRepository.setModePreselectionType(ModePreselectionType.ROTATION) }
+        coVerify { settingsRepository.setFixedMode("5+0") }
+        coVerify { settingsRepository.setRotationModes(listOf("3+2", "5+0")) }
+
+        // Test toggleRotationMode: adding a mode
+        viewModel.toggleRotationMode("5+0")
+        advanceUntilIdle()
+        coVerify { settingsRepository.setRotationModes(listOf("3+2", "5+0")) }
+
+        // Test toggleRotationMode: removing existing mode
+        viewModel.toggleRotationMode("3+2")
+        advanceUntilIdle()
+        coVerify { settingsRepository.setRotationModes(emptyList()) }
     }
 }

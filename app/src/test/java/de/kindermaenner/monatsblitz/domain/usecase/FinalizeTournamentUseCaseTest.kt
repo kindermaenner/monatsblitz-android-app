@@ -21,13 +21,15 @@ class FinalizeTournamentUseCaseTest {
     private val syncGameResultsUseCase = mockk<SyncGameResultsUseCase>(relaxed = true)
     private val syncPlayersUseCase = mockk<SyncPlayersUseCase>(relaxed = true)
     private val createTournamentRankingsUseCase = mockk<CreateTournamentRankingsUseCase>(relaxed = true)
+    private val createTournamentDumpUseCase = mockk<CreateTournamentDumpUseCase>(relaxed = true)
 
     private val useCase = FinalizeTournamentUseCase(
         tournamentRepository = tournamentRepository,
         syncTournamentUseCase = syncTournamentUseCase,
         syncGameResultsUseCase = syncGameResultsUseCase,
         syncPlayersUseCase = syncPlayersUseCase,
-        createTournamentRankingsUseCase = createTournamentRankingsUseCase
+        createTournamentRankingsUseCase = createTournamentRankingsUseCase,
+        createTournamentDumpUseCase = createTournamentDumpUseCase
     )
 
     @Test
@@ -143,6 +145,69 @@ class FinalizeTournamentUseCaseTest {
         minimalUseCase(tournamentId)
 
         coVerify { tournamentRepository.submitResultsAndFinalize(tournamentId) }
+    }
+
+    @Test
+    fun `invoke triggers tournament dump before finalization`() = runTest {
+        val tournamentId = 10L
+        val tournament = Tournament(
+            id = tournamentId,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = emptyList(),
+            isLocalOnly = false
+        )
+        coEvery { tournamentRepository.getTournamentById(tournamentId) } returns tournament
+
+        useCase(tournamentId)
+
+        coVerify(exactly = 1) { createTournamentDumpUseCase.invoke(tournamentId) }
+    }
+
+    @Test
+    fun `invoke throws exception and blocks finalize when unsynced games remain`() = runTest {
+        val tournamentId = 11L
+        val tournament = Tournament(
+            id = tournamentId,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = emptyList(),
+            isLocalOnly = false
+        )
+        coEvery { tournamentRepository.getTournamentById(tournamentId) } returns tournament
+        coEvery { tournamentRepository.getUnsyncedGamesCount(tournamentId) } returns 3
+
+        try {
+            useCase(tournamentId)
+            fail("Should throw IllegalStateException because unsynced games exist")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message?.contains("Nicht alle Partien") == true)
+        }
+
+        coVerify(exactly = 0) { tournamentRepository.submitResultsAndFinalize(any()) }
+    }
+
+    @Test
+    fun `invoke retries sync when unsynced games detected and proceeds if resolved`() = runTest {
+        val tournamentId = 12L
+        val tournament = Tournament(
+            id = tournamentId,
+            mode = GameMode.BLITZ_3_2,
+            date = LocalDate.now(),
+            rounds = 1,
+            players = emptyList(),
+            isLocalOnly = false
+        )
+        coEvery { tournamentRepository.getTournamentById(tournamentId) } returns tournament
+        coEvery { tournamentRepository.getUnsyncedGamesCount(tournamentId) } returnsMany listOf(2, 0)
+
+        useCase(tournamentId)
+
+        // syncGameResultsUseCase should be called initially and once more for retry
+        coVerify(exactly = 2) { syncGameResultsUseCase.invoke() }
+        coVerify(exactly = 1) { tournamentRepository.submitResultsAndFinalize(tournamentId) }
     }
 }
 

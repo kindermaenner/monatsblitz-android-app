@@ -11,6 +11,7 @@ import de.kindermaenner.monatsblitz.domain.sync.TournamentSyncService
 import de.kindermaenner.monatsblitz.domain.usecase.AddPlayerUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CalculatePlayerPointsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateNewGamesUseCase
+import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentDumpUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentRankingsUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.CreateTournamentUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.FinalizeTournamentUseCase
@@ -24,6 +25,7 @@ import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
 import de.kindermaenner.monatsblitz.infrastructure.api.ModeRemoteDataSource
 import de.kindermaenner.monatsblitz.infrastructure.api.PlayerRemoteDataSource
 import de.kindermaenner.monatsblitz.infrastructure.api.client.RetrofitClient
+import de.kindermaenner.monatsblitz.infrastructure.dump.TournamentDumpRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
 import de.kindermaenner.monatsblitz.infrastructure.repository.ModeRepositoryImpl
 import de.kindermaenner.monatsblitz.infrastructure.repository.PlayerRepositoryImpl
@@ -110,12 +112,23 @@ class AppContainer(context: Context) {
         calculatePlayerPointsUseCase = calculatePlayerPointsUseCase
     )
 
+    val tournamentDumpRepository = TournamentDumpRepositoryImpl(
+        context = context,
+        database = database
+    )
+
+    val createTournamentDumpUseCase = CreateTournamentDumpUseCase(
+        tournamentDumpRepository = tournamentDumpRepository,
+        settingsRepository = appSettingsStorage
+    )
+
     val finalizeTournamentUseCase = FinalizeTournamentUseCase(
         tournamentRepository = tournamentRepository,
         syncTournamentUseCase = syncTournamentUseCase,
         syncGameResultsUseCase = syncGameResultsUseCase,
         syncPlayersUseCase = syncPlayersUseCase,
-        createTournamentRankingsUseCase = createTournamentRankingUseCase
+        createTournamentRankingsUseCase = createTournamentRankingUseCase,
+        createTournamentDumpUseCase = createTournamentDumpUseCase
     )
 
     val testBackendConnectionUseCase = TestBackendConnectionUseCase()

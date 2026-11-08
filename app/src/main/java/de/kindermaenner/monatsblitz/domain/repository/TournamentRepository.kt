@@ -59,6 +59,8 @@ interface TournamentRepository {
         tournamentId: Long,
         rounds: Int
     )
+
+    suspend fun getUnsyncedGamesCount(tournamentId: Long): Int
 }
 
 data class RemoteOpenTournamentInfo(

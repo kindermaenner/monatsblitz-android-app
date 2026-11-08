@@ -32,6 +32,8 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     private val fixedModeKey = stringPreferencesKey("fixed_mode")
     private val rotationModesKey = stringPreferencesKey("rotation_modes")
     private val standaloneOfflineModeKey = booleanPreferencesKey("standalone_offline_mode")
+    private val autoCleanupDumpsKey = booleanPreferencesKey("auto_cleanup_dumps")
+    private val dumpRetentionMonthsKey = intPreferencesKey("dump_retention_months")
 
     @Volatile
     private var cachedServerUrl: String? = null
@@ -180,6 +182,26 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     override suspend fun setStandaloneOfflineMode(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[standaloneOfflineModeKey] = enabled
+        }
+    }
+
+    override val autoCleanupDumps: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[autoCleanupDumpsKey] ?: true
+    }
+
+    override val dumpRetentionMonths: Flow<Int> = dataStore.data.map { preferences ->
+        preferences[dumpRetentionMonthsKey] ?: 3
+    }
+
+    override suspend fun setAutoCleanupDumps(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[autoCleanupDumpsKey] = enabled
+        }
+    }
+
+    override suspend fun setDumpRetentionMonths(months: Int) {
+        dataStore.edit { preferences ->
+            preferences[dumpRetentionMonthsKey] = months
         }
     }
 

@@ -21,6 +21,8 @@ interface SettingsRepository {
     val rotationModes: Flow<List<String>>
 
     val standaloneOfflineMode: Flow<Boolean>
+    val autoCleanupDumps: Flow<Boolean>
+    val dumpRetentionMonths: Flow<Int>
     val isServerConfigured: Flow<Boolean>
     val isConfigured: Flow<Boolean>
 
@@ -38,6 +40,8 @@ interface SettingsRepository {
     suspend fun setFixedMode(mode: String)
     suspend fun setRotationModes(modes: List<String>)
     suspend fun setStandaloneOfflineMode(enabled: Boolean)
+    suspend fun setAutoCleanupDumps(enabled: Boolean)
+    suspend fun setDumpRetentionMonths(months: Int)
 
     suspend fun isConfigured(): Boolean
     suspend fun isServerConfigured(): Boolean

@@ -106,6 +106,8 @@ fun SettingsScreen(
     val rotationModes by viewModel.rotationModes.collectAsStateWithLifecycle()
     val availableModes by viewModel.availableModes.collectAsStateWithLifecycle()
     val activePlayersCutoffMonths by viewModel.activePlayersCutoffMonths.collectAsStateWithLifecycle()
+    val autoCleanupDumps by viewModel.autoCleanupDumps.collectAsStateWithLifecycle()
+    val dumpRetentionMonths by viewModel.dumpRetentionMonths.collectAsStateWithLifecycle()
 
     var isPasswordVisible by remember { mutableStateOf(false) }
     var showExitWithoutConfigDialog by remember { mutableStateOf(false) }
@@ -266,6 +268,12 @@ fun SettingsScreen(
                 onTypeChanged = { viewModel.setModePreselectionType(it) },
                 onFixedModeChanged = { viewModel.setFixedMode(it) },
                 onToggleRotationMode = { viewModel.toggleRotationMode(it) }
+            )
+
+            TournamentBackupCard(
+                autoCleanupDumps = autoCleanupDumps,
+                dumpRetentionMonths = dumpRetentionMonths,
+                onAutoCleanupChanged = { viewModel.setAutoCleanupDumps(it) }
             )
 
             HelpAndFeedbackSection(serverUrl = serverUrl)
@@ -605,6 +613,61 @@ private fun TournamentPreselectionCard(
                 onFixedModeChanged = onFixedModeChanged,
                 onToggleRotationMode = onToggleRotationMode
             )
+        }
+    }
+}
+
+@Composable
+private fun TournamentBackupCard(
+    autoCleanupDumps: Boolean,
+    dumpRetentionMonths: Int,
+    onAutoCleanupChanged: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Turnier-Datensicherung (Haltenetz)",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "Vor dem Finalisieren eines Turniers wird automatisch eine vollständige Sicherung lokal auf dem Gerät gespeichert.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Alte Dumps automatisch bereinigen",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = if (autoCleanupDumps) "Sicherungen älter als $dumpRetentionMonths Monate werden gelöscht" else "Alle Sicherungen dauerhaft behalten",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = autoCleanupDumps,
+                    onCheckedChange = onAutoCleanupChanged,
+                    modifier = Modifier.testTag("settings_auto_cleanup_dumps_switch")
+                )
+            }
         }
     }
 }

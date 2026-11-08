@@ -782,6 +782,8 @@ class TournamentRepositoryImpl(
                 Pair(bg.result, null)
             }
 
+            val isDirty = remoteGameId == null && result != GameResult.Open
+
             GameEntity(
                 tournamentId = tournamentId,
                 player1Id = pMin,
@@ -789,7 +791,7 @@ class TournamentRepositoryImpl(
                 leg = bg.leg,
                 result = result,
                 remoteId = remoteGameId,
-                dirty = false
+                dirty = isDirty
             )
         }
     }
@@ -860,6 +862,12 @@ class TournamentRepositoryImpl(
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    override suspend fun getUnsyncedGamesCount(tournamentId: Long): Int {
+        val tournament = tournamentDao.getTournament(tournamentId) ?: return 0
+        if (tournament.tournament.isLocalOnly) return 0
+        return gameDao.getUnsyncedGamesCount(tournamentId, tournament.tournament.rounds)
     }
 
     private fun requireApi(): MonatsblitzApi =

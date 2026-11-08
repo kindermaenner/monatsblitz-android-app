@@ -105,6 +105,14 @@ interface GameDao {
 """)
     suspend fun getGamesForSync(): List<GameSyncData>
 
+    @Query("""
+    SELECT COUNT(*) FROM games
+    WHERE tournamentId = :tournamentId
+      AND leg <= :maxLeg
+      AND (dirty = 1 OR remoteId IS NULL)
+""")
+    suspend fun getUnsyncedGamesCount(tournamentId: Long, maxLeg: Int): Int
+
     @Query("DELETE FROM games WHERE tournamentId = :tournamentId")
     suspend fun deleteForTournament(tournamentId: Long)
 

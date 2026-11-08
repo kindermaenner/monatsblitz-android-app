@@ -318,6 +318,34 @@ class SettingsViewModel(
                 initialValue = 12
             )
 
+    val autoCleanupDumps: StateFlow<Boolean> =
+        settingsRepository.autoCleanupDumps
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = true
+            )
+
+    val dumpRetentionMonths: StateFlow<Int> =
+        settingsRepository.dumpRetentionMonths
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = 3
+            )
+
+    fun setAutoCleanupDumps(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAutoCleanupDumps(enabled)
+        }
+    }
+
+    fun setDumpRetentionMonths(months: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDumpRetentionMonths(months)
+        }
+    }
+
     fun setActivePlayersCutoffMonths(months: Int) {
         viewModelScope.launch {
             settingsRepository.setActivePlayersCutoffMonths(months)

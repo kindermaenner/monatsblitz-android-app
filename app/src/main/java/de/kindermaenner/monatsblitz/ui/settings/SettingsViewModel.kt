@@ -469,7 +469,7 @@ class SettingsViewModel(
                     _adminError.value = "Wartungs-Key wurde vom Server nicht akzeptiert"
                 }
             } catch (e: Exception) {
-                _adminError.value = "Verbindung fehlgeschlagen: ${e.message ?: "Unbekannter Fehler"}"
+                _adminError.value = "Verbindung fehlgeschlagen: ${e.message ?: UNKNOWN_ERROR}"
             } finally {
                 _isAdminVerifying.value = false
             }
@@ -505,7 +505,7 @@ class SettingsViewModel(
                     _adminError.value = "Fehler: ${response.message}"
                 }
             } catch (e: Exception) {
-                _adminError.value = "Fehler beim Wiedereröffnen: ${e.message ?: "Unbekannter Fehler"}"
+                _adminError.value = "Fehler beim Wiedereröffnen: ${e.message ?: UNKNOWN_ERROR}"
             } finally {
                 _isAdminVerifying.value = false
             }
@@ -527,7 +527,7 @@ class SettingsViewModel(
                 val response = api.recreatePostsWithKey(key)
                 _adminMessage.value = "Aktualisiert: ${response.succeeded} von ${response.processed} Beiträgen (${response.failed} Fehler)"
             } catch (e: Exception) {
-                _adminError.value = "Fehler beim Aktualisieren: ${e.message ?: "Unbekannter Fehler"}"
+                _adminError.value = "Fehler beim Aktualisieren: ${e.message ?: UNKNOWN_ERROR}"
             } finally {
                 _isAdminVerifying.value = false
             }
@@ -560,5 +560,9 @@ class SettingsViewModel(
                 _isAdminVerifying.value = false
             }
         }
+    }
+
+    companion object {
+        private const val UNKNOWN_ERROR = "Unbekannter Fehler"
     }
 }

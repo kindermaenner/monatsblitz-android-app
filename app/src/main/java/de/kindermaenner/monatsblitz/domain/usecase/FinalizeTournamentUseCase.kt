@@ -37,8 +37,8 @@ class FinalizeTournamentUseCase(
         if (unsyncedCount > 0) {
             syncGameResultsUseCase?.invoke()
             val remainingUnsynced = tournamentRepository.getUnsyncedGamesCount(tournamentId)
-            if (remainingUnsynced > 0) {
-                throw IllegalStateException("Nicht alle Partien konnten mit dem Server synchronisiert werden ($remainingUnsynced ausstehend). Finalisierung abgebrochen.")
+            check(remainingUnsynced <= 0) {
+                "Nicht alle Partien konnten mit dem Server synchronisiert werden ($remainingUnsynced ausstehend). Finalisierung abgebrochen."
             }
         }
 

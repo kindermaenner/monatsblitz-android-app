@@ -1,6 +1,7 @@
 package de.kindermaenner.monatsblitz.ui.settings
 
 import android.content.Intent
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -308,7 +310,8 @@ fun SettingsScreen(
                             }
                             val shareIntent = Intent.createChooser(sendIntent, "Turnier-Backup teilen")
                             context.startActivity(shareIntent)
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Teilen des Backups fehlgeschlagen oder abgebrochen", e)
                         }
                     }
                 }
@@ -804,7 +807,6 @@ private fun AdminSection(
 ) {
     val context = LocalContext.current
     var isKeyVisible by remember { mutableStateOf(false) }
-    var reopenTournamentIdInput by remember { mutableStateOf("") }
     var showRestoreConfirmDialog by remember { mutableStateOf(false) }
     var pendingDumpContent by remember { mutableStateOf<String?>(null) }
 
@@ -818,48 +820,25 @@ private fun AdminSection(
                     pendingDumpContent = content
                     showRestoreConfirmDialog = true
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e(TAG, "Fehler beim Lesen des Backup-Dumps", e)
             }
         }
     }
 
     if (showRestoreConfirmDialog && pendingDumpContent != null) {
-        AlertDialog(
-            onDismissRequest = {
+        RestoreConfirmDialog(
+            onConfirm = {
+                val content = pendingDumpContent
                 showRestoreConfirmDialog = false
                 pendingDumpContent = null
-            },
-            title = { Text("Backup wiederherstellen?") },
-            text = {
-                Text(
-                    "Dieses Backup wird in die lokale Datenbank eingespielt. " +
-                    "Das Turnier wird wieder als unfinalisiert markiert und kann synchronisiert werden. " +
-                    "Möchtest du fortfahren?"
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val content = pendingDumpContent
-                        showRestoreConfirmDialog = false
-                        pendingDumpContent = null
-                        if (content != null) {
-                            onRestoreDump(content)
-                        }
-                    }
-                ) {
-                    Text("Wiederherstellen")
+                if (content != null) {
+                    onRestoreDump(content)
                 }
             },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = {
-                        showRestoreConfirmDialog = false
-                        pendingDumpContent = null
-                    }
-                ) {
-                    Text("Abbrechen")
-                }
+            onDismiss = {
+                showRestoreConfirmDialog = false
+                pendingDumpContent = null
             }
         )
     }
@@ -876,283 +855,402 @@ private fun AdminSection(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isAdminMode) Icons.Default.LockOpen else Icons.Default.Lock,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Admin-Funktionen (Wartung)",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                if (isAdminMode) {
-                    OutlinedButton(
-                        onClick = onLockAdminMode,
-                        modifier = Modifier.testTag("admin_lock_button")
-                    ) {
-                        Text("Sperren")
-                    }
-                }
-            }
+            AdminHeader(
+                isAdminMode = isAdminMode,
+                onLockAdminMode = onLockAdminMode
+            )
 
             if (!isAdminMode) {
-                Text(
-                    text = "Gib den WordPress-Wartungsschlüssel (MB_MAINTENANCE_KEY) ein, um erweiterte administrative Aktionen wie Turnier-Wiedereröffnung oder Beitragsneugenerierung freizuschalten.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                AdminLockedContent(
+                    maintenanceKeyInput = maintenanceKeyInput,
+                    isKeyVisible = isKeyVisible,
+                    isAdminVerifying = isAdminVerifying,
+                    onKeyChange = onMaintenanceKeyChanged,
+                    onToggleVisibility = { isKeyVisible = !isKeyVisible },
+                    onVerify = onVerifyAdminKey
                 )
-
-                OutlinedTextField(
-                    value = maintenanceKeyInput,
-                    onValueChange = onMaintenanceKeyChanged,
-                    label = { Text("Wartungs-API-Key") },
-                    placeholder = { Text("Geheimer Wartungsschlüssel") },
-                    singleLine = true,
-                    visualTransformation = if (isKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { isKeyVisible = !isKeyVisible }) {
-                            Icon(
-                                imageVector = if (isKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (isKeyVisible) "Key verbergen" else "Key anzeigen"
-                            )
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("maintenance_key_input")
-                )
-
-                Button(
-                    onClick = onVerifyAdminKey,
-                    enabled = !isAdminVerifying && maintenanceKeyInput.isNotBlank(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("verify_admin_key_button")
-                ) {
-                    if (isAdminVerifying) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Prüfe...")
-                    } else {
-                        Text("Prüfen & Freischalten")
-                    }
-                }
             } else {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Admin-Modus aktiv",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-
-                // 1. Reopen Tournament
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Turnier wieder öffnen",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            text = "Setzt ein finalisiertes Turnier auf dem Server wieder auf den Status 'open' zurück. Dadurch können Runden oder Ergebnisse erneut korrigiert und synchronisiert werden.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = reopenTournamentIdInput,
-                                onValueChange = { reopenTournamentIdInput = it.filter { ch -> ch.isDigit() } },
-                                label = { Text("Turnier-ID") },
-                                placeholder = { Text("z.B. 42") },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("reopen_tournament_id_input")
-                            )
-                            Button(
-                                onClick = {
-                                    reopenTournamentIdInput.toLongOrNull()?.let { onReopenTournament(it) }
-                                },
-                                enabled = !isAdminVerifying && reopenTournamentIdInput.isNotBlank(),
-                                modifier = Modifier.testTag("reopen_tournament_button")
-                            ) {
-                                Text("Wieder öffnen")
-                            }
-                        }
-                    }
-                }
-
-                // 2. Recreate Posts
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "WordPress-Beiträge neu generieren",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            text = "Baut alle WordPress-Turnierbeiträge aus den gespeicherten Rohdaten neu auf. Nützlich nach Template-Änderungen oder Korrekturen.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        OutlinedButton(
-                            onClick = onRecreatePosts,
-                            enabled = !isAdminVerifying,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("recreate_posts_button")
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Beiträge neu generieren (/recreatePosts)")
-                        }
-                    }
-                }
-
-                // 3. Restore dump
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Backup-Dump wiederherstellen",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            text = "Importiert einen gesicherten JSON-Dump in die lokale Datenbank, markiert das Turnier als unfinalisiert und bereitet es für den erneuten Abgleich mit dem Server vor.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Button(
-                            onClick = { filePickerLauncher.launch("application/json") },
-                            enabled = !isAdminVerifying,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("import_dump_button")
-                        ) {
-                            Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("JSON-Dump importieren")
-                        }
-                    }
-                }
+                AdminActiveControls(
+                    isAdminVerifying = isAdminVerifying,
+                    onReopenTournament = onReopenTournament,
+                    onRecreatePosts = onRecreatePosts,
+                    onPickFile = { filePickerLauncher.launch("application/json") }
+                )
             }
 
             if (adminMessage != null) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = adminMessage,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
+                AdminFeedbackBanner(
+                    message = adminMessage,
+                    isError = false,
+                    onDismiss = onClearAdminFeedback
+                )
             }
 
             if (adminError != null) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
+                AdminFeedbackBanner(
+                    message = adminError,
+                    isError = true,
+                    onDismiss = onClearAdminFeedback
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminHeader(
+    isAdminMode: Boolean,
+    onLockAdminMode: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = if (isAdminMode) Icons.Default.LockOpen else Icons.Default.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "Admin-Funktionen (Wartung)",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        if (isAdminMode) {
+            OutlinedButton(
+                onClick = onLockAdminMode,
+                modifier = Modifier.testTag("admin_lock_button")
+            ) {
+                Text("Sperren")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminLockedContent(
+    maintenanceKeyInput: String,
+    isKeyVisible: Boolean,
+    isAdminVerifying: Boolean,
+    onKeyChange: (String) -> Unit,
+    onToggleVisibility: () -> Unit,
+    onVerify: () -> Unit
+) {
+    Text(
+        text = "Gib den WordPress-Wartungsschlüssel (MB_MAINTENANCE_KEY) ein, um erweiterte administrative Aktionen wie Turnier-Wiedereröffnung oder Beitragsneugenerierung freizuschalten.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    OutlinedTextField(
+        value = maintenanceKeyInput,
+        onValueChange = onKeyChange,
+        label = { Text("Wartungs-API-Key") },
+        placeholder = { Text("Geheimer Wartungsschlüssel") },
+        singleLine = true,
+        visualTransformation = if (isKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            IconButton(onClick = onToggleVisibility) {
+                Icon(
+                    imageVector = if (isKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = if (isKeyVisible) "Key verbergen" else "Key anzeigen"
+                )
+            }
+        },
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Password,
+            imeAction = ImeAction.Done
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("maintenance_key_input")
+    )
+
+    Button(
+        onClick = onVerify,
+        enabled = !isAdminVerifying && maintenanceKeyInput.isNotBlank(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("verify_admin_key_button")
+    ) {
+        if (isAdminVerifying) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Prüfe...")
+        } else {
+            Text("Prüfen & Freischalten")
+        }
+    }
+}
+
+@Composable
+private fun AdminActiveControls(
+    isAdminVerifying: Boolean,
+    onReopenTournament: (Long) -> Unit,
+    onRecreatePosts: () -> Unit,
+    onPickFile: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "Admin-Modus aktiv",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+    }
+
+    AdminReopenTournamentCard(
+        isAdminVerifying = isAdminVerifying,
+        onReopenTournament = onReopenTournament
+    )
+
+    AdminRecreatePostsCard(
+        isAdminVerifying = isAdminVerifying,
+        onRecreatePosts = onRecreatePosts
+    )
+
+    AdminRestoreDumpCard(
+        isAdminVerifying = isAdminVerifying,
+        onPickFile = onPickFile
+    )
+}
+
+@Composable
+private fun AdminReopenTournamentCard(
+    isAdminVerifying: Boolean,
+    onReopenTournament: (Long) -> Unit
+) {
+    var reopenTournamentIdInput by remember { mutableStateOf("") }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Turnier wieder öffnen",
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                text = "Setzt ein finalisiertes Turnier auf dem Server wieder auf den Status 'open' zurück. Dadurch können Runden oder Ergebnisse erneut korrigiert und synchronisiert werden.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = reopenTournamentIdInput,
+                    onValueChange = { reopenTournamentIdInput = it.filter { ch -> ch.isDigit() } },
+                    label = { Text("Turnier-ID") },
+                    placeholder = { Text("z.B. 42") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("reopen_tournament_id_input")
+                )
+                Button(
+                    onClick = {
+                        reopenTournamentIdInput.toLongOrNull()?.let { onReopenTournament(it) }
+                    },
+                    enabled = !isAdminVerifying && reopenTournamentIdInput.isNotBlank(),
+                    modifier = Modifier.testTag("reopen_tournament_button")
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Error,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            text = adminError,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    Text("Wieder öffnen")
                 }
             }
         }
     }
+}
+
+@Composable
+private fun AdminRecreatePostsCard(
+    isAdminVerifying: Boolean,
+    onRecreatePosts: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "WordPress-Beiträge neu generieren",
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                text = "Baut alle WordPress-Turnierbeiträge aus den gespeicherten Rohdaten neu auf. Nützlich nach Template-Änderungen oder Korrekturen.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(
+                onClick = onRecreatePosts,
+                enabled = !isAdminVerifying,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("recreate_posts_button")
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Beiträge neu generieren (/recreatePosts)")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminRestoreDumpCard(
+    isAdminVerifying: Boolean,
+    onPickFile: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Backup-Dump wiederherstellen",
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                text = "Importiert einen gesicherten JSON-Dump in die lokale Datenbank, markiert das Turnier als unfinalisiert und bereitet es für den erneuten Abgleich mit dem Server vor.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Button(
+                onClick = onPickFile,
+                enabled = !isAdminVerifying,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("import_dump_button")
+            ) {
+                Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("JSON-Dump importieren")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminFeedbackBanner(
+    message: String,
+    isError: Boolean,
+    onDismiss: () -> Unit
+) {
+    val containerColor = if (isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
+    val contentColor = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
+    val icon = if (isError) Icons.Default.Error else Icons.Default.CheckCircle
+    val iconTint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = containerColor)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = iconTint
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = contentColor,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .size(24.dp)
+                    .testTag("dismiss_admin_feedback_button")
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Meldung schließen",
+                    tint = contentColor,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RestoreConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Backup wiederherstellen?") },
+        text = {
+            Text(
+                "Dieses Backup wird in die lokale Datenbank eingespielt. " +
+                "Das Turnier wird wieder als unfinalisiert markiert und kann synchronisiert werden. " +
+                "Möchtest du fortfahren?"
+            )
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Wiederherstellen")
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        }
+    )
 }
 
 @Composable
@@ -1671,3 +1769,5 @@ private fun ActivePlayersCutoffSection(
         }
     }
 }
+
+private const val TAG = "SettingsScreen"

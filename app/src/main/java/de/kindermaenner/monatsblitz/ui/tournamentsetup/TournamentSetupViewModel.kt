@@ -573,6 +573,7 @@ class TournamentSetupViewModel(
                             isCheckingForOpenTournament = false
                         )
                     }
+                    runCatching { syncPlayersUseCase?.invoke() }
                     val localId = repo.adoptRemoteTournament(openInfo.id)
                     _navigationEffect.emit(localId)
                 } else {
@@ -604,6 +605,7 @@ class TournamentSetupViewModel(
                 )
             }
             try {
+                runCatching { syncPlayersUseCase?.invoke() }
                 val localId = repo.adoptRemoteTournament(info.id)
                 _navigationEffect.emit(localId)
             } catch (e: Exception) {

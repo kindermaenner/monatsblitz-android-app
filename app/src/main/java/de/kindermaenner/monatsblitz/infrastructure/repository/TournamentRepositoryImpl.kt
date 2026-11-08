@@ -636,14 +636,7 @@ class TournamentRepositoryImpl(
         val api = requireApi()
         val resolvedPlayerDao = requirePlayerDao()
 
-        val remoteTournament = api.getTournament(remoteTournamentId)
-        val remoteGames = try {
-            api.getGames(remoteTournamentId)
-        } catch (e: Exception) {
-            Log.e(TAG, "adoptRemoteTournament: could not fetch games: ${e.message}", e)
-            emptyList()
-        }
-
+        // 1. Spielerliste vorab vollständig synchronisieren / auffrischen
         try {
             val allRemotePlayers = api.getPlayers()
             allRemotePlayers.forEach { dto ->
@@ -654,16 +647,22 @@ class TournamentRepositoryImpl(
                         existingByRemoteId.copy(
                             name = dto.surname.trim(),
                             vorname = dto.forename.trim(),
+                            rufname = (dto.rufname ?: "").trim(),
                             lastParticipated = dto.lastParticipated,
                             dirty = false,
                             isLocal = false
                         )
                     )
                 } else {
-                    val existingByName = resolvedPlayerDao.findPlayersByName(
+                    val existingByName = resolvedPlayerDao.findPlayersByNameAndRufname(
+                        dto.forename.trim(),
+                        dto.surname.trim(),
+                        (dto.rufname ?: "").trim()
+                    ).firstOrNull() ?: resolvedPlayerDao.findPlayersByName(
                         dto.forename.trim(),
                         dto.surname.trim()
                     ).firstOrNull()
+
                     if (existingByName != null) {
                         resolvedPlayerDao.setRemoteId(playerId = existingByName.id, remoteId = remoteId)
                     } else {
@@ -671,6 +670,7 @@ class TournamentRepositoryImpl(
                             dto.toEntity().copy(
                                 name = dto.surname.trim(),
                                 vorname = dto.forename.trim(),
+                                rufname = (dto.rufname ?: "").trim(),
                                 dirty = false,
                                 isLocal = false
                             )
@@ -682,9 +682,22 @@ class TournamentRepositoryImpl(
             Log.w(TAG, "adoptRemoteTournament: could not refresh players from server: ${e.message}", e)
         }
 
+        // 2. Turnier- und Partiedaten laden
+        val remoteTournament = api.getTournament(remoteTournamentId)
+        val remoteGames = try {
+            api.getGames(remoteTournamentId)
+        } catch (e: Exception) {
+            Log.e(TAG, "adoptRemoteTournament: could not fetch games: ${e.message}", e)
+            emptyList()
+        }
+
         val remotePlayerIds = remoteTournament.playerIds
         val localPlayers = remotePlayerIds.mapNotNull { remoteId ->
             resolvedPlayerDao.getPlayerByRemoteId(remoteId)
+        }
+        if (localPlayers.size < remotePlayerIds.size) {
+            val missing = remotePlayerIds.filter { remoteId -> resolvedPlayerDao.getPlayerByRemoteId(remoteId) == null }
+            Log.e(TAG, "adoptRemoteTournament: Could not resolve all players locally. Missing remote IDs: $missing")
         }
 
         val domainPlayers = localPlayers.map { it.toDomain() }
@@ -752,18 +765,28 @@ class TournamentRepositoryImpl(
         }
     }
 
+    private data class ReconciledRemoteGame(
+        val dto: GameDto,
+        val localPlayer1Id: Long,
+        val localPlayer2Id: Long
+    )
+
     private suspend fun reconcileGames(
         tournamentId: Long,
         baseGames: List<de.kindermaenner.monatsblitz.domain.model.NewGame>,
         remoteGames: List<GameDto>,
         resolvedPlayerDao: PlayerDao
     ): List<GameEntity> {
-        val remoteGameMap = mutableMapOf<Triple<Long, Long, Int>, GameDto>()
+        val remoteGameMap = mutableMapOf<Triple<Long, Long, Int>, ReconciledRemoteGame>()
         remoteGames.forEach { rg ->
             val lp1 = resolvedPlayerDao.getPlayerByRemoteId(rg.player1Id.toLong())?.id
             val lp2 = resolvedPlayerDao.getPlayerByRemoteId(rg.player2Id.toLong())?.id
             if (lp1 != null && lp2 != null) {
-                remoteGameMap[Triple(minOf(lp1, lp2), maxOf(lp1, lp2), rg.leg)] = rg
+                remoteGameMap[Triple(minOf(lp1, lp2), maxOf(lp1, lp2), rg.leg)] = ReconciledRemoteGame(
+                    dto = rg,
+                    localPlayer1Id = lp1,
+                    localPlayer2Id = lp2
+                )
             }
         }
 
@@ -773,10 +796,9 @@ class TournamentRepositoryImpl(
             val remoteGame = remoteGameMap[Triple(pMin, pMax, bg.leg)]
 
             val (result, remoteGameId) = if (remoteGame != null) {
-                val lp1 = resolvedPlayerDao.getPlayerByRemoteId(remoteGame.player1Id.toLong())?.id ?: pMin
-                val rawResult = remoteGame.result.toGameResult()
-                val canonicalResult = if (lp1 == pMin) rawResult else rawResult.opposite()
-                val gameId = remoteGame.resolvedId.takeIf { it > 0 }?.toLong()
+                val rawResult = remoteGame.dto.result.toGameResult()
+                val canonicalResult = if (remoteGame.localPlayer1Id == pMin) rawResult else rawResult.opposite()
+                val gameId = remoteGame.dto.resolvedId.takeIf { it > 0 }?.toLong()
                 Pair(canonicalResult, gameId)
             } else {
                 Pair(bg.result, null)

@@ -686,6 +686,66 @@ class TournamentRepositoryImplTest {
     }
 
     @Test
+    fun `adoptRemoteTournament inverts game result when local player IDs are inverted relative to remote player IDs`() = runTest {
+        val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
+        val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>()
+        val repo = TournamentRepositoryImpl(
+            tournamentDao,
+            tournamentPlayerDao,
+            gameDao,
+            database,
+            tournamentStorage,
+            playerDao = playerDaoMock,
+            monatsblitzApi = api
+        )
+
+        coEvery { api.getPlayers() } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerDto(id = 101, surname = "Sviridov", forename = "Vitaliy", lastParticipated = "2026-11-06"),
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerDto(id = 102, surname = "Günther", forename = "Aaron", lastParticipated = "2026-11-06")
+        )
+        // Remote IDs: 101 (Vitaliy), 102 (Aaron)
+        // Local IDs: Vitaliy has local ID 20L, Aaron has local ID 10L (local order Aaron < Vitaliy is inverted compared to remote 101 < 102)
+        val pVitaliy = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 20L, name = "Sviridov", vorname = "Vitaliy", remoteId = 101L)
+        val pAaron = de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity(id = 10L, name = "Günther", vorname = "Aaron", remoteId = 102L)
+
+        coEvery { playerDaoMock.getPlayerByRemoteId(101L) } returns pVitaliy
+        coEvery { playerDaoMock.getPlayerByRemoteId(102L) } returns pAaron
+        coEvery { playerDaoMock.update(any()) } returns Unit
+
+        coEvery { api.getTournament(50) } returns de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto(
+            id = 50, date = "2026-11-06", mode = "3+2", roundCount = 1, status = "open", playerIds = listOf(101L, 102L)
+        )
+        // Remote game: Vitaliy (101) vs Aaron (102). Vitaliy won! ("1:0")
+        coEvery { api.getGames(50) } returns listOf(
+            de.kindermaenner.monatsblitz.infrastructure.api.dto.GameDto(id = 501, tournamentId = 50, leg = 1, player1Id = 101, player2Id = 102, result = "1:0")
+        )
+
+        coEvery { tournamentDao.getTournamentByRemoteId(50) } returns null
+        coEvery { tournamentDao.insert(any()) } returns 77L
+        coEvery { tournamentPlayerDao.deleteForTournament(77L) } returns Unit
+        coEvery { tournamentPlayerDao.insertAll(any()) } returns Unit
+        coEvery { gameDao.deleteForTournament(77L) } returns Unit
+        coEvery { gameDao.insertAll(any()) } returns listOf(1L)
+        coEvery { tournamentPlayerDao.upsertAll(any()) } returns Unit
+        coEvery { tournamentStorage.saveTournamentState(77L, false) } returns Unit
+
+        val localId = repo.adoptRemoteTournament(50)
+        assertEquals(77L, localId)
+
+        // Local game entity must have player1Id < player2Id (10L = Aaron, 20L = Vitaliy).
+        // Since Vitaliy won (1:0) in remote (player1=101, player2=102), from player 10L's perspective (Aaron), the result must be Loss!
+        // (So Aaron has 0 pts, Vitaliy has 1 pt)
+        coVerify {
+            gameDao.insertAll(match { games ->
+                games.size == 1 &&
+                    games[0].player1Id == 10L &&
+                    games[0].player2Id == 20L &&
+                    games[0].result == de.kindermaenner.monatsblitz.domain.model.GameResult.Loss
+            })
+        }
+    }
+
+    @Test
     fun `adoptRemoteTournament updates existing tournament when already present locally`() = runTest {
         val api = mockk<de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi>()
         val playerDaoMock = mockk<de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao>(relaxed = true)

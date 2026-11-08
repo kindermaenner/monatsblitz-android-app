@@ -81,13 +81,13 @@ class CrosstableScreenTest {
         }
 
         // Initially no dialog
-        composeTestRule.onNodeWithText("Turnier abbrechen?").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Turnieransicht verlassen?").assertDoesNotExist()
 
         // Click back button in TopAppBar
-        composeTestRule.onNodeWithContentDescription("Turnier abbrechen").performClick()
+        composeTestRule.onNodeWithContentDescription("Turnieransicht verlassen").performClick()
 
         // Dialog should now be visible
-        composeTestRule.onNodeWithText("Turnier abbrechen?").assertExists()
+        composeTestRule.onNodeWithText("Turnieransicht verlassen?").assertExists()
     }
 
     @Test
@@ -159,9 +159,9 @@ class CrosstableScreenTest {
         }
 
         composeTestRule.onNodeWithText("Alice").performClick()
-        composeTestRule.onNodeWithText("Turnier vorzeitig beenden").assertExists()
-        composeTestRule.onNodeWithText("Regulär").performClick()
-        composeTestRule.onNodeWithText("Turnier beenden").performClick()
+        composeTestRule.onNodeWithTag("confirm_withdraw_player_button").assertExists()
+        composeTestRule.onNodeWithText("Reguläre Wertung").assertExists()
+        composeTestRule.onNodeWithTag("confirm_withdraw_player_button").performClick()
         composeTestRule.waitForIdle()
 
         coVerify(exactly = 1) {
@@ -394,19 +394,19 @@ class CrosstableScreenTest {
         }
 
         // Open cancel dialog
-        composeTestRule.onNodeWithContentDescription("Turnier abbrechen").performClick()
+        composeTestRule.onNodeWithContentDescription("Turnieransicht verlassen").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Turnier abbrechen?").assertExists()
+        composeTestRule.onNodeWithText("Turnieransicht verlassen?").assertExists()
 
         // Dismiss
-        composeTestRule.onNodeWithText("Nein, weitermachen").performClick()
+        composeTestRule.onNodeWithText("Im Turnier bleiben").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Turnier abbrechen?").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Turnieransicht verlassen?").assertDoesNotExist()
 
         // Open again and confirm
-        composeTestRule.onNodeWithContentDescription("Turnier abbrechen").performClick()
+        composeTestRule.onNodeWithContentDescription("Turnieransicht verlassen").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Ja, abbrechen").performClick()
+        composeTestRule.onNodeWithText("Ansicht verlassen").performClick()
         composeTestRule.waitForIdle()
 
         org.junit.Assert.assertTrue(backCalled)
@@ -444,11 +444,11 @@ class CrosstableScreenTest {
         composeTestRule.onNodeWithText("Alice (z)").performClick()
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Alice hat das Turnier bereits vorzeitig beendet (z).").assertExists()
+        composeTestRule.onNodeWithText("Alice ist bereits vorzeitig aus dem Turnier ausgeschieden (z).").assertExists()
         composeTestRule.onNodeWithText("Schließen").performClick()
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Alice hat das Turnier bereits vorzeitig beendet (z).").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Alice ist bereits vorzeitig aus dem Turnier ausgeschieden (z).").assertDoesNotExist()
     }
 
     @Test

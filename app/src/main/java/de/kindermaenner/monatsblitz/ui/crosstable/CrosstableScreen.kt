@@ -117,6 +117,7 @@ fun CrosstableScreen(
 
     CrosstableCancelDialog(
         show = showBackDialog,
+        isLocalOnly = state.tournament?.isLocalOnly == true,
         onConfirm = {
             showBackDialog = false
             onBackToSetup()
@@ -289,27 +290,33 @@ fun CrosstableScreen(
 @Composable
 private fun CrosstableCancelDialog(
     show: Boolean,
+    isLocalOnly: Boolean = false,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
     if (!show) return
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Turnier abbrechen?") },
-        text = { Text("Das aktuelle Turnier wird beendet.") },
+        title = { Text("Turnieransicht verlassen?") },
+        text = {
+            Text(
+                if (isLocalOnly) {
+                    "Das laufende Turnier bleibt lokal gespeichert und kann jederzeit fortgesetzt werden."
+                } else {
+                    "Das laufende Turnier bleibt auf dem Server als offenes Turnier gespeichert und kann jederzeit fortgesetzt werden."
+                }
+            )
+        },
         confirmButton = {
             Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
+                onClick = onConfirm
             ) {
-                Text("Ja, abbrechen")
+                Text("Ansicht verlassen")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Nein, weitermachen")
+                Text("Im Turnier bleiben")
             }
         }
     )
@@ -342,7 +349,7 @@ private fun CrosstableTopBar(
             IconButton(onClick = onBackClick) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Turnier abbrechen"
+                    contentDescription = "Turnieransicht verlassen"
                 )
             }
         },
@@ -562,7 +569,7 @@ private fun PlayerWithdrawDialog(
         AlertDialog(
             onDismissRequest = onDismiss,
             title = { Text(playerName) },
-            text = { Text("$playerName hat das Turnier bereits vorzeitig beendet (z).") },
+            text = { Text("$playerName ist bereits vorzeitig aus dem Turnier ausgeschieden (z).") },
             confirmButton = {
                 TextButton(onClick = onDismiss) {
                     Text("Schließen")
@@ -572,21 +579,51 @@ private fun PlayerWithdrawDialog(
         return
     }
 
-    var selectedRule by remember { mutableStateOf(PlayerWithdrawRule.YOUTH_DRAW) }
+    var selectedRule by remember { mutableStateOf(PlayerWithdrawRule.REGULAR_LOSS) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Turnier vorzeitig beenden") },
+        title = { Text("$playerName austragen") },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "$playerName verlässt das Turnier vorzeitig. Wie sollen alle noch ungespielten Partien gewertet werden?",
+                    text = "$playerName scheidet vorzeitig aus dem Turnier aus. Wie sollen alle noch ungespielten Partien gewertet werden?",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Column(modifier = Modifier.selectableGroup()) {
-                    // Option 1: Jugendregel
+                    // Option 1: Regulär (Default)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = (selectedRule == PlayerWithdrawRule.REGULAR_LOSS),
+                                onClick = { selectedRule = PlayerWithdrawRule.REGULAR_LOSS },
+                                role = Role.RadioButton
+                            )
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (selectedRule == PlayerWithdrawRule.REGULAR_LOSS),
+                            onClick = null
+                        )
+                        Column(modifier = Modifier.padding(start = 8.dp)) {
+                            Text(
+                                text = "Reguläre Wertung",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Restliche Partien als kampflos verloren (-) werten (Gegner erhalten +)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Option 2: Kulanz
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -609,37 +646,7 @@ private fun PlayerWithdrawDialog(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Restliche Partien als Remis (=) werten (0.5 Pkt. für beide)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    // Option 2: Regulär
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = (selectedRule == PlayerWithdrawRule.REGULAR_LOSS),
-                                onClick = { selectedRule = PlayerWithdrawRule.REGULAR_LOSS },
-                                role = Role.RadioButton
-                            )
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = (selectedRule == PlayerWithdrawRule.REGULAR_LOSS),
-                            onClick = null
-                        )
-                        Column(modifier = Modifier.padding(start = 8.dp)) {
-                            Text(
-                                text = "Regulär",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Restliche Partien als verloren (-) werten (Gegner erhalten +)",
+                                text = "Restliche Partien als Remis (=) werten (0,5 Pkt. für beide)",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -653,9 +660,10 @@ private fun PlayerWithdrawDialog(
                 onClick = { onConfirm(playerId, selectedRule) },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
-                )
+                ),
+                modifier = Modifier.testTag("confirm_withdraw_player_button")
             ) {
-                Text("Turnier beenden")
+                Text("$playerName austragen")
             }
         },
         dismissButton = {

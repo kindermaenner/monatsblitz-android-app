@@ -17,7 +17,7 @@
 
 3. TournamentScreen: User drückt Back-Taste
    * BackHandler abfangen
-   * Dialog: "Turnier abbrechen?"
+   * Dialog: "Turnieransicht verlassen?"
      - "Ja, abbrechen" → clearTournamentState() und zeige HomeScreen
      - "Nein, weitermachen" → Dialog schließen und bleibe auf TournamentScreen
 

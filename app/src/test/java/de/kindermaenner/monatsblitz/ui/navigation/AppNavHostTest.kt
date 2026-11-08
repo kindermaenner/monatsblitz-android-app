@@ -186,10 +186,10 @@ class AppNavHostTest {
             )
         }
 
-        composeTestRule.onNodeWithContentDescription("Turnier abbrechen").performClick()
+        composeTestRule.onNodeWithContentDescription("Turnieransicht verlassen").performClick()
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Ja, abbrechen").performClick()
+        composeTestRule.onNodeWithText("Ansicht verlassen").performClick()
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Neues Turnier").assertExists()

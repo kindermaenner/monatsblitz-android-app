@@ -2,10 +2,17 @@ package de.kindermaenner.monatsblitz.ui.settings
 
 import androidx.lifecycle.ViewModel
 import de.kindermaenner.monatsblitz.domain.model.ModePreselectionType
+import de.kindermaenner.monatsblitz.domain.model.TournamentDumpFileInfo
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
+import de.kindermaenner.monatsblitz.domain.repository.TournamentDumpRepository
 import de.kindermaenner.monatsblitz.domain.usecase.SyncModesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.ConnectionTestResult
 import de.kindermaenner.monatsblitz.domain.usecase.TestBackendConnectionUseCase
+import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
+import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.RecreatePostsDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.ReopenTournamentResponseDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.VerifyAuthResponseDto
 import de.kindermaenner.monatsblitz.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -35,11 +42,15 @@ class SettingsViewModelTest {
     private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
     private val testBackendConnectionUseCase = mockk<TestBackendConnectionUseCase>()
     private val syncPlayersUseCase = mockk<de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase>(relaxed = true)
+    private val tournamentDumpRepository = mockk<TournamentDumpRepository>(relaxed = true)
+    private val monatsblitzApi = mockk<MonatsblitzApi>(relaxed = true)
+    private val tournamentStorage = mockk<TournamentStorage>(relaxed = true)
 
     private val serverUrlFlow = MutableStateFlow("")
     private val apiKeyFlow = MutableStateFlow("")
     private val syncFlow = MutableStateFlow(true)
     private val offlineFlow = MutableStateFlow(false)
+    private val maintenanceKeyFlow = MutableStateFlow("")
 
     @Before
     fun setup() {
@@ -47,6 +58,7 @@ class SettingsViewModelTest {
         every { settingsRepository.apiKey } returns apiKeyFlow
         every { settingsRepository.showDetailedSyncIndicators } returns syncFlow
         every { settingsRepository.standaloneOfflineMode } returns offlineFlow
+        every { settingsRepository.maintenanceApiKey } returns maintenanceKeyFlow
         coEvery { testBackendConnectionUseCase(any(), any()) } returns ConnectionTestResult.Success(playerCount = 5)
     }
 
@@ -343,5 +355,131 @@ class SettingsViewModelTest {
         val result = viewModel.testResult.value
         assertTrue(result is ConnectionTestResult.Error)
         assertEquals("QR-Code enthält keine gültigen Zugangsdaten", (result as ConnectionTestResult.Error).message)
+    }
+
+    @Test
+    fun `verifyAndActivateAdminKey activates key on success`() = runTest {
+        coEvery { monatsblitzApi.verifyMaintenanceAuth("secret_key") } returns
+            VerifyAuthResponseDto(valid = true, role = "admin")
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = monatsblitzApi
+        )
+        advanceUntilIdle()
+
+        viewModel.onMaintenanceKeyChanged("secret_key")
+        viewModel.verifyAndActivateAdminKey()
+        advanceUntilIdle()
+
+        coVerify { settingsRepository.setMaintenanceApiKey("secret_key") }
+        assertEquals("Admin-Modus erfolgreich freigeschaltet", viewModel.adminMessage.value)
+        assertNull(viewModel.adminError.value)
+    }
+
+    @Test
+    fun `verifyAndActivateAdminKey handles invalid key`() = runTest {
+        coEvery { monatsblitzApi.verifyMaintenanceAuth("bad_key") } returns
+            VerifyAuthResponseDto(valid = false, role = "none")
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = monatsblitzApi
+        )
+        advanceUntilIdle()
+
+        viewModel.onMaintenanceKeyChanged("bad_key")
+        viewModel.verifyAndActivateAdminKey()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { settingsRepository.setMaintenanceApiKey("bad_key") }
+        assertEquals("Wartungs-Key wurde vom Server nicht akzeptiert", viewModel.adminError.value)
+    }
+
+    @Test
+    fun `lockAdminMode resets key and state`() = runTest {
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase
+        )
+        advanceUntilIdle()
+
+        viewModel.lockAdminMode()
+        advanceUntilIdle()
+
+        coVerify { settingsRepository.setMaintenanceApiKey("") }
+        assertEquals("", viewModel.maintenanceKeyInput.value)
+        assertEquals("Admin-Modus gesperrt", viewModel.adminMessage.value)
+    }
+
+    @Test
+    fun `reopenTournament calls API and resets storage state`() = runTest {
+        maintenanceKeyFlow.value = "admin_key"
+        coEvery { monatsblitzApi.reopenTournament("admin_key", any()) } returns
+            ReopenTournamentResponseDto(success = true, message = "Tournament reopened")
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = monatsblitzApi,
+            tournamentStorage = tournamentStorage
+        )
+        advanceUntilIdle()
+
+        viewModel.reopenTournament(42L)
+        advanceUntilIdle()
+
+        coVerify { tournamentStorage.saveTournamentState(42L, false) }
+        assertEquals("Tournament reopened", viewModel.adminMessage.value)
+    }
+
+    @Test
+    fun `recreatePosts calls API and updates status message`() = runTest {
+        maintenanceKeyFlow.value = "admin_key"
+        coEvery { monatsblitzApi.recreatePostsWithKey("admin_key") } returns
+            RecreatePostsDto(success = true, processed = 5, succeeded = 5, failed = 0)
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            monatsblitzApi = monatsblitzApi
+        )
+        advanceUntilIdle()
+
+        viewModel.recreatePosts()
+        advanceUntilIdle()
+
+        assertEquals("Aktualisiert: 5 von 5 Beiträgen (0 Fehler)", viewModel.adminMessage.value)
+    }
+
+    @Test
+    fun `restoreDump calls repository and resets tournament storage`() = runTest {
+        coEvery { tournamentDumpRepository.restoreDump(any()) } returns Result.success(42L)
+        coEvery { tournamentDumpRepository.getDumpFiles() } returns listOf(
+            TournamentDumpFileInfo(
+                fileName = "tournament_42.json",
+                filePath = "/path/to/tournament_42.json",
+                tournamentId = 42L,
+                timestamp = "20261108",
+                sizeBytes = 1024L
+            )
+        )
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            tournamentDumpRepository = tournamentDumpRepository,
+            tournamentStorage = tournamentStorage
+        )
+        advanceUntilIdle()
+
+        viewModel.restoreDump("{\"tournamentId\": 42}")
+        advanceUntilIdle()
+
+        coVerify { tournamentStorage.saveTournamentState(42L, false) }
+        assertTrue(viewModel.adminMessage.value?.contains("Turnier #42 erfolgreich aus Backup wiederhergestellt") == true)
+        assertEquals(1, viewModel.dumps.value.size)
     }
 }

@@ -34,12 +34,16 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     private val standaloneOfflineModeKey = booleanPreferencesKey("standalone_offline_mode")
     private val autoCleanupDumpsKey = booleanPreferencesKey("auto_cleanup_dumps")
     private val dumpRetentionMonthsKey = intPreferencesKey("dump_retention_months")
+    private val maintenanceApiKeyKey = stringPreferencesKey("maintenance_api_key")
 
     @Volatile
     private var cachedServerUrl: String? = null
 
     @Volatile
     private var cachedApiKey: String? = null
+
+    @Volatile
+    private var cachedMaintenanceApiKey: String? = null
 
     override val showDetailedSyncIndicators: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[showDetailedSyncIndicatorsKey] ?: true
@@ -54,6 +58,12 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
     override val apiKey: Flow<String> = dataStore.data.map { preferences ->
         val key = preferences[apiKeyKey] ?: ""
         cachedApiKey = key
+        key
+    }
+
+    override val maintenanceApiKey: Flow<String> = dataStore.data.map { preferences ->
+        val key = preferences[maintenanceApiKeyKey] ?: ""
+        cachedMaintenanceApiKey = key
         key
     }
 
@@ -122,6 +132,13 @@ class AppSettingsStorage(private val dataStore: DataStore<Preferences>) : Settin
         cachedApiKey = apiKey
         dataStore.edit { preferences ->
             preferences[apiKeyKey] = apiKey
+        }
+    }
+
+    override suspend fun setMaintenanceApiKey(key: String) {
+        cachedMaintenanceApiKey = key
+        dataStore.edit { preferences ->
+            preferences[maintenanceApiKeyKey] = key
         }
     }
 

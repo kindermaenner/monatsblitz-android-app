@@ -195,6 +195,9 @@ class AppContainer(context: Context) {
             testBackendConnectionUseCase = testBackendConnectionUseCase,
             syncPlayersUseCase = syncPlayersUseCase,
             syncModesUseCase = syncModesUseCase,
-            modeRepository = modeRepository
+            modeRepository = modeRepository,
+            tournamentDumpRepository = tournamentDumpRepository,
+            monatsblitzApi = api,
+            tournamentStorage = tournamentStorage
         )
 }

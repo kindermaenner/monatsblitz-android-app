@@ -4,16 +4,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import de.kindermaenner.monatsblitz.domain.repository.ModeRepository
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
+import de.kindermaenner.monatsblitz.domain.repository.TournamentDumpRepository
 import de.kindermaenner.monatsblitz.domain.usecase.SyncModesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.TestBackendConnectionUseCase
+import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
+import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
 
 class SettingsViewModelFactory(
     private val settingsRepository: SettingsRepository,
     private val testBackendConnectionUseCase: TestBackendConnectionUseCase = TestBackendConnectionUseCase(),
     private val syncPlayersUseCase: SyncPlayersUseCase? = null,
     private val syncModesUseCase: SyncModesUseCase? = null,
-    private val modeRepository: ModeRepository? = null
+    private val modeRepository: ModeRepository? = null,
+    private val tournamentDumpRepository: TournamentDumpRepository? = null,
+    private val monatsblitzApi: MonatsblitzApi? = null,
+    private val tournamentStorage: TournamentStorage? = null
 ) : ViewModelProvider.Factory {
 
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -24,9 +30,13 @@ class SettingsViewModelFactory(
                 testBackendConnectionUseCase = testBackendConnectionUseCase,
                 syncPlayersUseCase = syncPlayersUseCase,
                 syncModesUseCase = syncModesUseCase,
-                modeRepository = modeRepository
+                modeRepository = modeRepository,
+                tournamentDumpRepository = tournamentDumpRepository,
+                monatsblitzApi = monatsblitzApi,
+                tournamentStorage = tournamentStorage
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }
+

@@ -3,17 +3,22 @@ package de.kindermaenner.monatsblitz.infrastructure.dump
 import de.kindermaenner.monatsblitz.domain.model.GameMode
 import de.kindermaenner.monatsblitz.domain.model.GameResult
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.GameDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.PlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentDao
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.dao.TournamentPlayerDao
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.relation.TournamentWithDetails
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -29,6 +34,8 @@ class TournamentDumpRepositoryImplTest {
     private val database = mockk<AppDatabase>()
     private val tournamentDao = mockk<TournamentDao>()
     private val playerDao = mockk<PlayerDao>()
+    private val gameDao = mockk<GameDao>()
+    private val tournamentPlayerDao = mockk<TournamentPlayerDao>()
 
     @Test
     fun `createDump creates JSON file with full tournament data`() = runTest {
@@ -125,5 +132,117 @@ class TournamentDumpRepositoryImplTest {
         assertEquals(1, repo.getDumpCount())
         assertTrue("New file should still exist", newFile.exists())
         assertTrue("Old file should be deleted", !oldFile.exists())
+    }
+
+    @Test
+    fun `getDumpFiles and getDumpFile return existing dump files correctly`() = runTest {
+        val dumpDir = tempFolder.newFolder("dumps_list")
+        val repo = TournamentDumpRepositoryImpl(
+            baseDirProvider = { dumpDir },
+            database = database
+        )
+
+        val file1 = File(dumpDir, "tournament_42_20261108_120000.json").apply { writeText("{}") }
+        val file2 = File(dumpDir, "tournament_43_20261108_130000.json").apply { writeText("{}") }
+        File(dumpDir, "ignore_me.txt").apply { writeText("not a dump") }
+
+        val dumps = repo.getDumpFiles()
+        assertEquals(2, dumps.size)
+        assertTrue(dumps.any { it.tournamentId == 42L && it.fileName == file1.name })
+        assertTrue(dumps.any { it.tournamentId == 43L && it.fileName == file2.name })
+
+        val foundFile = repo.getDumpFile(file1.name)
+        assertNotNull(foundFile)
+        assertEquals(file1.absolutePath, foundFile?.absolutePath)
+
+        val notFound = repo.getDumpFile("non_existent.json")
+        assertNull(notFound)
+    }
+
+    @Test
+    fun `restoreDump successfully restores players, tournament, crossRefs and games`() = runTest {
+        val dumpDir = tempFolder.newFolder("dumps_restore")
+        val repo = TournamentDumpRepositoryImpl(
+            baseDirProvider = { dumpDir },
+            database = database
+        )
+
+        val jsonDump = """
+            {
+              "dumpedAt": "2026-11-08T15:00:00Z",
+              "tournamentId": 42,
+              "mode": "BLITZ_3_2",
+              "date": "2026-11-08",
+              "rounds": 1,
+              "remoteId": 100,
+              "isLocalOnly": false,
+              "countsForRanking": true,
+              "label": "Monatsblitz November",
+              "players": [
+                {
+                  "localId": 1,
+                  "remoteId": 201,
+                  "vorname": "Max",
+                  "name": "Mustermann",
+                  "rufname": "Maxi",
+                  "hasLeft": false,
+                  "points": 1.0,
+                  "rank": 1
+                },
+                {
+                  "localId": 2,
+                  "remoteId": 202,
+                  "vorname": "Erika",
+                  "name": "Musterfrau",
+                  "rufname": null,
+                  "hasLeft": false,
+                  "points": 0.0,
+                  "rank": 2
+                }
+              ],
+              "games": [
+                {
+                  "localGameId": 501,
+                  "player1Id": 1,
+                  "player2Id": 2,
+                  "leg": 1,
+                  "result": "Win",
+                  "remoteGameId": 601,
+                  "dirty": false
+                }
+              ]
+            }
+        """.trimIndent()
+
+        coEvery { database.playerDao() } returns playerDao
+        coEvery { database.tournamentDao() } returns tournamentDao
+        coEvery { database.tournamentPlayerDao() } returns tournamentPlayerDao
+        coEvery { database.gameDao() } returns gameDao
+
+        // Player 1 exists, Player 2 is new
+        val existingMax = PlayerEntity(id = 10L, remoteId = null, vorname = "Max", name = "Mustermann", rufname = "Maxi")
+        coEvery { playerDao.findPlayersByName("Max", "Mustermann") } returns listOf(existingMax)
+        coEvery { playerDao.update(any()) } returns Unit
+
+        coEvery { playerDao.findPlayersByName("Erika", "Musterfrau") } returns emptyList()
+        coEvery { playerDao.insert(any()) } returns 20L
+
+        coEvery { tournamentDao.getTournament(42L) } returns null
+        coEvery { tournamentDao.insert(any()) } returns 42L
+        coEvery { tournamentPlayerDao.upsertAll(any()) } returns Unit
+        coEvery { gameDao.upsertAll(any()) } returns listOf(501L)
+
+        val result = repo.restoreDump(jsonDump)
+
+        assertTrue("Restore should succeed", result.isSuccess)
+        assertEquals(42L, result.getOrThrow())
+
+        coVerify {
+            tournamentDao.insert(match { it.id == 42L && it.dirty })
+            tournamentPlayerDao.upsertAll(match { it.size == 2 })
+            gameDao.upsertAll(match { games ->
+                games.size == 1 && games[0].dirty && games[0].player1Id == 10L && games[0].player2Id == 20L && games[0].result == GameResult.Win
+            })
+        }
     }
 }

@@ -2,15 +2,23 @@ package de.kindermaenner.monatsblitz.infrastructure.dump
 
 import android.content.Context
 import android.util.Log
+import de.kindermaenner.monatsblitz.domain.model.GameMode
+import de.kindermaenner.monatsblitz.domain.model.GameResult
+import de.kindermaenner.monatsblitz.domain.model.TournamentDumpFileInfo
 import de.kindermaenner.monatsblitz.domain.repository.TournamentDumpRepository
 import de.kindermaenner.monatsblitz.infrastructure.dump.dto.DumpGameDto
 import de.kindermaenner.monatsblitz.infrastructure.dump.dto.DumpPlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.dump.dto.TournamentDumpDto
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.AppDatabase
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.GameEntity
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.PlayerEntity
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentEntity
+import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.TournamentPlayerCrossRef
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -106,6 +114,120 @@ class TournamentDumpRepositoryImpl(
         val dir = baseDirProvider()
         if (!dir.exists() || !dir.isDirectory) return 0
         return dir.listFiles { file -> file.isFile && file.name.endsWith(".json") }?.size ?: 0
+    }
+
+    override suspend fun getDumpFiles(): List<TournamentDumpFileInfo> {
+        val dir = baseDirProvider()
+        if (!dir.exists() || !dir.isDirectory) return emptyList()
+
+        return dir.listFiles { file -> file.isFile && file.name.endsWith(".json") }
+            ?.sortedByDescending { it.lastModified() }
+            ?.mapNotNull { file ->
+                val match = Regex("tournament_(\\d+)_(.+)\\.json").find(file.name)
+                val tId = match?.groupValues?.getOrNull(1)?.toLongOrNull() ?: 0L
+                val ts = match?.groupValues?.getOrNull(2) ?: ""
+                TournamentDumpFileInfo(
+                    fileName = file.name,
+                    filePath = file.absolutePath,
+                    tournamentId = tId,
+                    timestamp = ts,
+                    sizeBytes = file.length()
+                )
+            } ?: emptyList()
+    }
+
+    override suspend fun getDumpFile(fileName: String): File? {
+        val dir = baseDirProvider()
+        val file = File(dir, fileName)
+        return if (file.exists() && file.isFile) file else null
+    }
+
+    override suspend fun restoreDump(jsonContent: String): Result<Long> {
+        return runCatching {
+            val dump = json.decodeFromString<TournamentDumpDto>(jsonContent)
+            val tournamentId = dump.tournamentId
+
+            // 1. Players: find existing by name or insert new
+            val localPlayerMap = mutableMapOf<Long, Long>()
+            dump.players.forEach { dumpPlayer ->
+                val existing = database.playerDao().findPlayersByName(dumpPlayer.vorname, dumpPlayer.name).firstOrNull()
+                val actualId = if (existing != null) {
+                    if (existing.remoteId == null && dumpPlayer.remoteId != null) {
+                        database.playerDao().update(existing.copy(remoteId = dumpPlayer.remoteId))
+                    }
+                    existing.id
+                } else {
+                    database.playerDao().insert(
+                        PlayerEntity(
+                            remoteId = dumpPlayer.remoteId,
+                            vorname = dumpPlayer.vorname,
+                            name = dumpPlayer.name,
+                            rufname = dumpPlayer.rufname ?: ""
+                        )
+                    )
+                }
+                localPlayerMap[dumpPlayer.localId] = actualId
+            }
+
+            // 2. Tournament
+            val existingTournament = database.tournamentDao().getTournament(tournamentId)
+            val tournamentMode = GameMode.fromString(dump.mode)
+            val tournamentDate = runCatching { LocalDate.parse(dump.date) }.getOrDefault(LocalDate.now())
+            val tournamentEntity = TournamentEntity(
+                id = tournamentId,
+                remoteId = dump.remoteId,
+                date = tournamentDate,
+                rounds = dump.rounds,
+                mode = tournamentMode,
+                isLocalOnly = dump.isLocalOnly,
+                countsForRanking = dump.countsForRanking,
+                label = dump.label,
+                dirty = true
+            )
+            if (existingTournament != null) {
+                database.tournamentDao().update(tournamentEntity)
+            } else {
+                database.tournamentDao().insert(tournamentEntity)
+            }
+
+            // 3. Tournament players cross refs
+            val crossRefs = dump.players.mapNotNull { dumpPlayer ->
+                val actualPlayerId = localPlayerMap[dumpPlayer.localId] ?: return@mapNotNull null
+                TournamentPlayerCrossRef(
+                    tournamentId = tournamentId,
+                    playerId = actualPlayerId,
+                    hasLeft = dumpPlayer.hasLeft,
+                    points = dumpPlayer.points,
+                    rank = dumpPlayer.rank
+                )
+            }
+            if (crossRefs.isNotEmpty()) {
+                database.tournamentPlayerDao().upsertAll(crossRefs)
+            }
+
+            // 4. Games
+            val gameEntities = dump.games.mapNotNull { dumpGame ->
+                val p1 = localPlayerMap[dumpGame.player1Id] ?: return@mapNotNull null
+                val p2 = localPlayerMap[dumpGame.player2Id] ?: return@mapNotNull null
+                val result = runCatching { GameResult.valueOf(dumpGame.result) }.getOrDefault(GameResult.Open)
+                GameEntity(
+                    id = dumpGame.localGameId,
+                    remoteId = dumpGame.remoteGameId,
+                    tournamentId = tournamentId,
+                    player1Id = p1,
+                    player2Id = p2,
+                    leg = dumpGame.leg,
+                    result = result,
+                    dirty = true
+                )
+            }
+            if (gameEntities.isNotEmpty()) {
+                database.gameDao().upsertAll(gameEntities)
+            }
+
+            Log.i(TAG, "Turnier $tournamentId erfolgreich aus Dump wiederhergestellt (${gameEntities.size} Partien)")
+            tournamentId
+        }
     }
 
     companion object {

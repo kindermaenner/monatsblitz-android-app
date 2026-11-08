@@ -12,7 +12,12 @@ import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.usecase.ConnectionTestResult
 import de.kindermaenner.monatsblitz.domain.usecase.SyncModesUseCase
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
+import de.kindermaenner.monatsblitz.domain.model.TournamentDumpFileInfo
+import de.kindermaenner.monatsblitz.domain.repository.TournamentDumpRepository
 import de.kindermaenner.monatsblitz.domain.usecase.TestBackendConnectionUseCase
+import de.kindermaenner.monatsblitz.infrastructure.TournamentStorage
+import de.kindermaenner.monatsblitz.infrastructure.api.MonatsblitzApi
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.ReopenTournamentRequestDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,15 +25,21 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import java.io.File
 
 class SettingsViewModel(
     private val settingsRepository: SettingsRepository,
     private val testBackendConnectionUseCase: TestBackendConnectionUseCase = TestBackendConnectionUseCase(),
     private val syncPlayersUseCase: SyncPlayersUseCase? = null,
     private val syncModesUseCase: SyncModesUseCase? = null,
-    private val modeRepository: ModeRepository? = null
+    private val modeRepository: ModeRepository? = null,
+    private val tournamentDumpRepository: TournamentDumpRepository? = null,
+    private val monatsblitzApi: MonatsblitzApi? = null,
+    private val tournamentStorage: TournamentStorage? = null
 ) : ViewModel() {
 
     private val _serverUrlInput = MutableStateFlow("")
@@ -117,9 +128,33 @@ class SettingsViewModel(
                 initialValue = emptyList()
             )
 
+    private val _dumps = MutableStateFlow<List<TournamentDumpFileInfo>>(emptyList())
+    val dumps: StateFlow<List<TournamentDumpFileInfo>> = _dumps.asStateFlow()
+
+    private val _maintenanceKeyInput = MutableStateFlow("")
+    val maintenanceKeyInput: StateFlow<String> = _maintenanceKeyInput.asStateFlow()
+
+    val isAdminMode: StateFlow<Boolean> = settingsRepository.maintenanceApiKey
+        .map { it.isNotBlank() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
+    private val _isAdminVerifying = MutableStateFlow(false)
+    val isAdminVerifying: StateFlow<Boolean> = _isAdminVerifying.asStateFlow()
+
+    private val _adminMessage = MutableStateFlow<String?>(null)
+    val adminMessage: StateFlow<String?> = _adminMessage.asStateFlow()
+
+    private val _adminError = MutableStateFlow<String?>(null)
+    val adminError: StateFlow<String?> = _adminError.asStateFlow()
+
     private var hasLoadedInitialSettings = false
 
     init {
+        loadDumps()
         viewModelScope.launch {
             combine(settingsRepository.serverUrl, settingsRepository.apiKey) { url, key ->
                 Pair(url, key)
@@ -129,6 +164,11 @@ class SettingsViewModel(
                     _apiKeyInput.value = key
                     hasLoadedInitialSettings = true
                 }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.maintenanceApiKey.collect { key ->
+                _maintenanceKeyInput.value = key
             }
         }
     }
@@ -379,6 +419,145 @@ class SettingsViewModel(
             } else {
                 current.add(modeName)
                 settingsRepository.setRotationModes(current)
+            }
+        }
+    }
+
+    fun loadDumps() {
+        viewModelScope.launch {
+            _dumps.value = tournamentDumpRepository?.getDumpFiles() ?: emptyList()
+        }
+    }
+
+    fun getDumpFile(fileName: String): File? {
+        return runBlocking { tournamentDumpRepository?.getDumpFile(fileName) }
+    }
+
+    fun onMaintenanceKeyChanged(key: String) {
+        _maintenanceKeyInput.value = key
+        _adminError.value = null
+        _adminMessage.value = null
+    }
+
+    fun clearAdminFeedback() {
+        _adminMessage.value = null
+        _adminError.value = null
+    }
+
+    fun verifyAndActivateAdminKey() {
+        val key = _maintenanceKeyInput.value.trim()
+        if (key.isBlank()) {
+            _adminError.value = "Bitte gib einen Wartungs-API-Key ein"
+            return
+        }
+
+        viewModelScope.launch {
+            _isAdminVerifying.value = true
+            _adminError.value = null
+            _adminMessage.value = null
+            try {
+                val api = monatsblitzApi
+                if (api == null) {
+                    _adminError.value = "API-Client nicht verfügbar"
+                    return@launch
+                }
+                val response = api.verifyMaintenanceAuth(key)
+                if (response.valid) {
+                    settingsRepository.setMaintenanceApiKey(key)
+                    _adminMessage.value = "Admin-Modus erfolgreich freigeschaltet"
+                } else {
+                    _adminError.value = "Wartungs-Key wurde vom Server nicht akzeptiert"
+                }
+            } catch (e: Exception) {
+                _adminError.value = "Verbindung fehlgeschlagen: ${e.message ?: "Unbekannter Fehler"}"
+            } finally {
+                _isAdminVerifying.value = false
+            }
+        }
+    }
+
+    fun lockAdminMode() {
+        viewModelScope.launch {
+            settingsRepository.setMaintenanceApiKey("")
+            _maintenanceKeyInput.value = ""
+            _adminMessage.value = "Admin-Modus gesperrt"
+            _adminError.value = null
+        }
+    }
+
+    fun reopenTournament(tournamentId: Long) {
+        viewModelScope.launch {
+            _isAdminVerifying.value = true
+            _adminError.value = null
+            _adminMessage.value = null
+            try {
+                val key = settingsRepository.maintenanceApiKey.first().trim()
+                val api = monatsblitzApi
+                if (api == null || key.isBlank()) {
+                    _adminError.value = "Nicht autorisiert"
+                    return@launch
+                }
+                val response = api.reopenTournament(key, ReopenTournamentRequestDto(tournamentId))
+                if (response.success) {
+                    tournamentStorage?.saveTournamentState(tournamentId, false)
+                    _adminMessage.value = response.message.ifBlank { "Turnier #$tournamentId wurde wieder geöffnet" }
+                } else {
+                    _adminError.value = "Fehler: ${response.message}"
+                }
+            } catch (e: Exception) {
+                _adminError.value = "Fehler beim Wiedereröffnen: ${e.message ?: "Unbekannter Fehler"}"
+            } finally {
+                _isAdminVerifying.value = false
+            }
+        }
+    }
+
+    fun recreatePosts() {
+        viewModelScope.launch {
+            _isAdminVerifying.value = true
+            _adminError.value = null
+            _adminMessage.value = null
+            try {
+                val key = settingsRepository.maintenanceApiKey.first().trim()
+                val api = monatsblitzApi
+                if (api == null || key.isBlank()) {
+                    _adminError.value = "Nicht autorisiert"
+                    return@launch
+                }
+                val response = api.recreatePostsWithKey(key)
+                _adminMessage.value = "Aktualisiert: ${response.succeeded} von ${response.processed} Beiträgen (${response.failed} Fehler)"
+            } catch (e: Exception) {
+                _adminError.value = "Fehler beim Aktualisieren: ${e.message ?: "Unbekannter Fehler"}"
+            } finally {
+                _isAdminVerifying.value = false
+            }
+        }
+    }
+
+    fun restoreDump(jsonContent: String) {
+        viewModelScope.launch {
+            _isAdminVerifying.value = true
+            _adminError.value = null
+            _adminMessage.value = null
+            try {
+                val repo = tournamentDumpRepository
+                if (repo == null) {
+                    _adminError.value = "Dump-Repository nicht verfügbar"
+                    return@launch
+                }
+                val result = repo.restoreDump(jsonContent)
+                result.fold(
+                    onSuccess = { tId ->
+                        tournamentStorage?.saveTournamentState(tId, false)
+                        loadDumps()
+                        _adminMessage.value = "Turnier #$tId erfolgreich aus Backup wiederhergestellt! Es kann nun synchronisiert werden."
+                    },
+                    onFailure = { e ->
+                        _adminError.value = "Import fehlgeschlagen: ${e.message ?: "Ungültiges Backup-Format"}"
+                    }
+                )
+            } finally {
+                _isAdminVerifying.value = false
             }
         }
     }

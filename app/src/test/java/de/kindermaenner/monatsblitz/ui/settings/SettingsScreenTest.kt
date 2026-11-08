@@ -38,6 +38,7 @@ class SettingsScreenTest {
     private val serverUrlFlow = MutableStateFlow("https://sg-koenigslutter.de")
     private val apiKeyFlow = MutableStateFlow("test-key")
     private val offlineFlow = MutableStateFlow(false)
+    private val maintenanceKeyFlow = MutableStateFlow("")
 
     @Before
     fun setup() {
@@ -50,6 +51,7 @@ class SettingsScreenTest {
         every { settingsRepository.serverUrl } returns serverUrlFlow
         every { settingsRepository.apiKey } returns apiKeyFlow
         every { settingsRepository.standaloneOfflineMode } returns offlineFlow
+        every { settingsRepository.maintenanceApiKey } returns maintenanceKeyFlow
     }
 
     @Test

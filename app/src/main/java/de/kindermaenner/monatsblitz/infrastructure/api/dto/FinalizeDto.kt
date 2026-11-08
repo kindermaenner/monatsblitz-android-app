@@ -31,4 +31,37 @@ data class FinalizeResponseDto(
 data class CreateYearPageDto(val year : Int)
 
 @Serializable
-data class RecreatePostsDto(val processed : Int,val succeeded : Int, val failed : Int, val errors : List<String>)
+data class RecreatePostsDto(
+    val processed: Int = 0,
+    val succeeded: Int = 0,
+    val failed: Int = 0,
+    val errors: List<String> = emptyList(),
+    val success: Boolean = true
+)
+
+@Serializable
+data class ReopenTournamentRequestDto(
+    @SerialName("tournament_id")
+    val tournamentId: Long
+)
+
+@Serializable
+data class ReopenTournamentResponseDto(
+    val success: Boolean = false,
+    @SerialName("tournament_id")
+    val tournamentId: Long = 0,
+    val status: String = "",
+    @SerialName("already_open")
+    val alreadyOpen: Boolean = false,
+    val message: String = ""
+)
+
+@Serializable
+data class VerifyAuthResponseDto(
+    val valid: Boolean = false,
+    val role: String = "",
+    @SerialName("api_version")
+    val apiVersion: Int = 0,
+    val capabilities: List<String> = emptyList()
+)
+

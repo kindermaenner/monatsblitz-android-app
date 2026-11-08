@@ -23,12 +23,14 @@ interface SettingsRepository {
     val standaloneOfflineMode: Flow<Boolean>
     val autoCleanupDumps: Flow<Boolean>
     val dumpRetentionMonths: Flow<Int>
+    val maintenanceApiKey: Flow<String>
     val isServerConfigured: Flow<Boolean>
     val isConfigured: Flow<Boolean>
 
     suspend fun setShowDetailedSyncIndicators(enabled: Boolean)
     suspend fun setServerUrl(url: String)
     suspend fun setApiKey(apiKey: String)
+    suspend fun setMaintenanceApiKey(key: String)
     suspend fun setPlayerSortField(field: PlayerSortField)
     suspend fun setPlayerSortOrder(order: PlayerSortOrder)
     suspend fun setUseShortPlayerNames(enabled: Boolean)

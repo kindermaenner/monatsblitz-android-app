@@ -21,15 +21,19 @@ import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerBatchItemDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerBatchResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.PlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.RecreatePostsDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.ReopenTournamentRequestDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.ReopenTournamentResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.ResultBatchItemDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.ResultBatchResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.ResultDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.TournamentDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.UpdateGameDto
+import de.kindermaenner.monatsblitz.infrastructure.api.dto.VerifyAuthResponseDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.WithdrawPlayerDto
 import de.kindermaenner.monatsblitz.infrastructure.api.dto.WithdrawPlayerResponseDto
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -148,4 +152,20 @@ interface MonatsblitzApi {
     suspend fun addTournamentPlayer(
         @Body request: AddTournamentPlayerDto
     ): AddTournamentPlayerResponseDto
+
+    @GET("auth/verify")
+    suspend fun verifyMaintenanceAuth(
+        @Header("X-MB-Maintenance-Key") maintenanceKey: String
+    ): VerifyAuthResponseDto
+
+    @POST("tournament/reopen")
+    suspend fun reopenTournament(
+        @Header("X-MB-Maintenance-Key") maintenanceKey: String,
+        @Body request: ReopenTournamentRequestDto
+    ): ReopenTournamentResponseDto
+
+    @POST("recreatePosts")
+    suspend fun recreatePostsWithKey(
+        @Header("X-MB-Maintenance-Key") maintenanceKey: String
+    ): RecreatePostsDto
 }

@@ -24,6 +24,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import de.kindermaenner.monatsblitz.domain.repository.SettingsRepository
 import de.kindermaenner.monatsblitz.domain.usecase.SyncPlayersUseCase
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -430,6 +431,54 @@ class TournamentSetupViewModelTest {
         viewModel.adoptRemoteTournament()
         advanceUntilIdle()
         assertEquals(42L, navigatedId)
+    }
+
+    @Test
+    fun `adoptRemoteTournament keeps loading state and message when players flow emits during adoption`() = runTest {
+        val playersFlow = MutableSharedFlow<List<Player>>(replay = 1)
+        playersFlow.emit(listOf(Player(1, "N", "V")))
+        coEvery { playerRepository.observePlayers() } returns playersFlow
+
+        val tournamentRepo = mockk<TournamentRepository>()
+        val remoteInfo = RemoteOpenTournamentInfo(id = 10, date = "2026-10-21", mode = "3+2", roundCount = 1, playerCount = 6)
+        coEvery { tournamentRepo.getRemoteOpenTournament() } returns remoteInfo
+        coEvery { settingsRepository.autoAdoptOpenTournament } returns flowOf(false)
+
+        val adoptStarted = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val canCompleteAdopt = kotlinx.coroutines.CompletableDeferred<Unit>()
+        coEvery { tournamentRepo.adoptRemoteTournament(10) } coAnswers {
+            adoptStarted.complete(Unit)
+            canCompleteAdopt.await()
+            42L
+        }
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository,
+            createTournamentUseCase,
+            addPlayerUseCase,
+            syncPlayersUseCase,
+            settingsRepository,
+            tournamentRepo
+        )
+        advanceUntilIdle()
+
+        viewModel.adoptRemoteTournament()
+        adoptStarted.await()
+
+        // Verify loading state is active
+        assertTrue(viewModel.uiState.value.isLoading)
+        assertEquals("Turnierdaten werden vom Server geladen…", viewModel.uiState.value.loadingMessage)
+
+        // Simulate syncPlayersUseCase causing observePlayers to emit updated players
+        playersFlow.emit(listOf(Player(1, "N", "V"), Player(2, "Neu", "Spieler")))
+        testScheduler.runCurrent()
+
+        // Crucial check: isLoading and loadingMessage must not be reset by observePlayers!
+        assertTrue(viewModel.uiState.value.isLoading)
+        assertEquals("Turnierdaten werden vom Server geladen…", viewModel.uiState.value.loadingMessage)
+
+        canCompleteAdopt.complete(Unit)
+        advanceUntilIdle()
     }
 
     @Test

@@ -64,7 +64,7 @@ class TournamentSetupViewModel(
                 _uiState.update { state ->
                     state.copy(
                         players = sortPlayers(rawPlayers, state.sortField, state.sortOrder),
-                        isLoading = false
+                        isLoading = if (state.loadingMessage != null) state.isLoading else false
                     )
                 }
             }
@@ -588,7 +588,13 @@ class TournamentSetupViewModel(
                 _uiState.update { it.copy(isCheckingForOpenTournament = false) }
             }
         } catch (_: Exception) {
-            _uiState.update { it.copy(isCheckingForOpenTournament = false) }
+            _uiState.update {
+                it.copy(
+                    isCheckingForOpenTournament = false,
+                    isLoading = false,
+                    loadingMessage = null
+                )
+            }
         }
     }
 
@@ -621,6 +627,14 @@ class TournamentSetupViewModel(
     }
 
     fun dismissRemoteTournamentDialog() {
-        _uiState.update { it.copy(remoteOpenTournament = null, isCheckingForOpenTournament = false, adoptError = null) }
+        _uiState.update {
+            it.copy(
+                remoteOpenTournament = null,
+                isCheckingForOpenTournament = false,
+                adoptError = null,
+                isLoading = false,
+                loadingMessage = null
+            )
+        }
     }
 }

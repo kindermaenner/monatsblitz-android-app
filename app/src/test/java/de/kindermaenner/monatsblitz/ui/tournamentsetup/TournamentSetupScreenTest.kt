@@ -631,6 +631,45 @@ class TournamentSetupScreenTest {
     }
 
     @Test
+    fun setupScreen_remoteOpenTournamentDialog_clickFortsetzen_showsLoadingIndicatorAndNotSetupDialog() {
+        val openInfo = de.kindermaenner.monatsblitz.domain.repository.RemoteOpenTournamentInfo(
+            id = 42,
+            date = "2026-11-07",
+            mode = "Blitz 5+0",
+            roundCount = 1,
+            playerCount = 8,
+            dailyNumber = 1
+        )
+        val tournamentRepo = mockk<de.kindermaenner.monatsblitz.domain.repository.TournamentRepository>(relaxed = true)
+        val canComplete = kotlinx.coroutines.CompletableDeferred<Long>()
+        coEvery { tournamentRepo.adoptRemoteTournament(42) } coAnswers { canComplete.await() }
+
+        val viewModel = TournamentSetupViewModel(
+            playerRepository,
+            createTournamentUseCase,
+            addPlayerUseCase,
+            tournamentRepository = tournamentRepo
+        )
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(remoteOpenTournament = openInfo)
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+
+        // Before click: dialog is shown
+        composeTestRule.onNodeWithText("Fortsetzen").assertExists().performClick()
+
+        // During adopt: loading indicator and loading message are shown, NOT the tournament setup / settings screen
+        composeTestRule.onNodeWithText("Turnierdaten werden vom Server geladen…").assertExists()
+        composeTestRule.onNodeWithText("Neues Turnier").assertDoesNotExist()
+
+        canComplete.complete(42L)
+    }
+
+    @Test
     fun setupScreen_adoptErrorDialog_clickFehlerMelden() {
         val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
         val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")

@@ -222,7 +222,7 @@ fun TournamentSetupScreen(
     }
 
     val loadingMsg = state.loadingMessage
-    if (state.isLoading && loadingMsg != null) {
+    if (loadingMsg != null) {
         BackHandler(enabled = true) { /* Block back navigation during loading */ }
         Box(
             modifier = Modifier

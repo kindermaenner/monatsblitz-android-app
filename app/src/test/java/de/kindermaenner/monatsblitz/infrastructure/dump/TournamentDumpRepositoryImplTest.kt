@@ -14,6 +14,7 @@ import de.kindermaenner.monatsblitz.infrastructure.persistence.room.entity.Tourn
 import de.kindermaenner.monatsblitz.infrastructure.persistence.room.relation.TournamentWithDetails
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -390,5 +391,114 @@ class TournamentDumpRepositoryImplTest {
 
         val result = repo.restoreDump("not a valid json")
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `context constructor initializes dump directory in filesDir`() = runTest {
+        val mockContext = mockk<android.content.Context>()
+        val fakeFilesDir = tempFolder.newFolder("filesDir")
+        every { mockContext.filesDir } returns fakeFilesDir
+
+        val repo = TournamentDumpRepositoryImpl(mockContext, database)
+        val dumps = repo.getDumpFiles()
+        assertNotNull(dumps)
+    }
+
+    @Test
+    fun `getDumpFiles handles non-matching filenames with fallback tournamentId 0`() = runTest {
+        val dumpDir = tempFolder.newFolder("dumps_fallback")
+        val repo = TournamentDumpRepositoryImpl(
+            baseDirProvider = { dumpDir },
+            database = database
+        )
+
+        File(dumpDir, "custom_backup.json").apply { writeText("{}") }
+
+        val dumps = repo.getDumpFiles()
+        assertEquals(1, dumps.size)
+        assertEquals(0L, dumps[0].tournamentId)
+        assertEquals("", dumps[0].timestamp)
+        assertEquals("custom_backup.json", dumps[0].fileName)
+    }
+
+    @Test
+    fun `restorePlayers does not update remoteId when existing player already has one`() = runTest {
+        val repo = TournamentDumpRepositoryImpl(
+            baseDirProvider = { tempFolder.root },
+            database = database
+        )
+
+        val jsonDump = """
+            {
+              "dumpedAt": "2026-11-08T15:00:00Z",
+              "tournamentId": 42,
+              "mode": "BLITZ_3_2",
+              "date": "2026-11-08",
+              "rounds": 1,
+              "remoteId": 100,
+              "isLocalOnly": false,
+              "countsForRanking": true,
+              "label": "Turnier",
+              "players": [
+                { "localId": 1, "remoteId": 999, "vorname": "Max", "name": "Mustermann", "rufname": null, "hasLeft": false, "points": null, "rank": null }
+              ],
+              "games": []
+            }
+        """.trimIndent()
+
+        val existingPlayer = PlayerEntity(id = 10L, remoteId = 201L, vorname = "Max", name = "Mustermann", rufname = "")
+        coEvery { playerDao.findPlayersByName("Max", "Mustermann") } returns listOf(existingPlayer)
+        coEvery { tournamentDao.getTournament(42L) } returns null
+        coEvery { tournamentDao.insert(any()) } returns 42L
+        coEvery { tournamentPlayerDao.upsertAll(any()) } returns Unit
+
+        val result = repo.restoreDump(jsonDump)
+        assertTrue(result.isSuccess)
+
+        // PlayerDao.update should NOT be called because remoteId was already 201L
+        coVerify(exactly = 0) { playerDao.update(any()) }
+    }
+
+    @Test
+    fun `restoreTournamentPlayers and restoreGames skip orphan player references gracefully`() = runTest {
+        val repo = TournamentDumpRepositoryImpl(
+            baseDirProvider = { tempFolder.root },
+            database = database
+        )
+
+        val jsonDump = """
+            {
+              "dumpedAt": "2026-11-08T15:00:00Z",
+              "tournamentId": 42,
+              "mode": "BLITZ_3_2",
+              "date": "2026-11-08",
+              "rounds": 1,
+              "remoteId": 100,
+              "isLocalOnly": false,
+              "countsForRanking": true,
+              "label": "Turnier",
+              "players": [],
+              "games": [
+                {
+                  "localGameId": 10,
+                  "player1Id": 999,
+                  "player2Id": 888,
+                  "leg": 1,
+                  "result": "Win",
+                  "remoteGameId": null,
+                  "dirty": false
+                }
+              ]
+            }
+        """.trimIndent()
+
+        coEvery { tournamentDao.getTournament(42L) } returns null
+        coEvery { tournamentDao.insert(any()) } returns 42L
+
+        val result = repo.restoreDump(jsonDump)
+        assertTrue(result.isSuccess)
+
+        // Orphan games (where players 999 and 888 are not in localPlayerMap) should be omitted
+        coVerify(exactly = 0) { gameDao.upsertAll(any()) }
     }
 }

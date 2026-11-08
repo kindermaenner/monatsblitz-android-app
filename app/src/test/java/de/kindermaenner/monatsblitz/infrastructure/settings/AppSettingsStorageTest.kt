@@ -354,4 +354,64 @@ class AppSettingsStorageTest {
         assertEquals(de.kindermaenner.monatsblitz.domain.model.PlayerSortOrder.ASCENDING, storage.playerSortOrder.first())
         assertEquals(de.kindermaenner.monatsblitz.domain.model.ModePreselectionType.NONE, storage.modePreselectionType.first())
     }
+
+    @Test
+    fun `maintenanceApiKey returns stored string and updates preference`() = runTest {
+        val maintenanceKey = stringPreferencesKey("maintenance_api_key")
+        val initialPrefs = mutablePreferencesOf()
+        var updatedPrefs: Preferences? = null
+        every { dataStore.data } returns flowOf(initialPrefs)
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
+        val storage = AppSettingsStorage(dataStore)
+
+        assertEquals("", storage.maintenanceApiKey.first())
+
+        storage.setMaintenanceApiKey("my_secret_key")
+        assertEquals("my_secret_key", updatedPrefs?.get(maintenanceKey))
+    }
+
+    @Test
+    fun `autoCleanupDumps returns default true and updates preference`() = runTest {
+        val autoCleanupKey = booleanPreferencesKey("auto_cleanup_dumps")
+        val initialPrefs = mutablePreferencesOf()
+        var updatedPrefs: Preferences? = null
+        every { dataStore.data } returns flowOf(initialPrefs)
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
+        val storage = AppSettingsStorage(dataStore)
+
+        assertTrue("Default should be true", storage.autoCleanupDumps.first())
+
+        storage.setAutoCleanupDumps(false)
+        assertEquals(false, updatedPrefs?.get(autoCleanupKey))
+    }
+
+    @Test
+    fun `dumpRetentionMonths returns default 3 and updates preference`() = runTest {
+        val retentionKey = intPreferencesKey("dump_retention_months")
+        val initialPrefs = mutablePreferencesOf()
+        var updatedPrefs: Preferences? = null
+        every { dataStore.data } returns flowOf(initialPrefs)
+        coEvery { dataStore.updateData(any()) } coAnswers {
+            val transform = firstArg<suspend (Preferences) -> Preferences>()
+            val updated = transform(initialPrefs)
+            updatedPrefs = updated
+            updated
+        }
+        val storage = AppSettingsStorage(dataStore)
+
+        assertEquals(3, storage.dumpRetentionMonths.first())
+
+        storage.setDumpRetentionMonths(12)
+        assertEquals(12, updatedPrefs?.get(retentionKey))
+    }
 }

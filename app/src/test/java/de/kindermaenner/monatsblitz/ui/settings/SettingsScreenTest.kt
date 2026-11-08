@@ -554,4 +554,65 @@ class SettingsScreenTest {
             .performScrollTo()
             .assertExists()
     }
+
+    @Test
+    fun settingsScreen_rendersDumpListSection_andAllowsSharing() {
+        val dumpRepo = mockk<de.kindermaenner.monatsblitz.domain.repository.TournamentDumpRepository>(relaxed = true)
+        val dummyDump = de.kindermaenner.monatsblitz.domain.model.TournamentDumpFileInfo(
+            fileName = "tournament_42_20261108.json",
+            filePath = "/fake/path/tournament_42_20261108.json",
+            tournamentId = 42L,
+            timestamp = "20261108",
+            sizeBytes = 2048L
+        )
+        coEvery { dumpRepo.getDumpFiles() } returns listOf(dummyDump)
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase,
+            tournamentDumpRepository = dumpRepo
+        )
+        viewModel.loadDumps()
+
+        composeTestRule.setContent {
+            SettingsScreen(viewModel = viewModel, onBack = {})
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Lokale Sicherungen (1)")
+            .performScrollTo()
+            .assertExists()
+
+        composeTestRule.onNodeWithText("Turnier #42")
+            .performScrollTo()
+            .assertExists()
+
+        composeTestRule.onNodeWithTag("share_dump_tournament_42_20261108.json")
+            .performScrollTo()
+            .performClick()
+        composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun settingsScreen_toggleAutoCleanupDumps_triggersRepository() {
+        val autoCleanupFlow = MutableStateFlow(true)
+        every { settingsRepository.autoCleanupDumps } returns autoCleanupFlow
+
+        val viewModel = SettingsViewModel(
+            settingsRepository = settingsRepository,
+            testBackendConnectionUseCase = testBackendConnectionUseCase
+        )
+
+        composeTestRule.setContent {
+            SettingsScreen(viewModel = viewModel, onBack = {})
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("settings_auto_cleanup_dumps_switch")
+            .performScrollTo()
+            .performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify { settingsRepository.setAutoCleanupDumps(false) }
+    }
 }

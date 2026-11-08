@@ -680,4 +680,26 @@ class TournamentSetupScreenTest {
 
         composeTestRule.onNodeWithText("Noch keine Spieler vorhanden.").assertExists()
     }
+
+    @Test
+    fun setupScreen_adoptErrorDialog_rendersAndDismisses() {
+        val viewModel = TournamentSetupViewModel(playerRepository, createTournamentUseCase, addPlayerUseCase)
+        val field = TournamentSetupViewModel::class.java.getDeclaredField("_uiState")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val stateFlow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<TournamentSetupUiState>
+        stateFlow.value = stateFlow.value.copy(adoptError = "Verbindung zum Server fehlgeschlagen")
+
+        composeTestRule.setContent {
+            TournamentSetupScreen(viewModel = viewModel) {}
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Fehler").assertExists()
+        composeTestRule.onNodeWithText("Verbindung zum Server fehlgeschlagen").assertExists()
+        composeTestRule.onNodeWithText("OK").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Fehler").assertDoesNotExist()
+    }
 }

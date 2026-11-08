@@ -64,7 +64,7 @@ class TournamentSetupViewModel(
                 _uiState.update { state ->
                     state.copy(
                         players = sortPlayers(rawPlayers, state.sortField, state.sortOrder),
-                        isLoading = if (state.loadingMessage != null) state.isLoading else false
+                        isLoading = state.loadingMessage != null && state.isLoading
                     )
                 }
             }
